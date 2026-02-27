@@ -47,44 +47,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         // Salvar o token no serviço
         APNsTokenManager.shared.saveToken(tokenString)
-        
-        // Enviar para seu servidor
-        Task {
-            await sendTokenToServer(tokenString)
-        }
     }
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("❌ Falha ao registrar para notificações remotas: \(error.localizedDescription)")
         APNsTokenManager.shared.clearToken()
-    }
-    
-    // MARK: - Enviar token para o servidor
-    
-    private func sendTokenToServer(_ token: String) async {
-//        guard let url = URL(string: "http://localhost:3000/register-device") else {
-//            print("❌ URL inválida")
-//            return
-//        }
-//        
-//        do {
-//            var request = URLRequest(url: url)
-//            request.httpMethod = "POST"
-//            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-//            
-//            let payload: [String: String] = ["device_token": token]
-//            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-//            
-//            let (_, response) = try await URLSession.shared.data(for: request)
-//            
-//            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
-//                print("✅ Token enviado ao servidor com sucesso")
-//            } else {
-//                print("⚠️ Falha ao enviar token ao servidor")
-//            }
-//        } catch {
-//            print("❌ Erro ao enviar token: \(error.localizedDescription)")
-//        }
     }
     
     // MARK: - UNUserNotificationCenterDelegate

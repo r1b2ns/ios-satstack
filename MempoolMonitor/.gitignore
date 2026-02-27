@@ -1,8 +1,11 @@
 # ─── Configurações locais (bundle ID e outros valores privados) ──────────────
 Configs/Local.xcconfig
 
-# ─── Xcode project (gerado pelo XcodeGen) ────────────────────────────────────
+# ─── Xcode project e plists gerados pelo XcodeGen ────────────────────────────
 MempoolMonitor.xcodeproj/
+MempoolMonitor/Info.plist
+MempoolMonitorWidget/Info.plist
+MempoolMonitorTests/Info.plist
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 build/
