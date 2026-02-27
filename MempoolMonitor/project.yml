@@ -81,9 +81,10 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
 
-    # Aponta para a pasta com os .swift — XcodeGen adiciona todos automaticamente
+    # Fontes do app + tipos compartilhados com o widget extension
     sources:
       - path: MempoolMonitor
+      - path: Shared
 
     # Info.plist gerenciado pelo XcodeGen — source of truth está aqui.
     # "properties" faz o XcodeGen gerar/sobrescrever o arquivo em cada "xcodegen generate".
@@ -110,12 +111,21 @@ targets:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations: {}
 
-        # ── App Transport Security — permite HTTP para localhost ───────────
+        # ── App Transport Security — permite HTTP para localhost e servidor local ──
         NSAppTransportSecurity:
           NSExceptionDomains:
             localhost:
               NSExceptionAllowsInsecureHTTPLoads: true
               NSIncludesSubdomains: false
+            192.168.15.33:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: false
+
+        # ── Live Activities ────────────────────────────────────────────────
+        NSSupportsLiveActivities: true
+
+        # ── Configurações de servidor (lidas em runtime via Bundle.main) ───
+        MempoolMonitorHost: "$(MEMPOOL_MONITOR_HOST)"
 
     # Entitlements — XcodeGen define CODE_SIGN_ENTITLEMENTS automaticamente.
     # "properties" faz o XcodeGen gerar/sobrescrever o arquivo (source of truth aqui).
@@ -153,3 +163,159 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: ""
         SWIFT_EMIT_LOC_STRINGS: YES
         SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+    # ─── Widget extension embutido no app ────────────────────────────────────
+    dependencies:
+      - target: MempoolMonitorWidget
+        embed: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+  MempoolMonitorWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+
+    # Fontes do widget + tipos compartilhados com o app
+    sources:
+      - path: MempoolMonitorWidget
+      - path: Shared
+
+    # Info.plist do widget — gerenciado pelo XcodeGen
+    info:
+      path: MempoolMonitorWidget/Info.plist
+      properties:
+        CFBundleDevelopmentRegion:    "$(DEVELOPMENT_LANGUAGE)"
+        CFBundleExecutable:           "$(EXECUTABLE_NAME)"
+        CFBundleIdentifier:           "$(PRODUCT_BUNDLE_IDENTIFIER)"
+        CFBundleInfoDictionaryVersion: "6.0"
+        CFBundleName:                 "$(PRODUCT_NAME)"
+        CFBundlePackageType:          "XPC!"
+        CFBundleShortVersionString:   "$(MARKETING_VERSION)"
+        CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
+        # Ponto de extensão obrigatório para WidgetKit / Live Activities
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+    # Mesmo xcconfig do app — expõe PRODUCT_BUNDLE_IDENTIFIER_WIDGET
+    configFiles:
+      Debug: Configs/Local.xcconfig
+      Release: Configs/Local.xcconfig
+
+    # ─── Configurações a nível de target ────────────────────────────────────
+    settings:
+      base:
+        CODE_SIGN_IDENTITY: "Apple Development"
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: "1"
+        DEVELOPMENT_TEAM: X7R68587M4
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../../Frameworks"
+        MARKETING_VERSION: "1.0"
+        # Bundle ID vem da chave PRODUCT_BUNDLE_IDENTIFIER_WIDGET do Local.xcconfig
+        PRODUCT_BUNDLE_IDENTIFIER: "$(PRODUCT_BUNDLE_IDENTIFIER_WIDGET)"
+        PRODUCT_NAME: "$(TARGET_NAME)"
+        PROVISIONING_PROFILE_SPECIFIER: ""
+        # Não instala a extension como artefato independente
+        SKIP_INSTALL: YES
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+# ─────────────────────────────────────────────────────────────────────────────
+  MempoolMonitorTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+
+    sources:
+      - path: MempoolMonitorTests
+
+    # Info.plist gerado pelo XcodeGen (não versionar — está no .gitignore)
+    info:
+      path: MempoolMonitorTests/Info.plist
+      properties:
+        CFBundleDevelopmentRegion:    "$(DEVELOPMENT_LANGUAGE)"
+        CFBundleExecutable:           "$(EXECUTABLE_NAME)"
+        CFBundleIdentifier:           "$(PRODUCT_BUNDLE_IDENTIFIER)"
+        CFBundleInfoDictionaryVersion: "6.0"
+        CFBundleName:                 "$(PRODUCT_NAME)"
+        CFBundlePackageType:          BNDL
+        CFBundleShortVersionString:   "$(MARKETING_VERSION)"
+        CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
+
+    # Mesmo xcconfig do app — expõe PRODUCT_BUNDLE_IDENTIFIER_TESTS
+    configFiles:
+      Debug: Configs/Local.xcconfig
+      Release: Configs/Local.xcconfig
+
+    settings:
+      base:
+        # Carrega o test bundle dentro do processo do app host, permitindo
+        # @testable import MempoolMonitor e acesso a tipos internos.
+        BUNDLE_LOADER:        "$(TEST_HOST)"
+        TEST_HOST:            "$(BUILT_PRODUCTS_DIR)/MempoolMonitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MempoolMonitor"
+        CODE_SIGN_IDENTITY:   "Apple Development"
+        CODE_SIGN_STYLE:      Automatic
+        CURRENT_PROJECT_VERSION: "1"
+        DEVELOPMENT_TEAM:     X7R68587M4
+        MARKETING_VERSION:    "1.0"
+        # Bundle ID vem da chave PRODUCT_BUNDLE_IDENTIFIER_TESTS do Local.xcconfig
+        PRODUCT_BUNDLE_IDENTIFIER: "$(PRODUCT_BUNDLE_IDENTIFIER_TESTS)"
+        PRODUCT_NAME:         "$(TARGET_NAME)"
+        SWIFT_VERSION:        "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+    dependencies:
+      - target: MempoolMonitor
+
+# ─── Schemes ──────────────────────────────────────────────────────────────────
+# Widget extensions não podem ser lançadas diretamente — precisam do app host.
+# O scheme do widget é configurado para lançar o MempoolMonitor como executable,
+# o que instala o app (que já embute o widget) e permite debug/preview da extension.
+schemes:
+  MempoolMonitor:
+    build:
+      targets:
+        MempoolMonitor:      all
+        MempoolMonitorWidget: all          # widget é embutido no app
+        MempoolMonitorTests: [build, test]
+    run:
+      config: Debug
+      executable: MempoolMonitor
+    test:
+      config: Debug
+      targets:
+        - MempoolMonitorTests
+    profile:
+      config: Release
+      executable: MempoolMonitor
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
+  MempoolMonitorWidget:
+    build:
+      targets:
+        MempoolMonitor: all           # garante que o app host seja buildado junto
+        MempoolMonitorWidget: all
+    run:
+      config: Debug
+      executable: MempoolMonitor      # lança o app host, não a extension isolada
+    profile:
+      config: Release
+      executable: MempoolMonitor
+
+  MempoolMonitorTests:
+    build:
+      targets:
+        MempoolMonitor:      [build, test]   # app host obrigatório para bundle loader
+        MempoolMonitorTests: [build, test]
+    test:
+      config: Debug
+      targets:
+        - MempoolMonitorTests
+    run:
+      config: Debug
+      executable: MempoolMonitor
