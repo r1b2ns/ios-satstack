@@ -1,0 +1,45 @@
+# ─── Configurações locais (bundle ID e outros valores privados) ──────────────
+Configs/Local.xcconfig
+
+# ─── Xcode project (gerado pelo XcodeGen) ────────────────────────────────────
+MempoolMonitor.xcodeproj/
+
+# ─── Build ────────────────────────────────────────────────────────────────────
+build/
+DerivedData/
+*.xcarchive
+
+# ─── Xcode user state ─────────────────────────────────────────────────────────
+*.xcuserstate
+xcuserdata/
+*.xcuserdatad/
+
+# ─── Xcode workspace (se não usar SPM/CocoaPods) ─────────────────────────────
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+# Descomente a linha abaixo se não usar SPM
+# *.xcworkspace/
+
+# ─── Swift Package Manager ────────────────────────────────────────────────────
+.build/
+.swiftpm/
+SourcePackages/
+Package.resolved
+
+# ─── CocoaPods ────────────────────────────────────────────────────────────────
+Pods/
+*.xcworkspace
+
+# ─── Carthage ─────────────────────────────────────────────────────────────────
+Carthage/Build/
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── Xcode temporários ────────────────────────────────────────────────────────
+*.moved-aside
+*.orig
+*.swp
+*~
