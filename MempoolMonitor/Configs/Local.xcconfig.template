@@ -1,0 +1,6 @@
+// Local.xcconfig.template
+// Copie este arquivo para Configs/Local.xcconfig e preencha com seus valores.
+//
+//   cp Configs/Local.xcconfig.template Configs/Local.xcconfig
+
+PRODUCT_BUNDLE_IDENTIFIER = com.example.mempoolmonitor
