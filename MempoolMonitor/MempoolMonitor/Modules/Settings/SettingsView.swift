@@ -37,9 +37,38 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
 
     var body: some View {
         NavigationStack(path: $coordinator.path) {
-            Text("Settings")
-                .navigationTitle("Settings")
-                .navigationDestinations()
+            List {
+                buildAPNsTokenIndicator()
+            }
+            .navigationTitle("Settings")
+            .navigationDestinations()
+        }
+    }
+
+    // MARK: - Subviews
+
+    private func buildAPNsTokenIndicator() -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: viewModel.uiState.hasAPNsToken
+                  ? "bell.badge.fill"
+                  : "bell.slash.fill")
+                .foregroundStyle(viewModel.uiState.hasAPNsToken ? .green : .secondary)
+                .font(.title3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Push Notifications")
+                    .font(.subheadline.weight(.medium))
+                Text(viewModel.uiState.hasAPNsToken ? "Registered" : "Not registered")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: viewModel.uiState.hasAPNsToken
+                  ? "checkmark.circle.fill"
+                  : "xmark.circle.fill")
+                .foregroundStyle(viewModel.uiState.hasAPNsToken ? .green : .red)
         }
     }
 }
