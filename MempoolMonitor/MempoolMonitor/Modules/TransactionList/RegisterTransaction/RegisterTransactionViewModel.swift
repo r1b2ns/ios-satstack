@@ -32,17 +32,20 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
     private let tokenManager: APNsTokenManager
     private let api: MempoolMonitorAPIProtocol
     private let liveActivityManager: LiveActivityManager
+    private let storage: PersistentStorable
 
     init(
         uiState: RegisterTransactionUiState = .init(),
         tokenManager: APNsTokenManager,
         api: MempoolMonitorAPIProtocol,
-        liveActivityManager: LiveActivityManager
+        liveActivityManager: LiveActivityManager,
+        storage: PersistentStorable
     ) {
         self.uiState = uiState
         self.tokenManager = tokenManager
         self.api = api
         self.liveActivityManager = liveActivityManager
+        self.storage = storage
     }
 
     /// Convenience initializer that uses shared instances.
@@ -50,7 +53,8 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
         self.init(
             tokenManager: .shared,
             api: MempoolMonitorAPI.shared,
-            liveActivityManager: LiveActivityManager()
+            liveActivityManager: LiveActivityManager(),
+            storage: SwiftDataStorable.shared
         )
     }
 
@@ -87,6 +91,15 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
 
             // 3. Update the Live Activity with the real data from the server.
             await liveActivityManager.update(with: response)
+
+            // 4. Persist the transaction locally (skip if already saved).
+            let alreadySaved = (try? await storage.fetch(WatchTransactionResponse.self, id: cleanTxid)) != nil
+            if !alreadySaved {
+                try? await storage.save(response, id: cleanTxid)
+                Log.print.info("💾 Transaction saved to SwiftData: \(cleanTxid)")
+            } else {
+                Log.print.info("ℹ️ Transaction already in SwiftData, skipping save: \(cleanTxid)")
+            }
 
             uiState.statusMessage = "Watching transaction."
             uiState.statusIsSuccess = true

@@ -37,23 +37,136 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
 
     var body: some View {
         NavigationStack(path: $coordinator.path) {
-            Text("Transaction List")
+            buildContent()
                 .navigationTitle("Transactions")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            coordinator.presentRegisterTransaction()
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                    }
-                }
+                .toolbar { buildToolbar() }
                 .sheet(isPresented: $coordinator.showRegisterTransaction) {
                     RegisterTransactionView(viewModel: RegisterTransactionViewModel())
                         .presentationDetents([.medium])
                         .presentationDragIndicator(.automatic)
                 }
+                .task { await viewModel.loadTransactions() }
+                .onChange(of: coordinator.showRegisterTransaction) { _, isPresented in
+                    if !isPresented {
+                        Task { await viewModel.loadTransactions() }
+                    }
+                }
                 .navigationDestinations()
+        }
+    }
+
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private func buildContent() -> some View {
+        if viewModel.uiState.isLoading && viewModel.uiState.transactions.isEmpty {
+            buildLoadingView()
+        } else if viewModel.uiState.transactions.isEmpty {
+            buildEmptyView()
+        } else {
+            buildTransactionList()
+        }
+    }
+
+    private func buildLoadingView() -> some View {
+        ProgressView("Loading transactions…")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func buildEmptyView() -> some View {
+        ContentUnavailableView(
+            "No transactions",
+            systemImage: "magnifyingglass",
+            description: Text("Tap + to start watching a transaction.")
+        )
+    }
+
+    private func buildTransactionList() -> some View {
+        List {
+            buildSection(title: "Pending", transactions: viewModel.uiState.pendingTransactions)
+            buildSection(title: "Confirmed", transactions: viewModel.uiState.confirmedTransactions)
+        }
+    }
+
+    @ViewBuilder
+    private func buildSection(title: String, transactions: [WatchTransactionResponse]) -> some View {
+        if !transactions.isEmpty {
+            Section(title) {
+                ForEach(transactions, id: \.txId) { transaction in
+                    buildTransactionRow(transaction)
+                        .onTapGesture {
+                            coordinator.navigateToDetail(txId: transaction.txId)
+                        }
+                }
+            }
+        }
+    }
+
+    private func buildTransactionRow(_ transaction: WatchTransactionResponse) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            buildTxIdLabel(transaction.txId)
+
+            HStack {
+                buildStatusBadge(transaction.status)
+                Spacer()
+                buildConfirmationsLabel(transaction.confirmations)
+            }
+
+            if let valueBtc = transaction.valueBtc {
+                buildValueLabel(valueBtc)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func buildTxIdLabel(_ txId: String) -> some View {
+        Text(txId)
+            .font(.system(.footnote, design: .monospaced))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .foregroundStyle(.primary)
+    }
+
+    private func buildStatusBadge(_ status: TransactionStatus) -> some View {
+        let color: Color = {
+            switch status {
+            case .pending:   return .orange
+            case .confirmed: return .green
+            case .failed:    return .red
+            }
+        }()
+
+        return Text(status.label)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.15), in: Capsule())
+            .foregroundStyle(color)
+    }
+
+    private func buildConfirmationsLabel(_ confirmations: Int) -> some View {
+        Text("\(confirmations) conf.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private func buildValueLabel(_ valueBtc: Double) -> some View {
+        Text(String(format: "₿ %.8f", valueBtc))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private func buildToolbar() -> some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                coordinator.presentRegisterTransaction()
+            } label: {
+                Image(systemName: "plus")
+            }
         }
     }
 }
