@@ -15,8 +15,19 @@ final class MempoolMonitorAPITests: XCTestCase {
     override func setUp() {
         super.setUp()
         mockNetwork = MockNetworkManager()
+        mockNetwork.stubbedResponseData = Self.validResponseJSON
         sut = MempoolMonitorAPI(baseURL: baseURL, network: mockNetwork)
     }
+
+    private static let validResponseJSON = Data("""
+    {
+        "confirmations": 0,
+        "status": "pending",
+        "txId": "abc123",
+        "valueBtc": 0.5,
+        "feeSats": 1200
+    }
+    """.utf8)
 
     override func tearDown() {
         mockNetwork = nil
@@ -94,6 +105,18 @@ final class MempoolMonitorAPITests: XCTestCase {
         await assertThrowsHTTPError(.internalServerError) {
             try await self.sut.watchTransaction(txId: "abc", deviceToken: "def", activityToken: nil)
         }
+    }
+
+    // MARK: - Response
+
+    func test_watchTransaction_decodesResponseCorrectly() async throws {
+        let response = try await sut.watchTransaction(txId: "abc123", deviceToken: "device456", activityToken: nil)
+
+        XCTAssertEqual(response.confirmations, 0)
+        XCTAssertEqual(response.status, .pending)
+        XCTAssertEqual(response.txId, "abc123")
+        XCTAssertEqual(response.valueBtc, 0.5)
+        XCTAssertEqual(response.feeSats, 1200)
     }
 
     // MARK: - BaseURL

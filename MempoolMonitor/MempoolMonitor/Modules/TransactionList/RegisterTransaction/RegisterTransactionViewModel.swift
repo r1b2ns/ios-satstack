@@ -22,6 +22,7 @@ struct RegisterTransactionUiState {
     var isLoading: Bool = false
     var shouldDismiss: Bool = false
     var clipboardHasContent: Bool = false
+    var transaction: WatchTransactionResponse?
 }
 
 // MARK: - ViewModel
@@ -70,14 +71,21 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
         uiState.statusMessage = ""
         defer { uiState.isLoading = false }
 
+        // 1. Start the Live Activity to obtain the push token.
         let activityToken = await beginLiveActivity(txId: cleanTxid)
 
+        // 2. Register the transaction on the server.
         do {
-            try await api.watchTransaction(
+            let response = try await api.watchTransaction(
                 txId: cleanTxid,
                 deviceToken: tokenManager.deviceToken ?? "",
                 activityToken: activityToken.isEmpty ? nil : activityToken
             )
+            uiState.transaction = response
+
+            // 3. Update the Live Activity with the real data from the server.
+            await updateLiveActivity(with: response)
+
             uiState.statusMessage = "Watching transaction."
             uiState.statusIsSuccess = true
 
@@ -92,6 +100,21 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
     }
 
     // MARK: - Live Activity
+
+    /// Updates the running Live Activity with the server response data.
+    private func updateLiveActivity(with response: WatchTransactionResponse) async {
+        guard let activity = currentActivity else { return }
+
+        let updatedState = TransactionActivityAttributes.ContentState(
+            confirmations: response.confirmations,
+            status: response.status,
+            txId: response.txId,
+            valueBtc: response.valueBtc,
+            feeSats: response.feeSats
+        )
+
+        await activity.update(.init(state: updatedState, staleDate: nil))
+    }
 
     private func beginLiveActivity(txId: String) async -> String {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
