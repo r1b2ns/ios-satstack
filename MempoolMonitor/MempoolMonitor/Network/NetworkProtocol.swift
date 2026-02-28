@@ -1,9 +1,9 @@
 import Foundation
 
-/// Abstrai as capacidades de execução de requisições HTTP.
+/// Abstracts the HTTP request execution capabilities.
 ///
-/// Conforme este protocolo para criar implementações alternativas de `NetworkManager`,
-/// como mocks para testes unitários.
+/// Conform to this protocol to create alternative implementations of `NetworkManager`,
+/// such as mocks for unit testing.
 ///
 /// ```swift
 /// struct MockNetworkManager: NetworkProtocol {
@@ -12,8 +12,8 @@ import Foundation
 /// ```
 protocol NetworkProtocol {
 
-    /// Executa `requestable`, valida o status code e retorna a resposta decodificada.
+    /// Executes `requestable`, validates the status code, and returns the decoded response.
     ///
-    /// - Throws: `HTTPError` em caso de falha de rede, status code de erro ou falha de decodificação.
+    /// - Throws: `HTTPError` on network failure, HTTP error status code, or decoding failure.
     func perform<R: Requestable>(_ requestable: R) async throws -> R.Response
 }

@@ -2,9 +2,9 @@ import Foundation
 import XCTest
 @testable import MempoolMonitor
 
-// MARK: - Requestables de teste
+// MARK: - Test Requestables
 
-/// Requisição GET que espera um `StubResponse` como retorno.
+/// GET request that expects a `StubResponse` as return.
 struct StubRequest: Requestable {
     typealias Response = StubResponse
     var baseURL: URL    = URL(string: "https://api.example.com")!
@@ -12,7 +12,7 @@ struct StubRequest: Requestable {
     var method:  HTTPMethod = .get
 }
 
-/// Requisição GET sem body que espera `EmptyResponse`.
+/// GET request without body that expects `EmptyResponse`.
 struct StubEmptyRequest: Requestable {
     typealias Response = EmptyResponse
     var baseURL: URL    = URL(string: "https://api.example.com")!
@@ -20,16 +20,16 @@ struct StubEmptyRequest: Requestable {
     var method:  HTTPMethod = .get
 }
 
-// MARK: - Response de teste
+// MARK: - Test Response
 
 struct StubResponse: Codable, Equatable {
     let id: Int
 }
 
-// MARK: - Helpers de asserção
+// MARK: - Assertion Helpers
 
-/// Verifica que `operation` lança um `HTTPError` com a mesma `errorDescription`
-/// que `expected`. Falha o teste (via `XCTFail`) caso contrário.
+/// Verifies that `operation` throws an `HTTPError` with the same `errorDescription`
+/// as `expected`. Fails the test (via `XCTFail`) otherwise.
 func assertThrowsHTTPError(
     _ expected: HTTPError,
     file: StaticString = #filePath,
@@ -39,7 +39,7 @@ func assertThrowsHTTPError(
     do {
         try await operation()
         XCTFail(
-            "Esperava HTTPError.\(expected) mas nenhum erro foi lançado",
+            "Expected HTTPError.\(expected) but no error was thrown",
             file: file, line: line
         )
     } catch let error as HTTPError {
@@ -50,7 +50,7 @@ func assertThrowsHTTPError(
         )
     } catch {
         XCTFail(
-            "Esperava HTTPError mas recebeu \(type(of: error)): \(error)",
+            "Expected HTTPError but received \(type(of: error)): \(error)",
             file: file, line: line
         )
     }
@@ -59,7 +59,7 @@ func assertThrowsHTTPError(
 // MARK: - URLResponse factory
 
 extension HTTPURLResponse {
-    /// Cria um `HTTPURLResponse` para uma URL fictícia com o status code dado.
+    /// Creates an `HTTPURLResponse` for a dummy URL with the given status code.
     static func stub(statusCode: Int) -> HTTPURLResponse {
         HTTPURLResponse(
             url: URL(string: "https://api.example.com")!,

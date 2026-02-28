@@ -1,4 +1,4 @@
-/// Métodos HTTP suportados.
+/// Supported HTTP methods.
 enum HTTPMethod: String {
     case get     = "GET"
     case post    = "POST"

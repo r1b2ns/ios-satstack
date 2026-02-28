@@ -1,34 +1,34 @@
 import Foundation
 @testable import MempoolMonitor
 
-/// Implementação fake de `NetworkProtocol` para testes de `MempoolMonitorAPI`.
+/// Fake implementation of `NetworkProtocol` for `MempoolMonitorAPI` tests.
 ///
-/// Captura a `URLRequest` construída pelo `Requestable` e permite simular
-/// erros sem precisar de rede real.
+/// Captures the `URLRequest` built by `Requestable` and allows simulating
+/// errors without a real network.
 final class MockNetworkManager: NetworkProtocol {
 
-    // MARK: - Configuração
+    // MARK: - Configuration
 
-    /// Erro a ser lançado na próxima chamada a `perform`. `nil` → sucesso.
+    /// Error to be thrown on the next call to `perform`. `nil` → success.
     var stubbedError: Error?
 
-    // MARK: - Captura
+    // MARK: - Capture
 
-    /// Lista de `URLRequest`s construídas, na ordem em que foram realizadas.
+    /// List of `URLRequest`s built, in the order they were performed.
     private(set) var capturedRequests: [URLRequest] = []
 
-    /// Quantidade de chamadas a `perform`.
+    /// Number of calls to `perform`.
     var callCount: Int { capturedRequests.count }
 
     // MARK: - NetworkProtocol
 
     func perform<R: Requestable>(_ requestable: R) async throws -> R.Response {
-        // Captura a URLRequest construída pelo Requestable para inspeção nos testes
+        // Captures the URLRequest built by Requestable for inspection in tests
         capturedRequests.append(try requestable.urlRequest())
 
         if let error = stubbedError { throw error }
 
-        // Retorna EmptyResponse (ou qualquer Decodable vazio) como resposta padrão
+        // Returns EmptyResponse (or any empty Decodable) as default response
         return try JSONDecoder().decode(R.Response.self, from: Data("{}".utf8))
     }
 }

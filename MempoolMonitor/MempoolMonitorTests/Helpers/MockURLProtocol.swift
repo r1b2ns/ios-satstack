@@ -1,9 +1,9 @@
 import Foundation
 
-/// `URLProtocol` que intercepta todas as requisições de uma `URLSession` configurada
-/// com `protocolClasses = [MockURLProtocol.self]`, permitindo testes sem rede real.
+/// `URLProtocol` that intercepts all requests from a `URLSession` configured
+/// with `protocolClasses = [MockURLProtocol.self]`, enabling tests without a real network.
 ///
-/// Uso:
+/// Usage:
 /// ```swift
 /// MockURLProtocol.requestHandler = { request in
 ///     let response = HTTPURLResponse(url: request.url!, statusCode: 200, …)!
@@ -12,8 +12,8 @@ import Foundation
 /// ```
 final class MockURLProtocol: URLProtocol {
 
-    /// Closure chamada ao interceptar uma requisição.
-    /// Retorna `(HTTPURLResponse, Data)` ou lança para simular erro de rede.
+    /// Closure called when intercepting a request.
+    /// Returns `(HTTPURLResponse, Data)` or throws to simulate a network error.
     static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
 
     override class func canInit(with request: URLRequest) -> Bool { true }

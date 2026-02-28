@@ -3,17 +3,17 @@ import SwiftUI
 // MARK: - Factory
 
 struct TransactionListViewFactory {
-    /// Ponto de entrada do módulo.
-    /// Retorna uma view que gerencia internamente o ciclo de vida do coordinator e do viewModel.
+    /// Module entry point.
+    /// Returns a view that internally manages the lifecycle of the coordinator and viewModel.
     static func build() -> some View {
         TransactionListEntry()
     }
 }
 
-// MARK: - Entry point (dono dos @StateObject)
+// MARK: - Entry point (@StateObject owner)
 
-/// View privada que detém o ciclo de vida do `coordinator` e do `viewModel`,
-/// garantindo que ambos sobrevivam a re-renders do pai.
+/// Private view that holds the lifecycle of `coordinator` and `viewModel`,
+/// ensuring both survive re-renders from the parent.
 private struct TransactionListEntry: View {
     @StateObject private var coordinator = TransactionListCoordinator()
     @StateObject private var viewModel   = TransactionListViewModel()

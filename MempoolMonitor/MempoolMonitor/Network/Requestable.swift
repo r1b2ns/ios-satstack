@@ -1,11 +1,11 @@
 import Foundation
 
-/// Abstrai todos os parâmetros de uma `URLRequest`.
+/// Abstracts all parameters of a `URLRequest`.
 ///
-/// Basta criar um tipo que conforme este protocolo e o `NetworkManager` se encarrega
-/// de montar a requisição, executá-la e decodificar a resposta no tipo `Response`.
+/// Conform to this protocol and `NetworkManager` takes care of
+/// building the request, executing it, and decoding the response into `Response`.
 ///
-/// Exemplo de uso:
+/// Example:
 /// ```swift
 /// struct GetUserRequest: Requestable {
 ///     typealias Response = User
@@ -19,29 +19,29 @@ import Foundation
 /// ```
 protocol Requestable {
 
-    /// Tipo da resposta decodificada. Deve ser `Decodable`.
-    /// Use `EmptyResponse` para endpoints que não retornam body.
+    /// The decoded response type. Must conform to `Decodable`.
+    /// Use `EmptyResponse` for endpoints that return no body.
     associatedtype Response: Decodable
 
-    /// URL base (scheme + host + porta). Ex.: `https://api.example.com`
+    /// Base URL (scheme + host + port). e.g. `https://api.example.com`
     var baseURL: URL { get }
 
-    /// Caminho do endpoint. Ex.: `/tx/watch`
+    /// Endpoint path. e.g. `/tx/watch`
     var path: String { get }
 
-    /// Método HTTP da requisição.
+    /// HTTP method of the request.
     var method: HTTPMethod { get }
 
-    /// Headers adicionais. O `Content-Type: application/json` é injetado automaticamente.
+    /// Additional headers. `Content-Type: application/json` is injected automatically.
     var headers: [String: String] { get }
 
-    /// Query parameters adicionados à URL. Ex.: `[URLQueryItem(name: "limit", value: "10")]`
+    /// Query parameters appended to the URL. e.g. `[URLQueryItem(name: "limit", value: "10")]`
     var queryItems: [URLQueryItem] { get }
 
-    /// Body da requisição. Qualquer `Encodable` é aceito; `nil` para requisições sem body.
+    /// Request body. Any `Encodable` is accepted; `nil` for requests without a body.
     var body: (any Encodable)? { get }
 
-    /// Timeout em segundos. Default: 30.
+    /// Timeout in seconds. Default: 30.
     var timeoutInterval: TimeInterval { get }
 }
 
@@ -58,7 +58,7 @@ extension Requestable {
 
 extension Requestable {
 
-    /// Constrói a `URLRequest` completa a partir das propriedades do tipo conformante.
+    /// Builds the complete `URLRequest` from the conforming type's properties.
     func urlRequest() throws -> URLRequest {
         guard var components = URLComponents(
             url: baseURL.appendingPathComponent(path),
@@ -78,14 +78,14 @@ extension Requestable {
         var request = URLRequest(url: url, timeoutInterval: timeoutInterval)
         request.httpMethod = method.rawValue
 
-        // Content-Type padrão; pode ser sobrescrito via `headers`
+        // Default Content-Type; can be overridden via `headers`
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         headers.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)
         }
 
         if let body {
-            // Swift 5.7+ abre o existencial `any Encodable` automaticamente
+            // Swift 5.7+ opens the `any Encodable` existential automatically
             request.httpBody = try JSONEncoder().encode(body)
         }
 
@@ -95,5 +95,5 @@ extension Requestable {
 
 // MARK: - EmptyResponse
 
-/// Tipo de resposta para endpoints que não retornam body (ex.: 204 No Content).
+/// Response type for endpoints that return no body (e.g. 204 No Content).
 struct EmptyResponse: Decodable {}

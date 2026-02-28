@@ -41,12 +41,12 @@ struct MempoolMonitorLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 12) {
-                        // Confirmações
+                        // Confirmations
                         Label("\(context.state.confirmations)", systemImage: "checkmark.seal.fill")
                             .font(.caption2)
                             .foregroundStyle(context.state.status.color)
 
-                        // Taxa
+                        // Fee
                         if let fee = context.state.feeSats {
                             Label("\(fee) sats", systemImage: "bolt.fill")
                                 .font(.caption2)
@@ -88,7 +88,7 @@ private struct LockScreenView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            // ── Linha superior: ícone + TXID + status ──────────────────────
+            // ── Top row: icon + TXID + status ────────────────────────────
             HStack(spacing: 12) {
                 Image(systemName: "bitcoinsign.circle.fill")
                     .font(.title2)
@@ -103,7 +103,7 @@ private struct LockScreenView: View {
 
                 Spacer()
 
-                // Confirmações
+                // Confirmations
                 VStack(alignment: .trailing, spacing: 0) {
                     Text("\(context.state.confirmations)")
                         .font(.title2.bold().monospacedDigit())
@@ -116,9 +116,9 @@ private struct LockScreenView: View {
 
             Divider()
 
-            // ── Linha inferior: valor + taxa ───────────────────────────────
+            // ── Bottom row: value + fee ──────────────────────────────────
             HStack {
-                // Valor em BTC
+                // Value in BTC
                 if let btc = context.state.valueBtc {
                     HStack(spacing: 4) {
                         Image(systemName: "bitcoinsign")
@@ -131,7 +131,7 @@ private struct LockScreenView: View {
 
                 Spacer()
 
-                // Taxa em sats
+                // Fee in sats
                 if let fee = context.state.feeSats {
                     HStack(spacing: 4) {
                         Image(systemName: "bolt.fill")
@@ -182,7 +182,7 @@ private extension TransactionStatus {
 }
 
 private extension Double {
-    /// Formata um valor em BTC removendo zeros desnecessários à direita.
+    /// Formats a BTC value removing unnecessary trailing zeros.
     /// Ex.: 0.07250000 → "0.0725 BTC" | 1.00000000 → "1.0 BTC"
     var btcFormatted: String {
         let s = String(format: "%.8f", self)
@@ -194,7 +194,7 @@ private extension Double {
 }
 
 private extension String {
-    /// Exibe os primeiros e últimos N caracteres do TXID separados por "…".
+    /// Displays the first and last N characters of the TXID separated by "…".
     /// Ex.: "abcd1234…ef567890"
     func txTruncated(chars: Int = 6) -> String {
         guard count > chars * 2 + 1 else { return self }

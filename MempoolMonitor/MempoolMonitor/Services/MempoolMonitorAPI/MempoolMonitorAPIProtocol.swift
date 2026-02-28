@@ -1,9 +1,9 @@
 import Foundation
 
-/// Abstrai as capacidades da camada de acesso à API do Mempool Monitor.
+/// Abstracts the capabilities of the Mempool Monitor API access layer.
 ///
-/// Conforme este protocolo para criar implementações alternativas de `MempoolMonitorAPI`,
-/// como mocks para testes unitários.
+/// Conform to this protocol to create alternative implementations of `MempoolMonitorAPI`,
+/// such as mocks for unit testing.
 ///
 /// ```swift
 /// struct MockMempoolMonitorAPI: MempoolMonitorAPIProtocol {
@@ -12,12 +12,12 @@ import Foundation
 /// ```
 protocol MempoolMonitorAPIProtocol {
 
-    /// Registra uma transação Bitcoin para monitoramento via push notification e Live Activity.
+    /// Registers a Bitcoin transaction for monitoring via push notification and Live Activity.
     ///
     /// - Parameters:
-    ///   - txId:          Hash da transação Bitcoin (64 caracteres hex).
-    ///   - deviceToken:   Token APNs do dispositivo (hex).
-    ///   - activityToken: Token da Live Activity (hex). Omitido do payload quando `nil`.
+    ///   - txId:          Bitcoin transaction hash (64-character hex string).
+    ///   - deviceToken:   APNs device token (hex).
+    ///   - activityToken: Live Activity push token (hex). Omitted from the payload when `nil`.
     func watchTransaction(
         txId: String,
         deviceToken: String,

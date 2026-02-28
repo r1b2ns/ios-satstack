@@ -2,22 +2,22 @@ import SwiftUI
 
 // MARK: - Route
 
-/// Destinos de navegação dentro do módulo TransactionList.
+/// Navigation destinations within the TransactionList module.
 enum TransactionListRoute: Hashable {
     case detail(txId: String)
 }
 
 // MARK: - Coordinator
 
-/// Gerencia a pilha de navegação do módulo TransactionList.
+/// Manages the navigation stack for the TransactionList module.
 ///
-/// Exposto via `environmentObject` para que qualquer view do módulo
-/// possa disparar transições sem acoplamento direto.
+/// Exposed via `environmentObject` so any view in the module
+/// can trigger transitions without direct coupling.
 ///
 /// ```swift
 /// @EnvironmentObject var coordinator: TransactionListCoordinator
 ///
-/// Button("Ver detalhes") {
+/// Button("View details") {
 ///     coordinator.navigateToDetail(txId: tx.id)
 /// }
 /// ```
