@@ -39,6 +39,20 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
         NavigationStack(path: $coordinator.path) {
             Text("Transaction List")
                 .navigationTitle("Transactions")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            coordinator.presentRegisterTransaction()
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                    }
+                }
+                .sheet(isPresented: $coordinator.showRegisterTransaction) {
+                    RegisterTransactionView()
+                        .presentationDetents([.medium])
+                        .presentationDragIndicator(.automatic)
+                }
                 .navigationDestinations()
         }
     }

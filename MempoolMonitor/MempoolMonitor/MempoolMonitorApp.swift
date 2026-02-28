@@ -8,7 +8,7 @@ struct MempoolMonitorApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
-                RegisterTransactionView()
+                HomeViewFactory.build()
                     .tabItem {
                         Label {
                             Text("Home")
