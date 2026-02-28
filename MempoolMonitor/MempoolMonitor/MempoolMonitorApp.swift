@@ -8,7 +8,6 @@ struct MempoolMonitorApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
-                
                 HomeView()
                     .tabItem {
                         Label {
@@ -18,21 +17,21 @@ struct MempoolMonitorApp: App {
                         }
                     }
                 
-                Text("List Transactions")
+                TransactionListViewFactory.build()
                     .tabItem {
                         Label {
                             Text("Transactions")
                         } icon: {
-                            Image(systemName: "list.dash")
+                            Image(systemName: "list.bullet")
                         }
                     }
                 
-                Text("Settings")
+                SettingsViewFactory.build()
                     .tabItem {
                         Label {
                             Text("Settings")
                         } icon: {
-                            Image(systemName: "settings")
+                            Image(systemName: "gear")
                         }
                     }
             }
