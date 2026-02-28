@@ -1,89 +1,32 @@
-import ActivityKit
 import SwiftUI
 
-struct RegisterTransactionView: View {
+struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject  private var tokenManager  = APNsTokenManager.shared
+    @ObservedObject var viewModel: ViewModel
 
-    @State private var txid:              String  = ""
-    @State private var statusMessage:     String  = ""
-    @State private var isLoading:         Bool    = false
-    @State private var statusColor:       Color   = .secondary
-    @State private var showCopiedAlert:   Bool    = false
-    @State private var currentActivity:   Activity<TransactionActivityAttributes>?
+    init(viewModel: ViewModel) {
+        self.viewModel = viewModel
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                buildTokenSection()
-                Divider()
                 buildTxidField()
+                buildPasteButton()
                 buildWatchButton()
                 buildStatusMessage()
                 Spacer()
             }
             .padding()
-            .navigationTitle("Mempool Monitor")
-            .alert("Token copied!", isPresented: $showCopiedAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("The APNs token has been copied to the clipboard.")
+            .navigationTitle("Watch Transaction")
+            .onAppear { viewModel.checkClipboard() }
+            .onChange(of: viewModel.uiState.shouldDismiss) { _, shouldDismiss in
+                if shouldDismiss { dismiss() }
             }
         }
     }
 
     // MARK: - Subviews
-
-    private func buildTokenSection() -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            buildTokenHeader()
-            buildTokenContent()
-        }
-    }
-
-    private func buildTokenHeader() -> some View {
-        HStack {
-            Image(systemName: "bell.badge.fill")
-                .foregroundStyle(.orange)
-            Text("Token APNs")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            if tokenManager.hasToken {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                    .symbolEffect(.bounce, value: tokenManager.deviceToken)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func buildTokenContent() -> some View {
-        if let token = tokenManager.deviceToken {
-            HStack {
-                Text(token)
-                    .font(.system(.caption, design: .monospaced))
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Button {
-                    UIPasteboard.general.string = token
-                    showCopiedAlert = true
-                } label: {
-                    Image(systemName: "doc.on.doc").font(.callout)
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(12)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
-        } else {
-            Text("Awaiting registration...")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .padding(12)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
-        }
-    }
 
     private func buildTxidField() -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -91,7 +34,7 @@ struct RegisterTransactionView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            TextField("Paste TXID here…", text: $txid, axis: .vertical)
+            TextField("Paste TXID here…", text: $viewModel.uiState.txid, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.footnote, design: .monospaced))
                 .autocorrectionDisabled()
@@ -101,120 +44,60 @@ struct RegisterTransactionView: View {
         }
     }
 
+    private func buildPasteButton() -> some View {
+        Button {
+            viewModel.pasteFromClipboard()
+            viewModel.checkClipboard()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "doc.on.clipboard")
+                Text("Paste")
+            }
+        }
+        .buttonStyle(.bordered)
+        .disabled(!viewModel.uiState.clipboardHasContent)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func buildWatchButton() -> some View {
         Button {
-            Task { await watchTransaction() }
+            Task { await viewModel.watchTransaction() }
         } label: {
             HStack {
-                if isLoading { ProgressView().tint(.white) }
-                Text(isLoading ? "Sending…" : "Watch Transaction")
+                if viewModel.uiState.isLoading { ProgressView().tint(.white) }
+                Text(viewModel.uiState.isLoading ? "Sending…" : "Watch Transaction")
                     .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
         }
         .buttonStyle(.borderedProminent)
-        .disabled(txid.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)
+        .disabled(
+            viewModel.uiState.txid.trimmingCharacters(in: .whitespaces).isEmpty
+            || viewModel.uiState.isLoading
+        )
     }
 
     @ViewBuilder
     private func buildStatusMessage() -> some View {
-        if !statusMessage.isEmpty {
+        if !viewModel.uiState.statusMessage.isEmpty {
+            let color: Color = viewModel.uiState.statusIsSuccess ? .green : .red
             HStack(spacing: 8) {
-                Image(systemName: statusColor == .green
+                Image(systemName: viewModel.uiState.statusIsSuccess
                       ? "checkmark.circle.fill"
                       : "xmark.circle.fill")
-                Text(statusMessage).font(.subheadline)
+                Text(viewModel.uiState.statusMessage).font(.subheadline)
             }
-            .foregroundStyle(statusColor)
+            .foregroundStyle(color)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(statusColor.opacity(0.1),
+            .background(color.opacity(0.1),
                         in: RoundedRectangle(cornerRadius: 10))
         }
     }
 
-    // MARK: - Watch
-
-    private func watchTransaction() async {
-        let cleanTxid = txid.trimmingCharacters(in: .whitespaces)
-        guard !cleanTxid.isEmpty else { return }
-
-        isLoading     = true
-        statusMessage = ""
-        defer { isLoading = false }
-
-        let activityToken = await beginLiveActivity(txId: cleanTxid)
-
-        do {
-            try await MempoolMonitorAPI.shared.watchTransaction(
-                txId:          cleanTxid,
-                deviceToken:   tokenManager.deviceToken ?? "",
-                activityToken: activityToken.isEmpty ? nil : activityToken
-            )
-            statusMessage = "Watching transaction."
-            statusColor   = .green
-
-            try? await Task.sleep(for: .seconds(1))
-            dismiss()
-        } catch {
-            statusMessage = (error as? HTTPError)?.localizedDescription
-                          ?? error.localizedDescription
-            statusColor   = .red
-            await currentActivity?.end(dismissalPolicy: .immediate)
-        }
-    }
-
-    // MARK: - Live Activity
-
-    private func beginLiveActivity(txId: String) async -> String {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("⚠️ Live Activities disabled by user.")
-            return ""
-        }
-
-        do {
-            let attributes = TransactionActivityAttributes(txId: txId)
-            let state      = TransactionActivityAttributes.ContentState(
-                confirmations: 0,
-                status:        .pending,
-                txId: txid
-            )
-
-            let activity = try Activity.request(
-                attributes: attributes,
-                content:    .init(state: state, staleDate: nil),
-                pushType:   .token
-            )
-
-            currentActivity = activity
-
-            let tokenHex = await withTaskGroup(of: String.self) { group in
-                group.addTask {
-                    for await data in activity.pushTokenUpdates {
-                        return data.map { String(format: "%02x", $0) }.joined()
-                    }
-                    return ""
-                }
-                group.addTask {
-                    try? await Task.sleep(for: .seconds(3))
-                    return ""
-                }
-                let result = await group.next() ?? ""
-                group.cancelAll()
-                return result
-            }
-
-            print("🏃 Live Activity started — activityToken: \(tokenHex.prefix(16))…")
-            return tokenHex
-
-        } catch {
-            print("⚠️ Error starting Live Activity: \(error.localizedDescription)")
-            return ""
-        }
-    }
 }
 
 #Preview {
-    RegisterTransactionView()
+    RegisterTransactionView(viewModel: RegisterTransactionViewModel())
 }

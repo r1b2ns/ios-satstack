@@ -49,7 +49,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
                     }
                 }
                 .sheet(isPresented: $coordinator.showRegisterTransaction) {
-                    RegisterTransactionView()
+                    RegisterTransactionView(viewModel: RegisterTransactionViewModel())
                         .presentationDetents([.medium])
                         .presentationDragIndicator(.automatic)
                 }
