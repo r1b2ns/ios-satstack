@@ -39,14 +39,23 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
         NavigationStack(path: $coordinator.path) {
             Text("Settings")
                 .navigationTitle("Settings")
-                .navigationDestination(for: SettingsRoute.self) { route in
-                    switch route {
-                    case .notifications:
-                        Text("Notifications")
-                    case .about:
-                        Text("About")
-                    }
-                }
+                .navigationDestinations()
+        }
+    }
+}
+
+// MARK: - Navigation destinations
+
+private extension View {
+    @ViewBuilder
+    func navigationDestinations() -> some View {
+        self.navigationDestination(for: SettingsRoute.self) { route in
+            switch route {
+            case .notifications:
+                Text("Notifications")
+            case .about:
+                Text("About")
+            }
         }
     }
 }

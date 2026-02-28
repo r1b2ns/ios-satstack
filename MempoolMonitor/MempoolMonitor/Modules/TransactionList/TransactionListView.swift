@@ -39,12 +39,21 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
         NavigationStack(path: $coordinator.path) {
             Text("Transaction List")
                 .navigationTitle("Transactions")
-                .navigationDestination(for: TransactionListRoute.self) { route in
-                    switch route {
-                    case .detail(let txId):
-                        Text("Detail: \(txId)")
-                    }
-                }
+                .navigationDestinations()
+        }
+    }
+}
+
+// MARK: - Navigation destinations
+
+private extension View {
+    @ViewBuilder
+    func navigationDestinations() -> some View {
+        self.navigationDestination(for: TransactionListRoute.self) { route in
+            switch route {
+            case .detail(let txId):
+                Text("Detail: \(txId)")
+            }
         }
     }
 }
