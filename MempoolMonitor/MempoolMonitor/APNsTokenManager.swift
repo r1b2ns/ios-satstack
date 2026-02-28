@@ -7,24 +7,26 @@ class APNsTokenManager: ObservableObject {
 
     @Published private(set) var deviceToken: String?
 
+    private let storage: KeyStorable
     private let tokenKey = "apns_device_token"
 
-    private init() {
-        // Load previously saved token from UserDefaults on init
-        self.deviceToken = UserDefaults.standard.string(forKey: tokenKey)
+    init(storage: KeyStorable = UserDefaultsStorable()) {
+        self.storage = storage
+        // Load previously saved token on init
+        self.deviceToken = storage.string(forKey: tokenKey)
     }
 
     /// Saves the APNs device token.
     func saveToken(_ token: String) {
         self.deviceToken = token
-        UserDefaults.standard.set(token, forKey: tokenKey)
+        storage.set(token, forKey: tokenKey)
         print("💾 APNs token saved: \(token)")
     }
 
     /// Clears the APNs device token.
     func clearToken() {
         self.deviceToken = nil
-        UserDefaults.standard.removeObject(forKey: tokenKey)
+        storage.removeObject(forKey: tokenKey)
         print("🗑️ APNs token removed")
     }
 
