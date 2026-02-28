@@ -1,5 +1,17 @@
 import Foundation
+import SwiftUI
 
-protocol SettingsViewModelProtocol: ObservableObject { }
+protocol SettingsViewModelProtocol: ObservableObject {
+    var uiState: SettingsUiState { get set }
+}
 
-final class SettingsViewModel: SettingsViewModelProtocol { }
+struct SettingsUiState {
+}
+
+final class SettingsViewModel: SettingsViewModelProtocol {
+    @Published var uiState: SettingsUiState
+
+    init(uiState: SettingsUiState = .init()) {
+        self.uiState = uiState
+    }
+}
