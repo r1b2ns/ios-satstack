@@ -1,7 +1,7 @@
 import ActivityKit
 import SwiftUI
 
-struct HomeView: View {
+struct RegisterTransactionView: View {
     @ObservedObject private var coordinator = MainCoordinator()
     @StateObject  private var tokenManager  = APNsTokenManager.shared
 
@@ -200,5 +200,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    RegisterTransactionView()
 }
