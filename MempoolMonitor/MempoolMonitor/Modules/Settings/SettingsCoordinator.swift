@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Route
 
-/// Destinos de navegação dentro do módulo Settings.
+/// Navigation destinations within the Settings module.
 enum SettingsRoute: Hashable {
     case notifications
     case about
@@ -10,15 +10,15 @@ enum SettingsRoute: Hashable {
 
 // MARK: - Coordinator
 
-/// Gerencia a pilha de navegação do módulo Settings.
+/// Manages the navigation stack for the Settings module.
 ///
-/// Exposto via `environmentObject` para que qualquer view do módulo
-/// possa disparar transições sem acoplamento direto.
+/// Exposed via `environmentObject` so any view in the module
+/// can trigger transitions without direct coupling.
 ///
 /// ```swift
 /// @EnvironmentObject var coordinator: SettingsCoordinator
 ///
-/// Button("Notificações") {
+/// Button("Notifications") {
 ///     coordinator.navigateToNotifications()
 /// }
 /// ```

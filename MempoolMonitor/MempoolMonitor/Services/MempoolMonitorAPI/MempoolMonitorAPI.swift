@@ -1,12 +1,12 @@
 import Foundation
 
-/// Camada de acesso à API do servidor Mempool Monitor.
+/// Access layer for the Mempool Monitor server API.
 ///
-/// O host é lido em runtime a partir da chave `MempoolMonitorHost` do `Info.plist`,
-/// que por sua vez é preenchida pela variável `MEMPOOL_MONITOR_HOST` do `Local.xcconfig`.
+/// The host is read at runtime from the `MempoolMonitorHost` key in `Info.plist`,
+/// which is populated by the `MEMPOOL_MONITOR_HOST` variable in `Local.xcconfig`.
 ///
-/// Encapsula todos os endpoints disponíveis e utiliza o `NetworkManager` internamente,
-/// expondo métodos de alto nível orientados ao domínio.
+/// Encapsulates all available endpoints and uses `NetworkManager` internally,
+/// exposing high-level domain-oriented methods.
 ///
 /// ```swift
 /// try await MempoolMonitorAPI.shared.watchTransaction(
@@ -38,8 +38,8 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
 
     // MARK: - Private helpers
 
-    /// Lê `MempoolMonitorHost` do Info.plist (injetado pelo xcconfig) e constrói a URL base.
-    /// Retorna `http://localhost:3000` como fallback se a chave estiver ausente.
+    /// Reads `MempoolMonitorHost` from Info.plist (injected by xcconfig) and builds the base URL.
+    /// Falls back to `http://localhost:3000` if the key is absent.
     private static func resolvedBaseURL() -> URL {
         let host = Bundle.main.infoDictionary?["MempoolMonitorHost"] as? String
                    ?? "localhost:3000"
@@ -48,12 +48,12 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
 
     // MARK: - Endpoints
 
-    /// Registra uma transação Bitcoin para monitoramento via push notification e Live Activity.
+    /// Registers a Bitcoin transaction for monitoring via push notification and Live Activity.
     ///
     /// - Parameters:
-    ///   - txId:          Hash da transação Bitcoin (64 caracteres hex).
-    ///   - deviceToken:   Token APNs do dispositivo (hex).
-    ///   - activityToken: Token da Live Activity (hex). Omitido do payload quando `nil`.
+    ///   - txId:          Bitcoin transaction hash (64-character hex string).
+    ///   - deviceToken:   APNs device token (hex).
+    ///   - activityToken: Live Activity push token (hex). Omitted from the payload when `nil`.
     func watchTransaction(
         txId: String,
         deviceToken: String,

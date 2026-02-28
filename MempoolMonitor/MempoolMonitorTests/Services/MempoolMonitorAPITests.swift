@@ -70,21 +70,21 @@ final class MempoolMonitorAPITests: XCTestCase {
         try await sut.watchTransaction(txId: "txid_abc", deviceToken: "token_xyz", activityToken: nil)
 
         let body = try requestBody()
-        XCTAssertNil(body["activityToken"], "activityToken deve ser omitido do JSON quando nil")
+        XCTAssertNil(body["activityToken"], "activityToken should be omitted from JSON when nil")
     }
 
-    // MARK: - Propagação de erro
+    // MARK: - Error Propagation
 
     func test_watchTransaction_propagatesNetworkError() async {
         mockNetwork.stubbedError = HTTPError.networkError(URLError(.notConnectedToInternet))
 
         do {
             try await sut.watchTransaction(txId: "abc", deviceToken: "def", activityToken: nil)
-            XCTFail("Esperava que o erro fosse propagado")
+            XCTFail("Expected the error to be propagated")
         } catch HTTPError.networkError {
             // ✓
         } catch {
-            XCTFail("Tipo de erro inesperado: \(error)")
+            XCTFail("Unexpected error type: \(error)")
         }
     }
 
@@ -107,7 +107,7 @@ final class MempoolMonitorAPITests: XCTestCase {
         let request = try XCTUnwrap(mockNetwork.capturedRequests.first)
         XCTAssertTrue(
             request.url?.absoluteString.hasPrefix("http://custom.host:9000") == true,
-            "Request deve usar a baseURL injetada"
+            "Request should use the injected baseURL"
         )
     }
 

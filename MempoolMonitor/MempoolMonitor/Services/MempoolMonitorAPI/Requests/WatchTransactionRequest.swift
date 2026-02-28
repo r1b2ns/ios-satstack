@@ -1,6 +1,6 @@
 import Foundation
 
-/// `POST /tx/watch` — registra uma transação Bitcoin para monitoramento.
+/// `POST /tx/watch` — registers a Bitcoin transaction for monitoring.
 struct WatchTransactionRequest: Requestable {
 
     typealias Response = EmptyResponse
@@ -10,11 +10,11 @@ struct WatchTransactionRequest: Requestable {
     let baseURL:       URL
     let txId:          String
     let deviceToken:   String
-    let activityToken: String?  // nil → omitido do JSON pelo encoder
+    let activityToken: String?  // nil → omitted from JSON by the encoder
 
     // MARK: - Requestable
 
-    var path:   String    { "/tx/watch" }
+    var path:   String     { "/tx/watch" }
     var method: HTTPMethod { .post }
 
     var body: (any Encodable)? {
@@ -26,6 +26,6 @@ struct WatchTransactionRequest: Requestable {
     private struct Payload: Encodable {
         let txId:          String
         let deviceToken:   String
-        let activityToken: String?  // `nil` → chave ausente no JSON
+        let activityToken: String?  // `nil` → key absent from JSON
     }
 }

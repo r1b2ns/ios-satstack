@@ -16,7 +16,7 @@ struct HomeView: View {
         NavigationStack {
             VStack(spacing: 24) {
 
-                // ── Token APNs ───────────────────────────────────────────────
+                // ── APNs Token ───────────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Image(systemName: "bell.badge.fill")
@@ -49,7 +49,7 @@ struct HomeView: View {
                         .padding(12)
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
                     } else {
-                        Text("Aguardando registro...")
+                        Text("Awaiting registration...")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
@@ -66,7 +66,7 @@ struct HomeView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    TextField("Cole o TXID aqui…", text: $txid, axis: .vertical)
+                    TextField("Paste TXID here…", text: $txid, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.footnote, design: .monospaced))
                         .autocorrectionDisabled()
@@ -75,13 +75,13 @@ struct HomeView: View {
                         .submitLabel(.done)
                 }
 
-                // ── Botão ────────────────────────────────────────────────────
+                // ── Button ───────────────────────────────────────────────────
                 Button {
                     Task { await watchTransaction() }
                 } label: {
                     HStack {
                         if isLoading { ProgressView().tint(.white) }
-                        Text(isLoading ? "Enviando…" : "Monitorar transação")
+                        Text(isLoading ? "Sending…" : "Watch Transaction")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
@@ -109,10 +109,10 @@ struct HomeView: View {
             }
             .padding()
             .navigationTitle("Mempool Monitor")
-            .alert("Token copiado!", isPresented: $showCopiedAlert) {
+            .alert("Token copied!", isPresented: $showCopiedAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("O token APNs foi copiado para a área de transferência.")
+                Text("The APNs token has been copied to the clipboard.")
             }
         }
     }
@@ -127,17 +127,17 @@ struct HomeView: View {
         statusMessage = ""
         defer { isLoading = false }
 
-        // 1. Inicia a Live Activity e aguarda o push token (com timeout de 3s)
+        // 1. Start the Live Activity and await the push token (with 3s timeout)
         let activityToken = await beginLiveActivity(txId: cleanTxid)
 
-        // 2. Envia o request via MempoolMonitorAPI
+        // 2. Send the request via MempoolMonitorAPI
         do {
             try await MempoolMonitorAPI.shared.watchTransaction(
                 txId:          cleanTxid,
                 deviceToken:   tokenManager.deviceToken ?? "",
                 activityToken: activityToken.isEmpty ? nil : activityToken
             )
-            statusMessage = "Monitorando transação."
+            statusMessage = "Watching transaction."
             statusColor   = .green
         } catch {
             statusMessage = (error as? HTTPError)?.localizedDescription
@@ -149,10 +149,10 @@ struct HomeView: View {
 
     // MARK: - Live Activity
 
-    /// Inicia a Live Activity e retorna o push token hex, ou "" em caso de falha.
+    /// Starts the Live Activity and returns the hex push token, or "" on failure.
     private func beginLiveActivity(txId: String) async -> String {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("⚠️ Live Activities desabilitadas pelo usuário.")
+            print("⚠️ Live Activities disabled by user.")
             return ""
         }
 
@@ -167,12 +167,12 @@ struct HomeView: View {
             let activity = try Activity.request(
                 attributes: attributes,
                 content:    .init(state: state, staleDate: nil),
-                pushType:   .token          // habilita atualizações via APNs
+                pushType:   .token          // enables updates via APNs
             )
 
             currentActivity = activity
 
-            // Aguarda o push token; dá 3 segundos antes de prosseguir sem ele.
+            // Await the push token; gives 3 seconds before proceeding without it.
             let tokenHex = await withTaskGroup(of: String.self) { group in
                 group.addTask {
                     for await data in activity.pushTokenUpdates {
@@ -189,11 +189,11 @@ struct HomeView: View {
                 return result
             }
 
-            print("🏃 Live Activity iniciada — activityToken: \(tokenHex.prefix(16))…")
+            print("🏃 Live Activity started — activityToken: \(tokenHex.prefix(16))…")
             return tokenHex
 
         } catch {
-            print("⚠️ Erro ao iniciar Live Activity: \(error.localizedDescription)")
+            print("⚠️ Error starting Live Activity: \(error.localizedDescription)")
             return ""
         }
     }

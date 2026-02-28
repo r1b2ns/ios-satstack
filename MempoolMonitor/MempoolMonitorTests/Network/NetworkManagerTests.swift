@@ -22,7 +22,7 @@ final class NetworkManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    // MARK: - Sucesso
+    // MARK: - Success
 
     func test_perform_success_decodesResponseBody() async throws {
         // Given
@@ -40,14 +40,14 @@ final class NetworkManagerTests: XCTestCase {
     }
 
     func test_perform_emptyBody_returnsEmptyResponse() async throws {
-        // Given – 204 No Content com body vazio
+        // Given – 204 No Content with empty body
         MockURLProtocol.requestHandler = { _ in (.stub(statusCode: 204), Data()) }
 
-        // When / Then – não deve lançar
+        // When / Then – should not throw
         _ = try await sut.perform(StubEmptyRequest())
     }
 
-    // MARK: - Erros HTTP 4xx
+    // MARK: - HTTP 4xx Errors
 
     func test_perform_400_throwsBadRequest() async {
         MockURLProtocol.requestHandler = { _ in (.stub(statusCode: 400), Data()) }
@@ -74,7 +74,7 @@ final class NetworkManagerTests: XCTestCase {
         await assertThrowsHTTPError(.tooManyRequests) { _ = try await self.sut.perform(StubEmptyRequest()) }
     }
 
-    // MARK: - Erros HTTP 5xx
+    // MARK: - HTTP 5xx Errors
 
     func test_perform_500_throwsInternalServerError() async {
         MockURLProtocol.requestHandler = { _ in (.stub(statusCode: 500), Data()) }
@@ -86,38 +86,38 @@ final class NetworkManagerTests: XCTestCase {
         await assertThrowsHTTPError(.serviceUnavailable) { _ = try await self.sut.perform(StubEmptyRequest()) }
     }
 
-    // MARK: - Erros de rede e decodificação
+    // MARK: - Network and Decoding Errors
 
     func test_perform_networkError_throwsHTTPNetworkError() async {
         MockURLProtocol.requestHandler = { _ in throw URLError(.notConnectedToInternet) }
 
         do {
             _ = try await sut.perform(StubEmptyRequest())
-            XCTFail("Esperava HTTPError.networkError")
+            XCTFail("Expected HTTPError.networkError")
         } catch HTTPError.networkError {
             // ✓
         } catch {
-            XCTFail("Erro inesperado: \(error)")
+            XCTFail("Unexpected error: \(error)")
         }
     }
 
     func test_perform_invalidJSON_throwsDecodingError() async {
-        // StubRequest espera `StubResponse`, mas recebe JSON inválido
+        // StubRequest expects `StubResponse`, but receives invalid JSON
         MockURLProtocol.requestHandler = { _ in
             (.stub(statusCode: 200), Data("not json".utf8))
         }
 
         do {
             _ = try await sut.perform(StubRequest())
-            XCTFail("Esperava HTTPError.decodingError")
+            XCTFail("Expected HTTPError.decodingError")
         } catch HTTPError.decodingError {
             // ✓
         } catch {
-            XCTFail("Erro inesperado: \(error)")
+            XCTFail("Unexpected error: \(error)")
         }
     }
 
-    // MARK: - Construção da URLRequest
+    // MARK: - URLRequest Construction
 
     func test_perform_buildsCorrectURL() async throws {
         var captured: URLRequest?

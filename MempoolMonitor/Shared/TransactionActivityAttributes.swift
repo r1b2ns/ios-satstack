@@ -1,24 +1,24 @@
 import ActivityKit
 import Foundation
 
-// Compilado tanto no app quanto no widget extension.
-// O app usa para iniciar/atualizar a activity; o widget usa para exibir.
+// Compiled in both the app and the widget extension.
+// The app uses it to start/update the activity; the widget uses it to display.
 
 struct TransactionActivityAttributes: ActivityAttributes {
 
-    // MARK: - Estado dinâmico (pode ser atualizado via push ou código)
+    // MARK: - Dynamic State (can be updated via push or code)
     struct ContentState: Codable, Hashable {
         var confirmations: Int
         var status: TransactionStatus
-        /// TXID da transação
+        /// Transaction TXID
         var txId: String
-        /// Valor total transferido em BTC (soma dos outputs)
+        /// Total value transferred in BTC (sum of outputs)
         var valueBtc: Double?
-        /// Taxa paga em satoshis
+        /// Fee paid in satoshis
         var feeSats: Int?
     }
 
-    // MARK: - Dados estáticos (definidos na criação, imutáveis)
+    // MARK: - Static Data (set at creation, immutable)
     var txId: String
 }
 
@@ -31,9 +31,9 @@ enum TransactionStatus: String, Codable, Hashable {
 
     var label: String {
         switch self {
-        case .pending:   return "Pendente"
-        case .confirmed: return "Confirmada"
-        case .failed:    return "Falhou"
+        case .pending:   return "Pending"
+        case .confirmed: return "Confirmed"
+        case .failed:    return "Failed"
         }
     }
 }

@@ -1,39 +1,39 @@
 import Foundation
 
-/// Gerenciador singleton para armazenar e acessar o token APNs
+/// Singleton manager for storing and accessing the APNs device token.
 @MainActor
 class APNsTokenManager: ObservableObject {
     static let shared = APNsTokenManager()
-    
+
     @Published private(set) var deviceToken: String?
-    
+
     private let tokenKey = "apns_device_token"
-    
+
     private init() {
-        // Carregar token salvo do UserDefaults ao inicializar
+        // Load previously saved token from UserDefaults on init
         self.deviceToken = UserDefaults.standard.string(forKey: tokenKey)
     }
-    
-    /// Salva o token APNs
+
+    /// Saves the APNs device token.
     func saveToken(_ token: String) {
         self.deviceToken = token
         UserDefaults.standard.set(token, forKey: tokenKey)
-        print("💾 Token APNs salvo: \(token)")
+        print("💾 APNs token saved: \(token)")
     }
-    
-    /// Limpa o token APNs
+
+    /// Clears the APNs device token.
     func clearToken() {
         self.deviceToken = nil
         UserDefaults.standard.removeObject(forKey: tokenKey)
-        print("🗑️ Token APNs removido")
+        print("🗑️ APNs token removed")
     }
-    
-    /// Retorna o token atual ou nil
+
+    /// Returns the current token or nil.
     func getToken() -> String? {
         return deviceToken
     }
-    
-    /// Verifica se há um token disponível
+
+    /// Whether a token is currently available.
     var hasToken: Bool {
         return deviceToken != nil
     }

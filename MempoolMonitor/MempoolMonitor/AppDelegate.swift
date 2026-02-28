@@ -2,70 +2,70 @@ import UIKit
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        
-        // Configurar o centro de notificações
+
+        // Set up the notification center
         UNUserNotificationCenter.current().delegate = self
-        
-        // Solicitar autorização para notificações
+
+        // Request notification authorization
         Task {
             await requestNotificationAuthorization()
         }
-        
+
         return true
     }
-    
-    // MARK: - Solicitar autorização
-    
+
+    // MARK: - Request authorization
+
     private func requestNotificationAuthorization() async {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-            
+
             if granted {
-                print("✅ Autorização de notificações concedida")
-                
-                // Registrar para notificações remotas na thread principal
+                print("✅ Notification authorization granted")
+
+                // Register for remote notifications on the main thread
                 await MainActor.run {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
             } else {
-                print("❌ Autorização de notificações negada")
+                print("❌ Notification authorization denied")
             }
         } catch {
-            print("❌ Erro ao solicitar autorização: \(error.localizedDescription)")
+            print("❌ Error requesting authorization: \(error.localizedDescription)")
         }
     }
-    
-    // MARK: - Token APNs
-    
+
+    // MARK: - APNs token
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        // Converter o token para string hexadecimal
+        // Convert the token to a hexadecimal string
         let tokenString = deviceToken.map { String(format: "%02x", $0) }.joined()
-        
-        print("✅ Token APNs recebido: \(tokenString)")
-        
-        // Salvar o token no serviço
+
+        print("✅ APNs token received: \(tokenString)")
+
+        // Save the token to the manager
         APNsTokenManager.shared.saveToken(tokenString)
     }
-    
+
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("❌ Falha ao registrar para notificações remotas: \(error.localizedDescription)")
+        print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
         APNsTokenManager.shared.clearToken()
     }
-    
+
     // MARK: - UNUserNotificationCenterDelegate
-    
-    // Quando a notificação chega com o app em foreground
+
+    // Called when a notification arrives while the app is in the foreground
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        print("📬 Notificação recebida em foreground")
+        print("📬 Notification received in foreground")
         return [.banner, .sound, .badge]
     }
-    
-    // Quando o usuário interage com a notificação
+
+    // Called when the user interacts with a notification
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        print("👆 Usuário interagiu com a notificação")
-        
+        print("👆 User interacted with notification")
+
         let userInfo = response.notification.request.content.userInfo
         print("Payload: \(userInfo)")
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Erros possíveis em uma requisição HTTP — tanto do servidor (4xx/5xx) quanto do cliente.
+/// Possible errors in an HTTP request — from the server (4xx/5xx) and the client.
 enum HTTPError: LocalizedError {
 
     // MARK: - 4xx Client Errors
@@ -28,8 +28,8 @@ enum HTTPError: LocalizedError {
 
     // MARK: - Factory
 
-    /// Mapeia um status code HTTP para o erro correspondente.
-    /// Retorna `nil` para respostas de sucesso (2xx).
+    /// Maps an HTTP status code to its corresponding error.
+    /// Returns `nil` for successful responses (2xx).
     static func from(statusCode: Int) -> HTTPError? {
         switch statusCode {
         case 200...299: return nil
@@ -53,23 +53,23 @@ enum HTTPError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .badRequest:              return "Requisição inválida (400)."
-        case .unauthorized:            return "Não autorizado (401)."
-        case .forbidden:               return "Acesso negado (403)."
-        case .notFound:                return "Recurso não encontrado (404)."
-        case .methodNotAllowed:        return "Método não permitido (405)."
-        case .conflict:                return "Conflito na requisição (409)."
-        case .unprocessableEntity:     return "Entidade não processável (422)."
-        case .tooManyRequests:         return "Muitas requisições (429). Tente novamente mais tarde."
-        case .internalServerError:     return "Erro interno do servidor (500)."
-        case .badGateway:              return "Bad Gateway (502)."
-        case .serviceUnavailable:      return "Serviço indisponível (503)."
-        case .gatewayTimeout:          return "Tempo limite do gateway (504)."
-        case .invalidURL:              return "URL inválida."
-        case .invalidResponse:         return "Resposta inválida do servidor."
-        case .decodingError(let e):    return "Erro ao decodificar resposta: \(e.localizedDescription)"
-        case .networkError(let e):     return "Erro de rede: \(e.localizedDescription)"
-        case .unknown(let code):       return "Erro desconhecido (HTTP \(code))."
+        case .badRequest:              return "Bad request (400)."
+        case .unauthorized:            return "Unauthorized (401)."
+        case .forbidden:               return "Forbidden (403)."
+        case .notFound:                return "Resource not found (404)."
+        case .methodNotAllowed:        return "Method not allowed (405)."
+        case .conflict:                return "Request conflict (409)."
+        case .unprocessableEntity:     return "Unprocessable entity (422)."
+        case .tooManyRequests:         return "Too many requests (429). Try again later."
+        case .internalServerError:     return "Internal server error (500)."
+        case .badGateway:              return "Bad gateway (502)."
+        case .serviceUnavailable:      return "Service unavailable (503)."
+        case .gatewayTimeout:          return "Gateway timeout (504)."
+        case .invalidURL:              return "Invalid URL."
+        case .invalidResponse:         return "Invalid server response."
+        case .decodingError(let e):    return "Failed to decode response: \(e.localizedDescription)"
+        case .networkError(let e):     return "Network error: \(e.localizedDescription)"
+        case .unknown(let code):       return "Unknown error (HTTP \(code))."
         }
     }
 }

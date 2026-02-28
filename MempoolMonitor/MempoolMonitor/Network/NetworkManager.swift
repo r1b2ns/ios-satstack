@@ -1,10 +1,10 @@
 import Foundation
 
-/// Executa requisições HTTP/HTTPS e decodifica as respostas.
+/// Executes HTTP/HTTPS requests and decodes responses.
 ///
-/// Aceita qualquer tipo que conforme `Requestable`. A decodificação do body
-/// é feita automaticamente para `R.Response`; use `EmptyResponse` quando
-/// o endpoint não retorna body.
+/// Accepts any type conforming to `Requestable`. Response body decoding
+/// is handled automatically into `R.Response`; use `EmptyResponse` when
+/// the endpoint returns no body.
 ///
 /// ```swift
 /// let response = try await NetworkManager.shared.perform(MyRequest())
@@ -32,12 +32,12 @@ final class NetworkManager: NetworkProtocol {
 
     // MARK: - Perform
 
-    /// Executa `requestable`, valida o status code e decodifica o body como `R.Response`.
+    /// Executes `requestable`, validates the status code, and decodes the body as `R.Response`.
     ///
-    /// - Throws: `HTTPError` em caso de falha de rede, status code de erro ou falha de decodificação.
+    /// - Throws: `HTTPError` on network failure, HTTP error status code, or decoding failure.
     func perform<R: Requestable>(_ requestable: R) async throws -> R.Response {
 
-        // 1. Monta a URLRequest
+        // 1. Build the URLRequest
         let urlRequest: URLRequest
         do {
             urlRequest = try requestable.urlRequest()
@@ -47,7 +47,7 @@ final class NetworkManager: NetworkProtocol {
             throw HTTPError.invalidURL
         }
 
-        // 2. Executa a requisição
+        // 2. Execute the request
         let data: Data
         let response: URLResponse
         do {
@@ -56,7 +56,7 @@ final class NetworkManager: NetworkProtocol {
             throw HTTPError.networkError(error)
         }
 
-        // 3. Valida o tipo e o status code da resposta
+        // 3. Validate the response type and status code
         guard let http = response as? HTTPURLResponse else {
             throw HTTPError.invalidResponse
         }
@@ -65,9 +65,9 @@ final class NetworkManager: NetworkProtocol {
             throw error
         }
 
-        // 4. Decodifica o body
-        // Endpoints sem body (ex.: 204 No Content) retornam data vazio;
-        // substituímos por `{}` para que `EmptyResponse` decodifique sem erros.
+        // 4. Decode the body
+        // Endpoints with no body (e.g. 204 No Content) return empty data;
+        // replace with `{}` so that `EmptyResponse` decodes without errors.
         do {
             let decodeData = data.isEmpty ? Data("{}".utf8) : data
             return try decoder.decode(R.Response.self, from: decodeData)
