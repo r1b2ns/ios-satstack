@@ -24,10 +24,15 @@ enum TransactionListRoute: Hashable {
 final class TransactionListCoordinator: MainCoordinatorProtocol {
 
     @Published var path = NavigationPath()
+    @Published var showRegisterTransaction = false
 
     // MARK: - Navigation
 
     func navigateToDetail(txId: String) {
         path.append(TransactionListRoute.detail(txId: txId))
+    }
+
+    func presentRegisterTransaction() {
+        showRegisterTransaction = true
     }
 }
