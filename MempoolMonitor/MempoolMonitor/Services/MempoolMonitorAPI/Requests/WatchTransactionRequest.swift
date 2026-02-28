@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Response
 
 /// Server response for `POST /tx/watch`.
-struct WatchTransactionResponse: Decodable, Equatable {
+struct WatchTransactionResponse: Codable, Equatable {
     let confirmations: Int
     let status: TransactionStatus
     let txId: String
