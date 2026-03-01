@@ -47,7 +47,10 @@ final class NetworkManager: NetworkProtocol {
             throw HTTPError.invalidURL
         }
 
-        // 2. Execute the request
+        // 2. Log the outgoing request
+        PrintProtocol.log(urlRequest)
+
+        // 3. Execute the request
         let data: Data
         let response: URLResponse
         do {
@@ -56,7 +59,7 @@ final class NetworkManager: NetworkProtocol {
             throw HTTPError.networkError(error)
         }
 
-        // 3. Validate the response type and status code
+        // 4. Validate the response type and status code
         guard let http = response as? HTTPURLResponse else {
             throw HTTPError.invalidResponse
         }
@@ -65,7 +68,7 @@ final class NetworkManager: NetworkProtocol {
             throw error
         }
 
-        // 4. Decode the body
+        // 5. Decode the body
         // Endpoints with no body (e.g. 204 No Content) return empty data;
         // replace with `{}` so that `EmptyResponse` decodes without errors.
         do {

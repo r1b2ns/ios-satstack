@@ -18,9 +18,17 @@ protocol MempoolMonitorAPIProtocol {
     ///   - txId:          Bitcoin transaction hash (64-character hex string).
     ///   - deviceToken:   APNs device token (hex).
     ///   - activityToken: Live Activity push token (hex). Omitted from the payload when `nil`.
+    /// - Returns: The current transaction state from the server.
+    @discardableResult
     func watchTransaction(
         txId: String,
         deviceToken: String,
         activityToken: String?
-    ) async throws
+    ) async throws -> WatchTransactionResponse
+
+    /// Fetches the current state of a monitored Bitcoin transaction.
+    ///
+    /// - Parameter txId: Bitcoin transaction hash (64-character hex string).
+    /// - Returns: The current transaction state from the server.
+    func fetchTransaction(txId: String) async throws -> WatchTransactionResponse
 }

@@ -1,4 +1,3 @@
-import ActivityKit
 import Foundation
 import SwiftUI
 
@@ -22,6 +21,7 @@ struct RegisterTransactionUiState {
     var isLoading: Bool = false
     var shouldDismiss: Bool = false
     var clipboardHasContent: Bool = false
+    var transaction: WatchTransactionResponse?
 }
 
 // MARK: - ViewModel
@@ -31,23 +31,30 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
 
     private let tokenManager: APNsTokenManager
     private let api: MempoolMonitorAPIProtocol
-    private var currentActivity: Activity<TransactionActivityAttributes>?
+    private let liveActivityManager: LiveActivityManager
+    private let storage: PersistentStorable
 
     init(
         uiState: RegisterTransactionUiState = .init(),
         tokenManager: APNsTokenManager,
-        api: MempoolMonitorAPIProtocol
+        api: MempoolMonitorAPIProtocol,
+        liveActivityManager: LiveActivityManager,
+        storage: PersistentStorable
     ) {
         self.uiState = uiState
         self.tokenManager = tokenManager
         self.api = api
+        self.liveActivityManager = liveActivityManager
+        self.storage = storage
     }
-    
+
     /// Convenience initializer that uses shared instances.
     convenience init() {
         self.init(
             tokenManager: .shared,
-            api: MempoolMonitorAPI.shared
+            api: MempoolMonitorAPI.shared,
+            liveActivityManager: LiveActivityManager(),
+            storage: SwiftDataStorable.shared
         )
     }
 
@@ -70,14 +77,30 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
         uiState.statusMessage = ""
         defer { uiState.isLoading = false }
 
-        let activityToken = await beginLiveActivity(txId: cleanTxid)
+        // 1. Start the Live Activity to obtain the push token.
+        let activityToken = await liveActivityManager.start(txId: cleanTxid)
 
+        // 2. Register the transaction on the server.
         do {
-            try await api.watchTransaction(
+            let response = try await api.watchTransaction(
                 txId: cleanTxid,
                 deviceToken: tokenManager.deviceToken ?? "",
                 activityToken: activityToken.isEmpty ? nil : activityToken
             )
+            uiState.transaction = response
+
+            // 3. Update the Live Activity with the real data from the server.
+            await liveActivityManager.update(with: response)
+
+            // 4. Persist the transaction locally (skip if already saved).
+            let alreadySaved = (try? await storage.fetch(WatchTransactionResponse.self, id: cleanTxid)) != nil
+            if !alreadySaved {
+                try? await storage.save(response, id: cleanTxid)
+                Log.print.info("💾 Transaction saved to SwiftData: \(cleanTxid)")
+            } else {
+                Log.print.info("ℹ️ Transaction already in SwiftData, skipping save: \(cleanTxid)")
+            }
+
             uiState.statusMessage = "Watching transaction."
             uiState.statusIsSuccess = true
 
@@ -87,56 +110,7 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
             uiState.statusMessage = (error as? HTTPError)?.localizedDescription
                 ?? error.localizedDescription
             uiState.statusIsSuccess = false
-            await currentActivity?.end(nil, dismissalPolicy: .immediate)
-        }
-    }
-
-    // MARK: - Live Activity
-
-    private func beginLiveActivity(txId: String) async -> String {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            print("⚠️ Live Activities disabled by user.")
-            return ""
-        }
-
-        do {
-            let attributes = TransactionActivityAttributes(txId: txId)
-            let state = TransactionActivityAttributes.ContentState(
-                confirmations: 0,
-                status: .pending,
-                txId: txId
-            )
-
-            let activity = try Activity.request(
-                attributes: attributes,
-                content: .init(state: state, staleDate: nil),
-                pushType: .token
-            )
-
-            currentActivity = activity
-
-            let tokenHex = await withTaskGroup(of: String.self) { group in
-                group.addTask {
-                    for await data in activity.pushTokenUpdates {
-                        return data.map { String(format: "%02x", $0) }.joined()
-                    }
-                    return ""
-                }
-                group.addTask {
-                    try? await Task.sleep(for: .seconds(3))
-                    return ""
-                }
-                let result = await group.next() ?? ""
-                group.cancelAll()
-                return result
-            }
-
-            print("🏃 Live Activity started — activityToken: \(tokenHex.prefix(16))…")
-            return tokenHex
-
-        } catch {
-            print("⚠️ Error starting Live Activity: \(error.localizedDescription)")
-            return ""
+            await liveActivityManager.end()
         }
     }
 }

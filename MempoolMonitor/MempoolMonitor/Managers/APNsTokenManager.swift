@@ -20,14 +20,14 @@ class APNsTokenManager: ObservableObject {
     func saveToken(_ token: String) {
         self.deviceToken = token
         storage.set(token, forKey: tokenKey)
-        print("💾 APNs token saved: \(token)")
+        Log.print.info("💾 APNs token saved: \(token)")
     }
 
     /// Clears the APNs device token.
     func clearToken() {
         self.deviceToken = nil
         storage.removeObject(forKey: tokenKey)
-        print("🗑️ APNs token removed")
+        Log.print.info("🗑️ APNs token removed")
     }
 
     /// Returns the current token or nil.

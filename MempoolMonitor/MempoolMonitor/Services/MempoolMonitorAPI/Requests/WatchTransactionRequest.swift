@@ -1,9 +1,22 @@
 import Foundation
 
+// MARK: - Response
+
+/// Server response for `POST /tx/watch`.
+struct WatchTransactionResponse: Codable, Equatable {
+    let confirmations: Int
+    let status: TransactionStatus
+    let txId: String
+    let valueBtc: Double?
+    let feeSats: Int?
+}
+
+// MARK: - Request
+
 /// `POST /tx/watch` — registers a Bitcoin transaction for monitoring.
 struct WatchTransactionRequest: Requestable {
 
-    typealias Response = EmptyResponse
+    typealias Response = WatchTransactionResponse
 
     // MARK: - Input
 

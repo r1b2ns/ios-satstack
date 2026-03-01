@@ -12,6 +12,9 @@ final class MockNetworkManager: NetworkProtocol {
     /// Error to be thrown on the next call to `perform`. `nil` → success.
     var stubbedError: Error?
 
+    /// Raw JSON data to decode as the response. When `nil`, falls back to `"{}".`
+    var stubbedResponseData: Data?
+
     // MARK: - Capture
 
     /// List of `URLRequest`s built, in the order they were performed.
@@ -28,7 +31,7 @@ final class MockNetworkManager: NetworkProtocol {
 
         if let error = stubbedError { throw error }
 
-        // Returns EmptyResponse (or any empty Decodable) as default response
-        return try JSONDecoder().decode(R.Response.self, from: Data("{}".utf8))
+        let data = stubbedResponseData ?? Data("{}".utf8)
+        return try JSONDecoder().decode(R.Response.self, from: data)
     }
 }
