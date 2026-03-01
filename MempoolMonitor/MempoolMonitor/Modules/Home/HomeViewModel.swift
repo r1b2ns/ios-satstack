@@ -9,6 +9,7 @@ protocol HomeViewModelProtocol: ObservableObject {
     func addWidget(_ item: WidgetItem)
     func removeWidget(id: UUID)
     func moveWidgets(from: IndexSet, to: Int)
+    func refresh() async
 }
 
 // MARK: - UiState
@@ -19,6 +20,18 @@ struct HomeUiState {
     /// Latest Fear and Greed Index entry fetched from the API.
     /// `nil` until the first successful fetch.
     var fearAndGreedEntry: FearAndGreedEntry? = nil
+
+    /// Next halving data computed from the difficulty-adjustment API.
+    /// `nil` until the first successful fetch.
+    var halvingInfo: HalvingInfo? = nil
+
+    /// Recommended fee rates fetched from the API.
+    /// `nil` until the first successful fetch.
+    var recommendedFees: RecommendedFeesResponse? = nil
+
+    /// Bitcoin price in multiple fiat currencies fetched from the API.
+    /// `nil` until the first successful fetch.
+    var bitcoinPrice: PricesResponse? = nil
 
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
@@ -35,17 +48,23 @@ final class HomeViewModel: HomeViewModelProtocol {
     private let storage: KeyStorable
     private let storageKey = "home_active_widgets"
     private let api: AlternativeMeAPIProtocol
+    private let mempoolSpaceAPI: MempoolSpaceAPIProtocol
 
     init(
         uiState: HomeUiState = .init(),
         storage: KeyStorable = UserDefaultsStorable(),
-        api: AlternativeMeAPIProtocol = AlternativeMeAPI.shared
+        api: AlternativeMeAPIProtocol = AlternativeMeAPI.shared,
+        mempoolSpaceAPI: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared
     ) {
-        self.uiState = uiState
-        self.storage = storage
-        self.api     = api
+        self.uiState          = uiState
+        self.storage          = storage
+        self.api              = api
+        self.mempoolSpaceAPI  = mempoolSpaceAPI
         loadWidgets()
         Task { @MainActor in await self.fetchFearAndGreedIndex() }
+        Task { @MainActor in await self.fetchHalvingInfo() }
+        Task { @MainActor in await self.fetchRecommendedFees() }
+        Task { @MainActor in await self.fetchBitcoinPrice() }
     }
 
     // MARK: - Actions
@@ -69,9 +88,56 @@ final class HomeViewModel: HomeViewModelProtocol {
                     .redacted(reason: .placeholder)
             ))
 
+        case .transactionFeeValue:
+            if let fees = uiState.recommendedFees {
+                return .custom(view: AnyView(FeesWidget(
+                    fastestFee: fees.fastestFee,
+                    hourFee:    fees.hourFee,
+                    economyFee: fees.economyFee
+                )))
+            }
+            return item.mockType
+
+        case .currentBlockHeight:
+            if let info = uiState.halvingInfo {
+                return .icon(
+                    image: Image(systemName: item.systemImage),
+                    title: item.displayName,
+                    subtitle: Self.formattedBlockHeight(info.currentBlockHeight),
+                    tintColor: item.tintColor
+                )
+            }
+            return item.mockType
+
+        case .nextHalving:
+            if let info = uiState.halvingInfo {
+                return .custom(view: AnyView(HalvingWidget(
+                    blocksUntil: info.blocksUntil,
+                    nextHalvingHeight: info.nextHalvingHeight,
+                    estimatedDate: info.estimatedDate,
+                    epochProgress: info.epochProgress
+                )))
+            }
+            return item.mockType
+
+        case .fiatPrice:
+            if let price = uiState.bitcoinPrice {
+                return .custom(view: AnyView(FiatPriceWidget(usdPrice: price.usd)))
+            }
+            return item.mockType
+
         default:
             return item.mockType
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Returns the block height formatted with thousands separators (e.g. `"892,450"`).
+    private static func formattedBlockHeight(_ height: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: height)) ?? "\(height)"
     }
 
     func addWidget(_ item: WidgetItem) {
@@ -90,6 +156,20 @@ final class HomeViewModel: HomeViewModelProtocol {
         saveWidgets()
     }
 
+    // MARK: - Refresh
+
+    /// Refreshes all home data concurrently.
+    /// Awaiting this method keeps the pull-to-refresh spinner active until all fetches complete.
+    @MainActor
+    func refresh() async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.fetchFearAndGreedIndex() }
+            group.addTask { await self.fetchHalvingInfo() }
+            group.addTask { await self.fetchRecommendedFees() }
+            group.addTask { await self.fetchBitcoinPrice() }
+        }
+    }
+
     // MARK: - Fear and Greed fetch
 
     @MainActor
@@ -101,6 +181,40 @@ final class HomeViewModel: HomeViewModelProtocol {
             }
         } catch {
             Log.print.error("Fear and Greed Index fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Halving fetch
+
+    @MainActor
+    private func fetchHalvingInfo() async {
+        do {
+            let difficulty = try await mempoolSpaceAPI.fetchDifficultyAdjustment()
+            uiState.halvingInfo = HalvingInfo.compute(from: difficulty)
+        } catch {
+            Log.print.error("Halving info fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Recommended fees fetch
+
+    @MainActor
+    private func fetchRecommendedFees() async {
+        do {
+            uiState.recommendedFees = try await mempoolSpaceAPI.fetchRecommendedFees()
+        } catch {
+            Log.print.error("Recommended fees fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Bitcoin price fetch
+
+    @MainActor
+    private func fetchBitcoinPrice() async {
+        do {
+            uiState.bitcoinPrice = try await mempoolSpaceAPI.fetchPrices()
+        } catch {
+            Log.print.error("Bitcoin price fetch failed: \(error.localizedDescription)")
         }
     }
 

@@ -74,6 +74,12 @@ settings:
     SWIFT_COMPILATION_MODE: wholemodule
     VALIDATE_PRODUCT: YES
 
+# ─── Swift Packages ────────────────────────────────────────────────────────────
+packages:
+  netfox:
+    url: https://github.com/rubensmachion/netfox
+    branch: develop
+
 # ─── Targets ───────────────────────────────────────────────────────────────────
 targets:
   MempoolMonitor:
@@ -169,6 +175,9 @@ targets:
     dependencies:
       - target: MempoolMonitorWidget
         embed: true
+      # netfox: apenas importado/iniciado em DEBUG — ver AppDelegate.swift
+      - package: netfox
+        product: netfox
 
 # ─────────────────────────────────────────────────────────────────────────────
   MempoolMonitorWidget:

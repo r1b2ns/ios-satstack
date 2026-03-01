@@ -6,8 +6,9 @@ extension WidgetItem {
 
     /// Returns mock display content for this widget.
     ///
-    /// `greedAndFearsIndex` uses the `custom` type with placeholder values;
-    /// all other items use the `icon` type with placeholder values.
+    /// `greedAndFearsIndex`, `transactionFeeValue`, and `nextHalving` use the `custom` type
+    /// with redacted placeholder values while live data is loading.
+    /// All other items use the `icon` type with static placeholder values.
     var mockType: WidgetType {
         switch self {
         case .greedAndFearsIndex:
@@ -30,20 +31,27 @@ extension WidgetItem {
             )
 
         case .transactionFeeValue:
-            return .icon(
-                image: Image(systemName: "arrow.up.arrow.down"),
-                title: "Transaction Fee",
-                subtitle: "12 sat/vB",
-                tintColor: tintColor
-            )
+            return .custom(view: AnyView(
+                FeesWidget(fastestFee: 20, hourFee: 12, economyFee: 5)
+                    .redacted(reason: .placeholder)
+            ))
 
         case .nextHalving:
-            return .icon(
-                image: Image(systemName: "calendar.badge.clock"),
-                title: "Next Halving",
-                subtitle: "~89 days",
-                tintColor: tintColor
-            )
+            return .custom(view: AnyView(
+                HalvingWidget(
+                    blocksUntil: 12_450,
+                    nextHalvingHeight: 1_050_000,
+                    estimatedDate: Date().addingTimeInterval(89 * 86_400),
+                    epochProgress: 0.94
+                )
+                .redacted(reason: .placeholder)
+            ))
+
+        case .fiatPrice:
+            return .custom(view: AnyView(
+                FiatPriceWidget(usdPrice: 98_000)
+                    .redacted(reason: .placeholder)
+            ))
         }
     }
 }
@@ -62,5 +70,6 @@ extension WidgetConfiguration {
         WidgetConfiguration(item: .transactionFeeValue),  // .compact  (default)
         WidgetConfiguration(item: .walletBalance),        // .compact  (default)
         WidgetConfiguration(item: .nextHalving),          // .compact  (default)
+        WidgetConfiguration(item: .fiatPrice),          // .compact  (default)
     ]
 }

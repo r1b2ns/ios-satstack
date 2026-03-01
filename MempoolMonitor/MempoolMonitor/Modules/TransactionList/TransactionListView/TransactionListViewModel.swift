@@ -37,23 +37,23 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
     @Published var uiState: TransactionListUiState
 
     private let storage: PersistentStorable
-    private let api: MempoolMonitorAPIProtocol
+    private let mempoolSpaceAPI: MempoolSpaceAPIProtocol
     private var cancellables = Set<AnyCancellable>()
 
     init(
         uiState: TransactionListUiState = .init(),
         storage: PersistentStorable,
-        api: MempoolMonitorAPIProtocol
+        mempoolSpaceAPI: MempoolSpaceAPIProtocol
     ) {
         self.uiState = uiState
         self.storage = storage
-        self.api = api
+        self.mempoolSpaceAPI = mempoolSpaceAPI
     }
 
     /// Convenience initializer that uses the shared SwiftData store and API.
     @MainActor
     convenience init() {
-        self.init(storage: SwiftDataStorable.shared, api: MempoolMonitorAPI.shared)
+        self.init(storage: SwiftDataStorable.shared, mempoolSpaceAPI: MempoolSpaceAPI.shared)
     }
 
     // MARK: - Actions
@@ -121,16 +121,31 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
         let response: WatchTransactionResponse?
     }
 
-    /// Creates a Combine publisher that fetches a single transaction from the API.
+    /// Creates a Combine publisher that fetches a single transaction from the mempool.space API.
     ///
     /// - Uses `Deferred` so the network call starts only upon subscription.
     /// - Never fails: network errors resolve to a `nil` response so the
     ///   loading indicator is removed regardless of outcome.
+    /// - Maps `MempoolTransactionResponse` to `WatchTransactionResponse`:
+    ///   - `status`   ← confirmed boolean
+    ///   - `feeSats`  ← fee in satoshis
+    ///   - `valueBtc` ← sum of all outputs converted from satoshis to BTC
+    ///   - `confirmations` ← 1 if confirmed, 0 if still pending
     private func makeRefreshPublisher(for txId: String) -> AnyPublisher<RefreshResult, Never> {
         Deferred {
             Future { [weak self] promise in
                 Task { [weak self] in
-                    let response = try? await self?.api.fetchTransaction(txId: txId)
+                    let mempoolTx = try? await self?.mempoolSpaceAPI.fetchTransaction(txId: txId)
+                    let response: WatchTransactionResponse? = mempoolTx.map { tx in
+                        let totalSats = tx.vout.reduce(0) { $0 + $1.value }
+                        return WatchTransactionResponse(
+                            confirmations: tx.status.confirmed ? 1 : 0,
+                            status: tx.status.confirmed ? .confirmed : .pending,
+                            txId: tx.txid,
+                            valueBtc: totalSats > 0 ? Double(totalSats) / 100_000_000 : nil,
+                            feeSats: tx.fee
+                        )
+                    }
                     promise(.success(RefreshResult(txId: txId, response: response)))
                 }
             }
