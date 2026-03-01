@@ -20,7 +20,7 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
         case .greedAndFearsIndex:  return "Greed & Fear Index"
         case .walletBalance:       return "Wallet Balance"
         case .currentBlockHeight:  return "Block Height"
-        case .transactionFeeValue: return "Transaction Fee"
+        case .transactionFeeValue: return "Fees"
         case .nextHalving:         return "Next Halving"
         }
     }

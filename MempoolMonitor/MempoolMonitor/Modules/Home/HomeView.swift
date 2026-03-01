@@ -67,6 +67,9 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
             }
             .padding()
         }
+        .refreshable {
+            await viewModel.refresh()
+        }
     }
 
     /// Groups active widgets into rows for display.

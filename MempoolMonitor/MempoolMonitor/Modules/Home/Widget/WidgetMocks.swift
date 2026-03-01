@@ -6,8 +6,8 @@ extension WidgetItem {
 
     /// Returns mock display content for this widget.
     ///
-    /// `greedAndFearsIndex` and `nextHalving` use the `custom` type with
-    /// redacted placeholder values while live data is loading.
+    /// `greedAndFearsIndex`, `transactionFeeValue`, and `nextHalving` use the `custom` type
+    /// with redacted placeholder values while live data is loading.
     /// All other items use the `icon` type with static placeholder values.
     var mockType: WidgetType {
         switch self {
@@ -31,12 +31,10 @@ extension WidgetItem {
             )
 
         case .transactionFeeValue:
-            return .icon(
-                image: Image(systemName: "arrow.up.arrow.down"),
-                title: "Transaction Fee",
-                subtitle: "12 sat/vB",
-                tintColor: tintColor
-            )
+            return .custom(view: AnyView(
+                FeesWidget(fastestFee: 20, hourFee: 12, economyFee: 5)
+                    .redacted(reason: .placeholder)
+            ))
 
         case .nextHalving:
             return .custom(view: AnyView(

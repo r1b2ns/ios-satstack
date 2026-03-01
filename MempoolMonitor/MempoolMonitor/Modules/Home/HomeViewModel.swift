@@ -9,6 +9,7 @@ protocol HomeViewModelProtocol: ObservableObject {
     func addWidget(_ item: WidgetItem)
     func removeWidget(id: UUID)
     func moveWidgets(from: IndexSet, to: Int)
+    func refresh() async
 }
 
 // MARK: - UiState
@@ -23,6 +24,10 @@ struct HomeUiState {
     /// Next halving data computed from the difficulty-adjustment API.
     /// `nil` until the first successful fetch.
     var halvingInfo: HalvingInfo? = nil
+
+    /// Recommended fee rates fetched from the API.
+    /// `nil` until the first successful fetch.
+    var recommendedFees: RecommendedFeesResponse? = nil
 
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
@@ -54,6 +59,7 @@ final class HomeViewModel: HomeViewModelProtocol {
         loadWidgets()
         Task { @MainActor in await self.fetchFearAndGreedIndex() }
         Task { @MainActor in await self.fetchHalvingInfo() }
+        Task { @MainActor in await self.fetchRecommendedFees() }
     }
 
     // MARK: - Actions
@@ -76,6 +82,16 @@ final class HomeViewModel: HomeViewModelProtocol {
                 GreedFearWidget(score: 72, label: "Greed")
                     .redacted(reason: .placeholder)
             ))
+
+        case .transactionFeeValue:
+            if let fees = uiState.recommendedFees {
+                return .custom(view: AnyView(FeesWidget(
+                    fastestFee: fees.fastestFee,
+                    hourFee:    fees.hourFee,
+                    economyFee: fees.economyFee
+                )))
+            }
+            return item.mockType
 
         case .currentBlockHeight:
             if let info = uiState.halvingInfo {
@@ -129,6 +145,19 @@ final class HomeViewModel: HomeViewModelProtocol {
         saveWidgets()
     }
 
+    // MARK: - Refresh
+
+    /// Refreshes all home data concurrently.
+    /// Awaiting this method keeps the pull-to-refresh spinner active until all fetches complete.
+    @MainActor
+    func refresh() async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.fetchFearAndGreedIndex() }
+            group.addTask { await self.fetchHalvingInfo() }
+            group.addTask { await self.fetchRecommendedFees() }
+        }
+    }
+
     // MARK: - Fear and Greed fetch
 
     @MainActor
@@ -152,6 +181,17 @@ final class HomeViewModel: HomeViewModelProtocol {
             uiState.halvingInfo = HalvingInfo.compute(from: difficulty)
         } catch {
             Log.print.error("Halving info fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Recommended fees fetch
+
+    @MainActor
+    private func fetchRecommendedFees() async {
+        do {
+            uiState.recommendedFees = try await mempoolSpaceAPI.fetchRecommendedFees()
+        } catch {
+            Log.print.error("Recommended fees fetch failed: \(error.localizedDescription)")
         }
     }
 
