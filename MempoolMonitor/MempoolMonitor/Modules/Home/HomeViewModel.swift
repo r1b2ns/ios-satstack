@@ -16,6 +16,10 @@ protocol HomeViewModelProtocol: ObservableObject {
 struct HomeUiState {
     var activeWidgets: [WidgetConfiguration] = []
 
+    /// Latest Fear and Greed Index entry fetched from the API.
+    /// `nil` until the first successful fetch.
+    var fearAndGreedEntry: FearAndGreedEntry? = nil
+
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
         let activeItems = Set(activeWidgets.map(\.item))
@@ -30,21 +34,44 @@ final class HomeViewModel: HomeViewModelProtocol {
 
     private let storage: KeyStorable
     private let storageKey = "home_active_widgets"
+    private let api: AlternativeMeAPIProtocol
 
-    init(uiState: HomeUiState = .init(), storage: KeyStorable = UserDefaultsStorable()) {
+    init(
+        uiState: HomeUiState = .init(),
+        storage: KeyStorable = UserDefaultsStorable(),
+        api: AlternativeMeAPIProtocol = AlternativeMeAPI.shared
+    ) {
         self.uiState = uiState
         self.storage = storage
+        self.api     = api
         loadWidgets()
+        Task { @MainActor in await self.fetchFearAndGreedIndex() }
     }
 
     // MARK: - Actions
 
-    /// Returns the current display content for a widget item.
+    /// Returns the display content for a widget item.
     ///
-    /// Delegates to `mockType` for now; will be replaced with
-    /// live API data in a future iteration.
+    /// `greedAndFearsIndex` uses live API data when available,
+    /// falling back to placeholder values until the first fetch completes.
+    /// All other items use placeholder values.
     func widgetType(for item: WidgetItem) -> WidgetType {
-        item.mockType
+        switch item {
+        case .greedAndFearsIndex:
+            if let entry = uiState.fearAndGreedEntry, let score = Int(entry.value) {
+                return .custom(view: AnyView(GreedFearWidget(
+                    score: score,
+                    label: entry.valueClassification
+                )))
+            }
+            return .custom(view: AnyView(
+                GreedFearWidget(score: 72, label: "Greed")
+                    .redacted(reason: .placeholder)
+            ))
+
+        default:
+            return item.mockType
+        }
     }
 
     func addWidget(_ item: WidgetItem) {
@@ -61,6 +88,20 @@ final class HomeViewModel: HomeViewModelProtocol {
     func moveWidgets(from source: IndexSet, to destination: Int) {
         uiState.activeWidgets.move(fromOffsets: source, toOffset: destination)
         saveWidgets()
+    }
+
+    // MARK: - Fear and Greed fetch
+
+    @MainActor
+    private func fetchFearAndGreedIndex() async {
+        do {
+            let response = try await api.fetchFearAndGreedIndex()
+            if let entry = response.data.first {
+                uiState.fearAndGreedEntry = entry
+            }
+        } catch {
+            Log.print.error("Fear and Greed Index fetch failed: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Persistence
