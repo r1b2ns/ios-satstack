@@ -58,6 +58,7 @@ struct MempoolMonitorApp: App {
             .modelContainer(modelContainer)
             .environmentObject(themeManager)
             .environment(\.appTheme, themeManager.definition)
+            .applyThemeAppearance(accent: themeManager.definition.colors.accent)
         }
     }
 }
