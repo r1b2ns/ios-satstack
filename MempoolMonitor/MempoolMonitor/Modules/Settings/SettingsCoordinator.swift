@@ -6,6 +6,7 @@ import SwiftUI
 enum SettingsRoute: Hashable {
     case notifications
     case about
+    case theme
 }
 
 // MARK: - Coordinator
@@ -18,8 +19,8 @@ enum SettingsRoute: Hashable {
 /// ```swift
 /// @EnvironmentObject var coordinator: SettingsCoordinator
 ///
-/// Button("Notifications") {
-///     coordinator.navigateToNotifications()
+/// Button("Theme") {
+///     coordinator.navigateToTheme()
 /// }
 /// ```
 final class SettingsCoordinator: MainCoordinatorProtocol {
@@ -34,5 +35,9 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToAbout() {
         path.append(SettingsRoute.about)
+    }
+
+    func navigateToTheme() {
+        path.append(SettingsRoute.theme)
     }
 }

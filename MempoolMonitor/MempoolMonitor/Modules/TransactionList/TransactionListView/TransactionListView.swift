@@ -30,6 +30,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: TransactionListCoordinator
+    @Environment(\.appTheme) private var theme
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
@@ -150,49 +151,34 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
     }
 
     private func buildTxIdLabel(_ txId: String) -> some View {
-        Text(txId)
-            .font(.system(.footnote, design: .monospaced))
+        AppText(txId, style: .monospaced, color: .secondary)
             .lineLimit(1)
             .truncationMode(.middle)
-            .foregroundStyle(.secondary)
     }
 
     private func buildStatusBadge(_ status: TransactionStatus) -> some View {
         let color: Color = {
             switch status {
-            case .pending:   return .orange
-            case .confirmed: return .green
-            case .failed:    return .red
+            case .pending:   return theme.colors.warning
+            case .confirmed: return theme.colors.success
+            case .failed:    return theme.colors.destructive
             }
         }()
-
-        return Text(status.label)
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+        return AppBadge(text: status.label, tint: color)
     }
 
     private func buildConfirmationsLabel(_ confirmations: Int) -> some View {
-        Text("\(confirmations) conf.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        AppText("\(confirmations) conf.", style: .caption, color: .secondary)
     }
 
     private func buildValueLabel(_ valueBtc: Double?) -> some View {
         Group {
             if let valueBtc {
-                Text(String(format: "₿ %.8f", valueBtc))
-                    .font(.body)
+                AppText(String(format: "₿ %.8f", valueBtc), style: .body)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
             } else {
-                Text("₿ —")
-                    .font(.body)
+                AppText("₿ —", style: .body, color: .secondary)
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
             }
         }
     }

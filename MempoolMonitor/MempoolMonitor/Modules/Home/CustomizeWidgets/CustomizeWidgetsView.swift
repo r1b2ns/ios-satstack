@@ -17,6 +17,7 @@ struct CustomizeWidgetsView: View {
     let onMove: (IndexSet, Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
 
     var body: some View {
         NavigationStack {
@@ -38,18 +39,10 @@ struct CustomizeWidgetsView: View {
     // MARK: - OK button
 
     private func buildOKButton() -> some View {
-        Button {
-            dismiss()
-        } label: {
-            Text("OK")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(.blue, in: RoundedRectangle(cornerRadius: 14))
-                .foregroundStyle(.white)
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        Button("OK") { dismiss() }
+            .buttonStyle(.appPrimary)
+            .padding(.horizontal, theme.shape.spacingL)
+            .padding(.bottom, theme.shape.spacingS)
     }
 
     // MARK: - Sections
@@ -81,7 +74,7 @@ struct CustomizeWidgetsView: View {
     // MARK: - Rows
 
     private func buildActiveRow(_ config: WidgetConfiguration) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: theme.shape.spacingM) {
             Image(systemName: config.item.systemImage)
                 .frame(width: 28)
                 .foregroundStyle(config.item.tintColor)
@@ -90,7 +83,7 @@ struct CustomizeWidgetsView: View {
     }
 
     private func buildAvailableRow(_ item: WidgetItem) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: theme.shape.spacingM) {
             Image(systemName: item.systemImage)
                 .frame(width: 28)
                 .foregroundStyle(item.tintColor)
@@ -101,7 +94,7 @@ struct CustomizeWidgetsView: View {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(theme.colors.accent)
             }
             .buttonStyle(.plain)
         }

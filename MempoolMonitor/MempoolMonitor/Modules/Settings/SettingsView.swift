@@ -30,6 +30,8 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: SettingsCoordinator
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.appTheme) private var theme
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
@@ -38,6 +40,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             List {
+                buildThemeRow()
                 buildAPNsTokenIndicator()
             }
             .navigationTitle("Settings")
@@ -45,22 +48,56 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - Theme row
+
+    private func buildThemeRow() -> some View {
+        Button {
+            coordinator.navigateToTheme()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "paintpalette.fill")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Theme")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text(themeManager.current.displayName)
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(theme.colors.contentTertiary)
+            }
+            .padding(.vertical, 4)
+        }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - APNs indicator
 
     private func buildAPNsTokenIndicator() -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: viewModel.uiState.hasAPNsToken
                   ? "bell.badge.fill"
                   : "bell.slash.fill")
-                .foregroundStyle(viewModel.uiState.hasAPNsToken ? .green : .secondary)
+                .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.contentSecondary)
                 .font(.title3)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Push Notifications")
-                    .font(.subheadline.weight(.medium))
+                    .font(theme.typography.subheadline)
+                    .fontWeight(.medium)
                 Text(viewModel.uiState.hasAPNsToken ? "Registered" : "Not registered")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.contentSecondary)
             }
 
             Spacer()
@@ -68,7 +105,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             Image(systemName: viewModel.uiState.hasAPNsToken
                   ? "checkmark.circle.fill"
                   : "xmark.circle.fill")
-                .foregroundStyle(viewModel.uiState.hasAPNsToken ? .green : .red)
+                .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.destructive)
         }
     }
 }
@@ -84,6 +121,8 @@ private extension View {
                 Text("Notifications")
             case .about:
                 Text("About")
+            case .theme:
+                ThemeSettingsView()
             }
         }
     }

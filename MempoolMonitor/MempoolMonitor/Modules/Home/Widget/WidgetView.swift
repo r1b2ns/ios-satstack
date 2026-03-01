@@ -7,6 +7,8 @@ import SwiftUI
 /// - For `.custom`: wraps the provided SwiftUI view inside the same card container.
 struct WidgetView: View {
 
+    @Environment(\.appTheme) private var theme
+
     let type: WidgetType
     let size: WidgetSize
 
@@ -22,25 +24,26 @@ struct WidgetView: View {
     // MARK: - Custom
 
     private func buildCustomCard(view: AnyView) -> some View {
-        view
-            .frame(maxWidth: .infinity)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
+        AppCard {
+            view.frame(maxWidth: .infinity)
+        }
     }
 
     // MARK: - Icon
 
     @ViewBuilder
     private func buildIconCard(image: Image, title: String, subtitle: String, tintColor: Color) -> some View {
-        Group {
-            if size == .expanded {
-                buildExpandedIconLayout(image: image, title: title, subtitle: subtitle, tintColor: tintColor)
-            } else {
-                buildCompactIconLayout(image: image, title: title, subtitle: subtitle, tintColor: tintColor)
+        AppCard {
+            Group {
+                if size == .expanded {
+                    buildExpandedIconLayout(image: image, title: title, subtitle: subtitle, tintColor: tintColor)
+                } else {
+                    buildCompactIconLayout(image: image, title: title, subtitle: subtitle, tintColor: tintColor)
+                }
             }
+            .padding(theme.shape.spacingL)
+            .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func buildCompactIconLayout(image: Image, title: String, subtitle: String, tintColor: Color) -> some View {
@@ -48,19 +51,15 @@ struct WidgetView: View {
             image
                 .font(.largeTitle)
                 .foregroundStyle(tintColor)
-            Text(title)
-                .font(.headline)
-                .fontWeight(.semibold)
+            AppText(title, style: .headline)
                 .lineLimit(1)
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            AppText(subtitle, style: .caption, color: .secondary)
                 .lineLimit(1)
         }
     }
 
     private func buildExpandedIconLayout(image: Image, title: String, subtitle: String, tintColor: Color) -> some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: theme.shape.spacingL) {
             image
                 .font(.system(size: 40))
                 .foregroundStyle(tintColor)
@@ -69,13 +68,9 @@ struct WidgetView: View {
     }
 
     private func buildExpandedTextStack(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.headline)
-                .fontWeight(.semibold)
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: theme.shape.spacingXS) {
+            AppText(title, style: .headline)
+            AppText(subtitle, style: .subheadline, color: .secondary)
         }
     }
 }
