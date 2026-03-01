@@ -79,7 +79,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     @ViewBuilder
     private func buildContent() -> some View {
-        if viewModel.uiState.wallets.isEmpty {
+        if viewModel.uiState.isLoadingWallets {
+            buildLoadingState(label: "Loading wallets…")
+        } else if viewModel.uiState.wallets.isEmpty {
             buildEmptyState()
         } else if let wallet = selectedWallet {
             buildDetailView(wallet: wallet)
@@ -187,13 +189,20 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             .padding(.bottom, 8)
     }
 
+    @ViewBuilder
     private func buildTransactionRows() -> some View {
-        let txs = viewModel.uiState.transactions
-        return ForEach(Array(txs.enumerated()), id: \.element.id) { index, tx in
-            buildTransactionRow(tx)
-            if index < txs.count - 1 {
-                Divider()
-                    .padding(.leading, 16)
+        if viewModel.uiState.isLoadingTransactions {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+        } else {
+            let txs = viewModel.uiState.transactions
+            ForEach(Array(txs.enumerated()), id: \.element.id) { index, tx in
+                buildTransactionRow(tx)
+                if index < txs.count - 1 {
+                    Divider()
+                        .padding(.leading, 16)
+                }
             }
         }
     }
@@ -220,6 +229,18 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    // MARK: - Loading state
+
+    private func buildLoadingState(label: String) -> some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Empty state

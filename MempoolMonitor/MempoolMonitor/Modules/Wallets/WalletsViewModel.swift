@@ -13,23 +13,13 @@ struct Wallet: Identifiable {
     /// Visual theme that determines the card appearance.
     let theme: WalletTheme
 
-    /// Current balance in BTC (mocked).
+    /// Current balance in BTC.
     let balanceBTC: Double
-}
-
-extension Wallet {
-
-    /// Pre-populated mock wallets used until real wallet management is implemented.
-    static let mocked: [Wallet] = [
-        Wallet(id: UUID(), name: "Cold Storage",   theme: .watchOnly, balanceBTC: 1.24780000),
-        Wallet(id: UUID(), name: "Daily Spending", theme: .bitcoin,   balanceBTC: 0.00420000),
-        Wallet(id: UUID(), name: "SatsCard #001",  theme: .satsCard,  balanceBTC: 0.10000000)
-    ]
 }
 
 // MARK: - WalletTransaction model
 
-/// A single Bitcoin transaction associated with a wallet (mocked).
+/// A single Bitcoin transaction associated with a wallet.
 struct WalletTransaction: Identifiable {
 
     let id: UUID
@@ -59,7 +49,7 @@ struct WalletTransaction: Identifiable {
 
 extension WalletTransaction {
 
-    /// Ten mock transactions for preview / placeholder purposes.
+    /// Ten fixture transactions used by `MockWalletService`.
     static let mocked: [WalletTransaction] = [
         WalletTransaction(
             id: UUID(), address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
@@ -119,8 +109,8 @@ protocol WalletsViewModelProtocol: ObservableObject {
 
 struct WalletsUiState {
 
-    /// Ordered list of wallets to display.
-    var wallets: [Wallet] = Wallet.mocked
+    /// Ordered list of wallets — empty until `loadWallets()` completes.
+    var wallets: [Wallet] = []
 
     /// Non-nil while a wallet is selected (detail mode).
     var selectedWalletId: UUID? = nil
@@ -134,19 +124,30 @@ struct WalletsUiState {
     /// Editable text shown in the rename alert text field.
     var renameText: String = ""
 
-    /// Mock transactions shown in the selected wallet's detail view.
-    var transactions: [WalletTransaction] = WalletTransaction.mocked
+    /// Transactions for the selected wallet — empty until `fetchTransactions` completes.
+    var transactions: [WalletTransaction] = []
+
+    /// True while the initial wallet list is being loaded.
+    var isLoadingWallets: Bool = false
+
+    /// True while transactions for the selected wallet are being fetched.
+    var isLoadingTransactions: Bool = false
 }
 
 // MARK: - ViewModel
 
 final class WalletsViewModel: WalletsViewModelProtocol {
 
-    @Published var uiState: WalletsUiState
+    @Published var uiState: WalletsUiState = .init()
 
-    init(uiState: WalletsUiState = .init()) {
-        self.uiState = uiState
+    private let walletService: any WalletServiceProtocol
+
+    init(walletService: any WalletServiceProtocol = MockWalletService()) {
+        self.walletService = walletService
+        Task { @MainActor in await self.loadWallets() }
     }
+
+    // MARK: - Actions
 
     func showAddWallet() {
         uiState.isPresentingAddSheet = true
@@ -154,10 +155,13 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
     func selectWallet(_ id: UUID) {
         uiState.selectedWalletId = id
+        guard let wallet = uiState.wallets.first(where: { $0.id == id }) else { return }
+        Task { @MainActor in await self.fetchTransactions(for: wallet) }
     }
 
     func deselectWallet() {
         uiState.selectedWalletId = nil
+        uiState.transactions = []
     }
 
     func showRenameAlert() {
@@ -172,5 +176,46 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         guard !trimmed.isEmpty,
               let index = uiState.wallets.firstIndex(where: { $0.id == id }) else { return }
         uiState.wallets[index].name = trimmed
+    }
+}
+
+// MARK: - Private async
+
+private extension WalletsViewModel {
+
+    /// Loads the wallet list on startup.
+    ///
+    /// Currently backed by in-process fixtures; will be replaced by
+    /// SwiftData persistence once the storage layer is wired up.
+    @MainActor
+    func loadWallets() async {
+        uiState.isLoadingWallets = true
+
+        let fixtures: [Wallet] = [
+            Wallet(id: UUID(), name: "Cold Storage",   theme: .watchOnly, balanceBTC: 1.24780000),
+            Wallet(id: UUID(), name: "Daily Spending", theme: .bitcoin,   balanceBTC: 0.00420000),
+            Wallet(id: UUID(), name: "SatsCard #001",  theme: .satsCard,  balanceBTC: 0.10000000)
+        ]
+
+        // Simulate I/O latency — remove once real persistence is in place.
+        try? await Task.sleep(nanoseconds: 400_000_000)
+
+        uiState.wallets = fixtures
+        uiState.isLoadingWallets = false
+    }
+
+    /// Fetches on-chain transactions for a given wallet via the injected service.
+    @MainActor
+    func fetchTransactions(for wallet: Wallet) async {
+        uiState.isLoadingTransactions = true
+        uiState.transactions = []
+
+        do {
+            uiState.transactions = try await walletService.fetchWalletTransactions(for: wallet)
+        } catch {
+            Log.print.error("Wallet transactions fetch failed: \(error.localizedDescription)")
+        }
+
+        uiState.isLoadingTransactions = false
     }
 }
