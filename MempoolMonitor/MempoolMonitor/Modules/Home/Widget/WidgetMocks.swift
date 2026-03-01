@@ -46,6 +46,12 @@ extension WidgetItem {
                 )
                 .redacted(reason: .placeholder)
             ))
+
+        case .fiatPrice:
+            return .custom(view: AnyView(
+                FiatPriceWidget(usdPrice: 98_000)
+                    .redacted(reason: .placeholder)
+            ))
         }
     }
 }
@@ -64,5 +70,6 @@ extension WidgetConfiguration {
         WidgetConfiguration(item: .transactionFeeValue),  // .compact  (default)
         WidgetConfiguration(item: .walletBalance),        // .compact  (default)
         WidgetConfiguration(item: .nextHalving),          // .compact  (default)
+        WidgetConfiguration(item: .fiatPrice),          // .compact  (default)
     ]
 }

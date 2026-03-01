@@ -10,6 +10,7 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
     case currentBlockHeight
     case transactionFeeValue
     case nextHalving
+    case fiatPrice
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
         case .currentBlockHeight:  return "Block Height"
         case .transactionFeeValue: return "Fees"
         case .nextHalving:         return "Next Halving"
+        case .fiatPrice:           return "Bitcoin Price"
         }
     }
 
@@ -32,6 +34,7 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
         case .currentBlockHeight:  return "cube.fill"
         case .transactionFeeValue: return "arrow.up.arrow.down"
         case .nextHalving:         return "calendar.badge.clock"
+        case .fiatPrice:           return "bitcoinsign.circle.fill"
         }
     }
 
@@ -43,6 +46,7 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
         case .currentBlockHeight:  return .blue
         case .transactionFeeValue: return .green
         case .nextHalving:         return .purple
+        case .fiatPrice:           return .orange
         }
     }
 

@@ -29,6 +29,10 @@ struct HomeUiState {
     /// `nil` until the first successful fetch.
     var recommendedFees: RecommendedFeesResponse? = nil
 
+    /// Bitcoin price in multiple fiat currencies fetched from the API.
+    /// `nil` until the first successful fetch.
+    var bitcoinPrice: PricesResponse? = nil
+
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
         let activeItems = Set(activeWidgets.map(\.item))
@@ -60,6 +64,7 @@ final class HomeViewModel: HomeViewModelProtocol {
         Task { @MainActor in await self.fetchFearAndGreedIndex() }
         Task { @MainActor in await self.fetchHalvingInfo() }
         Task { @MainActor in await self.fetchRecommendedFees() }
+        Task { @MainActor in await self.fetchBitcoinPrice() }
     }
 
     // MARK: - Actions
@@ -115,6 +120,12 @@ final class HomeViewModel: HomeViewModelProtocol {
             }
             return item.mockType
 
+        case .fiatPrice:
+            if let price = uiState.bitcoinPrice {
+                return .custom(view: AnyView(FiatPriceWidget(usdPrice: price.usd)))
+            }
+            return item.mockType
+
         default:
             return item.mockType
         }
@@ -155,6 +166,7 @@ final class HomeViewModel: HomeViewModelProtocol {
             group.addTask { await self.fetchFearAndGreedIndex() }
             group.addTask { await self.fetchHalvingInfo() }
             group.addTask { await self.fetchRecommendedFees() }
+            group.addTask { await self.fetchBitcoinPrice() }
         }
     }
 
@@ -192,6 +204,17 @@ final class HomeViewModel: HomeViewModelProtocol {
             uiState.recommendedFees = try await mempoolSpaceAPI.fetchRecommendedFees()
         } catch {
             Log.print.error("Recommended fees fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Bitcoin price fetch
+
+    @MainActor
+    private func fetchBitcoinPrice() async {
+        do {
+            uiState.bitcoinPrice = try await mempoolSpaceAPI.fetchPrices()
+        } catch {
+            Log.print.error("Bitcoin price fetch failed: \(error.localizedDescription)")
         }
     }
 
