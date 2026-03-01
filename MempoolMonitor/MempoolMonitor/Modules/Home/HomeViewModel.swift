@@ -20,6 +20,10 @@ struct HomeUiState {
     /// `nil` until the first successful fetch.
     var fearAndGreedEntry: FearAndGreedEntry? = nil
 
+    /// Next halving data computed from the difficulty-adjustment API.
+    /// `nil` until the first successful fetch.
+    var halvingInfo: HalvingInfo? = nil
+
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
         let activeItems = Set(activeWidgets.map(\.item))
@@ -35,17 +39,21 @@ final class HomeViewModel: HomeViewModelProtocol {
     private let storage: KeyStorable
     private let storageKey = "home_active_widgets"
     private let api: AlternativeMeAPIProtocol
+    private let mempoolSpaceAPI: MempoolSpaceAPIProtocol
 
     init(
         uiState: HomeUiState = .init(),
         storage: KeyStorable = UserDefaultsStorable(),
-        api: AlternativeMeAPIProtocol = AlternativeMeAPI.shared
+        api: AlternativeMeAPIProtocol = AlternativeMeAPI.shared,
+        mempoolSpaceAPI: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared
     ) {
-        self.uiState = uiState
-        self.storage = storage
-        self.api     = api
+        self.uiState          = uiState
+        self.storage          = storage
+        self.api              = api
+        self.mempoolSpaceAPI  = mempoolSpaceAPI
         loadWidgets()
         Task { @MainActor in await self.fetchFearAndGreedIndex() }
+        Task { @MainActor in await self.fetchHalvingInfo() }
     }
 
     // MARK: - Actions
@@ -68,6 +76,17 @@ final class HomeViewModel: HomeViewModelProtocol {
                 GreedFearWidget(score: 72, label: "Greed")
                     .redacted(reason: .placeholder)
             ))
+
+        case .nextHalving:
+            if let info = uiState.halvingInfo {
+                return .custom(view: AnyView(HalvingWidget(
+                    blocksUntil: info.blocksUntil,
+                    nextHalvingHeight: info.nextHalvingHeight,
+                    estimatedDate: info.estimatedDate,
+                    epochProgress: info.epochProgress
+                )))
+            }
+            return item.mockType
 
         default:
             return item.mockType
@@ -101,6 +120,18 @@ final class HomeViewModel: HomeViewModelProtocol {
             }
         } catch {
             Log.print.error("Fear and Greed Index fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Halving fetch
+
+    @MainActor
+    private func fetchHalvingInfo() async {
+        do {
+            let difficulty = try await mempoolSpaceAPI.fetchDifficultyAdjustment()
+            uiState.halvingInfo = HalvingInfo.compute(from: difficulty)
+        } catch {
+            Log.print.error("Halving info fetch failed: \(error.localizedDescription)")
         }
     }
 

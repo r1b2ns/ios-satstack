@@ -37,7 +37,8 @@ struct DifficultyAdjustmentResponse: Decodable {
     let timeOffset: Int
 
     /// Number of blocks expected to have been mined so far in the epoch.
-    let expectedBlocks: Int
+    /// Returned as a fractional `Double` by the API (e.g. 1436.14).
+    let expectedBlocks: Double
 }
 
 // MARK: - Request

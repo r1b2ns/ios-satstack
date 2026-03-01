@@ -6,8 +6,9 @@ extension WidgetItem {
 
     /// Returns mock display content for this widget.
     ///
-    /// `greedAndFearsIndex` uses the `custom` type with placeholder values;
-    /// all other items use the `icon` type with placeholder values.
+    /// `greedAndFearsIndex` and `nextHalving` use the `custom` type with
+    /// redacted placeholder values while live data is loading.
+    /// All other items use the `icon` type with static placeholder values.
     var mockType: WidgetType {
         switch self {
         case .greedAndFearsIndex:
@@ -38,12 +39,15 @@ extension WidgetItem {
             )
 
         case .nextHalving:
-            return .icon(
-                image: Image(systemName: "calendar.badge.clock"),
-                title: "Next Halving",
-                subtitle: "~89 days",
-                tintColor: tintColor
-            )
+            return .custom(view: AnyView(
+                HalvingWidget(
+                    blocksUntil: 12_450,
+                    nextHalvingHeight: 1_050_000,
+                    estimatedDate: Date().addingTimeInterval(89 * 86_400),
+                    epochProgress: 0.94
+                )
+                .redacted(reason: .placeholder)
+            ))
         }
     }
 }

@@ -201,7 +201,7 @@ final class MempoolSpaceAPITests: XCTestCase {
         XCTAssertEqual(response.nextRetargetHeight, 841824)
         XCTAssertEqual(response.timeAvg, 590000)
         XCTAssertEqual(response.timeOffset, -50000)
-        XCTAssertEqual(response.expectedBlocks, 1008)
+        XCTAssertEqual(response.expectedBlocks, 1008, accuracy: 0.001)
     }
 
     func test_fetchDifficultyAdjustment_propagatesNotFoundError() async {
