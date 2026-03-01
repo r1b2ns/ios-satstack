@@ -6,6 +6,28 @@ Updates are delivered via **APNs (Apple Push Notification service)**, with no ne
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="snapshots/01.png" width="22%" alt="Home — widget grid" />
+  <img src="snapshots/001.png" width="22%" alt="Home — customize widgets" />
+  <img src="snapshots/02.png" width="22%" alt="Transactions list" />
+  <img src="snapshots/03.png" width="22%" alt="Watch Transaction" />
+</p>
+<p align="center">
+  <img src="snapshots/04.png" width="22%" alt="Live Activity on Lock Screen" />
+</p>
+
+| Screenshot | Description |
+|---|---|
+| 1 | **Home** — widget grid with Greed & Fear Index (expanded) and compact widgets |
+| 2 | **Customize** — reorder, add, and remove widgets via the sheet |
+| 3 | **Transactions** — list of monitored transactions grouped by status |
+| 4 | **Watch Transaction** — add a new transaction by pasting a TXID |
+| 5 | **Live Activity** — real-time transaction status on the Lock Screen |
+
+---
+
 ## Requirements
 
 - Xcode 16+
