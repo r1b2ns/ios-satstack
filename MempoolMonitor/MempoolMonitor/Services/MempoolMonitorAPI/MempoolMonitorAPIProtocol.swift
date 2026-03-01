@@ -7,7 +7,7 @@ import Foundation
 ///
 /// ```swift
 /// struct MockMempoolMonitorAPI: MempoolMonitorAPIProtocol {
-///     func watchTransaction(txId: String, deviceToken: String, activityToken: String?) async throws { … }
+///     func watchTransaction(txId: String, deviceToken: String, activityToken: String?) async throws -> WatchTransactionResponse { … }
 /// }
 /// ```
 protocol MempoolMonitorAPIProtocol {
@@ -26,9 +26,4 @@ protocol MempoolMonitorAPIProtocol {
         activityToken: String?
     ) async throws -> WatchTransactionResponse
 
-    /// Fetches the current state of a monitored Bitcoin transaction.
-    ///
-    /// - Parameter txId: Bitcoin transaction hash (64-character hex string).
-    /// - Returns: The current transaction state from the server.
-    func fetchTransaction(txId: String) async throws -> WatchTransactionResponse
 }

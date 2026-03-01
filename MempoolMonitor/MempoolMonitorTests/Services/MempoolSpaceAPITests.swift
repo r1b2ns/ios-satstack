@@ -82,6 +82,28 @@ final class MempoolSpaceAPITests: XCTestCase {
     }
     """.utf8)
 
+    private static let transactionJSON = Data("""
+    {
+        "txid": "15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521",
+        "version": 1,
+        "locktime": 0,
+        "vin": [],
+        "vout": [
+            { "value": 15000 },
+            { "value": 5000 }
+        ],
+        "size": 884,
+        "weight": 3536,
+        "fee": 20000,
+        "status": {
+            "confirmed": true,
+            "block_height": 363348,
+            "block_hash": "0000000000000000139385d7aa78ffb45469e0c715b8d6ea6cb2ffa98acc7171",
+            "block_time": 1435754650
+        }
+    }
+    """.utf8)
+
     // MARK: - fetchPrices — Endpoint
 
     func test_fetchPrices_callsCorrectEndpoint() async throws {
@@ -310,6 +332,75 @@ final class MempoolSpaceAPITests: XCTestCase {
 
         await assertThrowsHTTPError(.internalServerError) {
             try await self.sut.fetchRecommendedFees()
+        }
+    }
+
+    // MARK: - fetchTransaction — Endpoint
+
+    func test_fetchTransaction_callsCorrectEndpoint() async throws {
+        let txId = "15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521"
+        mockNetwork.stubbedResponseData = Self.transactionJSON
+        try await sut.fetchTransaction(txId: txId)
+
+        let request = try XCTUnwrap(mockNetwork.capturedRequests.first)
+        XCTAssertEqual(request.url?.absoluteString, "https://mempool.space/api/tx/\(txId)")
+        XCTAssertEqual(request.httpMethod, "GET")
+    }
+
+    func test_fetchTransaction_callsPerformExactlyOnce() async throws {
+        mockNetwork.stubbedResponseData = Self.transactionJSON
+        try await sut.fetchTransaction(txId: "abc")
+
+        XCTAssertEqual(mockNetwork.callCount, 1)
+    }
+
+    func test_fetchTransaction_sendsNoBody() async throws {
+        mockNetwork.stubbedResponseData = Self.transactionJSON
+        try await sut.fetchTransaction(txId: "abc")
+
+        let request = try XCTUnwrap(mockNetwork.capturedRequests.first)
+        XCTAssertNil(request.httpBody, "GET request should not include a body")
+    }
+
+    func test_fetchTransaction_decodesResponseCorrectly() async throws {
+        mockNetwork.stubbedResponseData = Self.transactionJSON
+        let response = try await sut.fetchTransaction(txId: "15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521")
+
+        XCTAssertEqual(response.txid, "15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521")
+        XCTAssertEqual(response.version, 1)
+        XCTAssertEqual(response.locktime, 0)
+        XCTAssertEqual(response.size, 884)
+        XCTAssertEqual(response.weight, 3536)
+        XCTAssertEqual(response.fee, 20000)
+        XCTAssertEqual(response.vout.count, 2)
+        XCTAssertEqual(response.vout[0].value, 15000)
+        XCTAssertEqual(response.vout[1].value, 5000)
+    }
+
+    func test_fetchTransaction_decodesSnakeCaseStatusKeys() async throws {
+        // Verifies CodingKeys: block_height → blockHeight, block_hash → blockHash, block_time → blockTime
+        mockNetwork.stubbedResponseData = Self.transactionJSON
+        let response = try await sut.fetchTransaction(txId: "abc")
+
+        XCTAssertTrue(response.status.confirmed)
+        XCTAssertEqual(response.status.blockHeight, 363348)
+        XCTAssertEqual(response.status.blockHash, "0000000000000000139385d7aa78ffb45469e0c715b8d6ea6cb2ffa98acc7171")
+        XCTAssertEqual(response.status.blockTime, 1435754650)
+    }
+
+    func test_fetchTransaction_propagatesNotFoundError() async {
+        mockNetwork.stubbedError = HTTPError.notFound
+
+        await assertThrowsHTTPError(.notFound) {
+            try await self.sut.fetchTransaction(txId: "invalidtxid")
+        }
+    }
+
+    func test_fetchTransaction_propagatesNetworkError() async {
+        mockNetwork.stubbedError = HTTPError.networkError(URLError(.notConnectedToInternet))
+
+        await assertThrowsHTTPError(.networkError(URLError(.notConnectedToInternet))) {
+            try await self.sut.fetchTransaction(txId: "abc")
         }
     }
 }

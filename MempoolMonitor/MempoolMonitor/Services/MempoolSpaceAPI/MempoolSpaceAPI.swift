@@ -49,4 +49,11 @@ final class MempoolSpaceAPI: MempoolSpaceAPIProtocol {
     func fetchRecommendedFees() async throws -> RecommendedFeesResponse {
         try await network.perform(GetRecommendedFeesRequest())
     }
+
+    /// Fetches metadata and confirmation status for a Bitcoin transaction.
+    ///
+    /// - Parameter txId: 64-character hex transaction ID.
+    func fetchTransaction(txId: String) async throws -> MempoolTransactionResponse {
+        try await network.perform(GetMempoolTransactionRequest(txId: txId))
+    }
 }

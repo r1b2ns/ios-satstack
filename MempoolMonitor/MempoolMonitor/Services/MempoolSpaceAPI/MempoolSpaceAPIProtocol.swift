@@ -11,6 +11,7 @@ import Foundation
 ///     func fetchDifficultyAdjustment() async throws -> DifficultyAdjustmentResponse { … }
 ///     func fetchBlock(hash: String) async throws -> BlockResponse { … }
 ///     func fetchRecommendedFees() async throws -> RecommendedFeesResponse { … }
+///     func fetchTransaction(txId: String) async throws -> MempoolTransactionResponse { … }
 /// }
 /// ```
 protocol MempoolSpaceAPIProtocol {
@@ -28,4 +29,9 @@ protocol MempoolSpaceAPIProtocol {
 
     /// Fetches the current recommended Bitcoin transaction fee rates.
     func fetchRecommendedFees() async throws -> RecommendedFeesResponse
+
+    /// Fetches metadata and confirmation status for a Bitcoin transaction.
+    ///
+    /// - Parameter txId: 64-character hex transaction ID.
+    func fetchTransaction(txId: String) async throws -> MempoolTransactionResponse
 }
