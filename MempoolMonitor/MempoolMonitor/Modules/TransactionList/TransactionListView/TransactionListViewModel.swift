@@ -63,7 +63,11 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
                 // 2. Refresh each transaction from the API and persist the updated state.
                 for transaction in stored {
                     guard let refreshed = try? await api.fetchTransaction(txId: transaction.txId) else { continue }
-                    try? await storage.save(refreshed, id: refreshed.txId)
+                    do {
+                        try await storage.save(refreshed, id: refreshed.txId)
+                    } catch {
+                        Log.print.error("❌ Failed to persist transaction: \(error.localizedDescription)")
+                    }
                     if let index = uiState.transactions.firstIndex(where: { $0.txId == refreshed.txId }) {
                         uiState.transactions[index] = refreshed
                     }
