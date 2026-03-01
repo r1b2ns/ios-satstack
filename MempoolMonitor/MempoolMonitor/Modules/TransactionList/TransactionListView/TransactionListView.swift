@@ -86,6 +86,9 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
             buildSection(title: "Pending", transactions: viewModel.uiState.pendingTransactions)
             buildSection(title: "Confirmed", transactions: viewModel.uiState.confirmedTransactions)
         }
+        .refreshable {
+            await viewModel.loadTransactions()
+        }
     }
 
     @ViewBuilder
@@ -114,7 +117,10 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
         HStack(alignment: .center, spacing: 12) {
             buildRowLeftColumn(transaction)
             Spacer()
-            buildRowRightColumn(transaction.status)
+            buildRowRightColumn(
+                transaction.status,
+                isRefreshing: viewModel.uiState.isRefreshing(transaction.txId)
+            )
         }
         .padding(.vertical, 4)
     }
@@ -127,12 +133,19 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
         }
     }
 
-    private func buildRowRightColumn(_ status: TransactionStatus) -> some View {
+    private func buildRowRightColumn(_ status: TransactionStatus, isRefreshing: Bool) -> some View {
         HStack(spacing: 6) {
             buildStatusBadge(status)
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            if isRefreshing {
+                ProgressView()
+                    .scaleEffect(0.75)
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 16, height: 16)
+            }
         }
     }
 
