@@ -6,6 +6,11 @@ import UIKit
 struct MempoolMonitorApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    /// Drives the app-wide visual theme. Injected into the environment
+    /// so every view can read `@Environment(\.appTheme)` or
+    /// `@EnvironmentObject var themeManager: ThemeManager`.
+    @StateObject private var themeManager = ThemeManager()
+
     /// Shared ModelContainer for SwiftData persistence.
     /// Created once at app launch; the schema includes only `PersistedItem`.
     private let modelContainer: ModelContainer
@@ -51,6 +56,9 @@ struct MempoolMonitorApp: App {
                     }
             }
             .modelContainer(modelContainer)
+            .environmentObject(themeManager)
+            .environment(\.appTheme, themeManager.definition)
+            .applyThemeAppearance(accent: themeManager.definition.colors.accent)
         }
     }
 }

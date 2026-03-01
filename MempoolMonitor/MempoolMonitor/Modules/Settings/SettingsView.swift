@@ -30,6 +30,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: SettingsCoordinator
+    @Environment(\.appTheme) private var theme
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
@@ -45,22 +46,24 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - APNs indicator
 
     private func buildAPNsTokenIndicator() -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Image(systemName: viewModel.uiState.hasAPNsToken
                   ? "bell.badge.fill"
                   : "bell.slash.fill")
-                .foregroundStyle(viewModel.uiState.hasAPNsToken ? .green : .secondary)
+                .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.contentSecondary)
                 .font(.title3)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Push Notifications")
-                    .font(.subheadline.weight(.medium))
+                    .font(theme.typography.subheadline)
+                    .fontWeight(.medium)
                 Text(viewModel.uiState.hasAPNsToken ? "Registered" : "Not registered")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(theme.typography.caption)
+                    .foregroundStyle(theme.colors.contentSecondary)
             }
 
             Spacer()
@@ -68,7 +71,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             Image(systemName: viewModel.uiState.hasAPNsToken
                   ? "checkmark.circle.fill"
                   : "xmark.circle.fill")
-                .foregroundStyle(viewModel.uiState.hasAPNsToken ? .green : .red)
+                .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.destructive)
         }
     }
 }
@@ -84,6 +87,8 @@ private extension View {
                 Text("Notifications")
             case .about:
                 Text("About")
+            case .theme:
+                ThemeSettingsView()
             }
         }
     }

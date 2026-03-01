@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.appTheme) private var theme
     @ObservedObject var viewModel: ViewModel
 
     init(viewModel: ViewModel) {
@@ -10,14 +11,14 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
+            VStack(spacing: theme.shape.spacingXL) {
                 buildTxidField()
                 buildPasteButton()
                 buildWatchButton()
                 buildStatusMessage()
                 Spacer()
             }
-            .padding()
+            .padding(theme.shape.spacingL)
             .navigationTitle("Watch Transaction")
             .onAppear { viewModel.checkClipboard() }
             .onChange(of: viewModel.uiState.shouldDismiss) { _, shouldDismiss in
@@ -29,14 +30,12 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
     // MARK: - Subviews
 
     private func buildTxidField() -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Transaction ID")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: theme.shape.spacingS) {
+            AppText("Transaction ID", style: .subheadline, color: .secondary)
 
             TextField("Paste TXID here…", text: $viewModel.uiState.txid, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(.footnote, design: .monospaced))
+                .font(theme.typography.monospaced)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .lineLimit(3...6)
@@ -54,7 +53,7 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
                 Text("Paste")
             }
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.appSecondary)
         .disabled(!viewModel.uiState.clipboardHasContent)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -64,14 +63,13 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
             Task { await viewModel.watchTransaction() }
         } label: {
             HStack {
-                if viewModel.uiState.isLoading { ProgressView().tint(.white) }
+                if viewModel.uiState.isLoading {
+                    ProgressView().tint(theme.colors.accentForeground)
+                }
                 Text(viewModel.uiState.isLoading ? "Sending…" : "Watch Transaction")
-                    .fontWeight(.semibold)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.appPrimary)
         .disabled(
             viewModel.uiState.txid.trimmingCharacters(in: .whitespaces).isEmpty
             || viewModel.uiState.isLoading
@@ -81,21 +79,25 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
     @ViewBuilder
     private func buildStatusMessage() -> some View {
         if !viewModel.uiState.statusMessage.isEmpty {
-            let color: Color = viewModel.uiState.statusIsSuccess ? .green : .red
-            HStack(spacing: 8) {
+            let color: Color = viewModel.uiState.statusIsSuccess
+                ? theme.colors.success
+                : theme.colors.destructive
+
+            HStack(spacing: theme.shape.spacingS) {
                 Image(systemName: viewModel.uiState.statusIsSuccess
                       ? "checkmark.circle.fill"
                       : "xmark.circle.fill")
-                Text(viewModel.uiState.statusMessage).font(.subheadline)
+                AppText(viewModel.uiState.statusMessage, style: .subheadline, color: .custom(color))
             }
             .foregroundStyle(color)
-            .padding(12)
+            .padding(theme.shape.spacingM)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(color.opacity(0.1),
-                        in: RoundedRectangle(cornerRadius: 10))
+            .background(
+                color.opacity(0.1),
+                in: RoundedRectangle(cornerRadius: theme.shape.cornerRadiusSmall)
+            )
         }
     }
-
 }
 
 #Preview {

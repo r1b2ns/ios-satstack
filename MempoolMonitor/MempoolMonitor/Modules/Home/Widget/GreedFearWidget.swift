@@ -7,6 +7,8 @@ import SwiftUI
 /// positioned at the corresponding percentage.
 struct GreedFearWidget: View {
 
+    @Environment(\.appTheme) private var theme
+
     /// Numeric score from 0 (Extreme Fear) to 100 (Extreme Greed).
     let score: Int
 
@@ -14,11 +16,11 @@ struct GreedFearWidget: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: theme.shape.spacingM) {
             buildHeader()
             buildColorBand()
         }
-        .padding()
+        .padding(theme.shape.spacingL)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -34,19 +36,13 @@ struct GreedFearWidget: View {
 
     private func buildTitleStack() -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Greed & Fear Index")
-                .font(.headline)
-                .fontWeight(.semibold)
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(scoreColor)
+            AppText("Greed & Fear Index", style: .headline)
+            AppText(label, style: .subheadline, color: .custom(scoreColor))
         }
     }
 
     private func buildScoreLabel() -> some View {
-        Text("\(score)")
-            .font(.system(size: 48, weight: .bold, design: .rounded))
-            .foregroundStyle(scoreColor)
+        AppText("\(score)", style: .scoreLarge, color: .custom(scoreColor))
     }
 
     // MARK: - Color band
