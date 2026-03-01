@@ -77,6 +77,17 @@ final class HomeViewModel: HomeViewModelProtocol {
                     .redacted(reason: .placeholder)
             ))
 
+        case .currentBlockHeight:
+            if let info = uiState.halvingInfo {
+                return .icon(
+                    image: Image(systemName: item.systemImage),
+                    title: item.displayName,
+                    subtitle: Self.formattedBlockHeight(info.currentBlockHeight),
+                    tintColor: item.tintColor
+                )
+            }
+            return item.mockType
+
         case .nextHalving:
             if let info = uiState.halvingInfo {
                 return .custom(view: AnyView(HalvingWidget(
@@ -91,6 +102,15 @@ final class HomeViewModel: HomeViewModelProtocol {
         default:
             return item.mockType
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Returns the block height formatted with thousands separators (e.g. `"892,450"`).
+    private static func formattedBlockHeight(_ height: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: height)) ?? "\(height)"
     }
 
     func addWidget(_ item: WidgetItem) {

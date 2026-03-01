@@ -5,6 +5,9 @@ import SwiftUI
 /// Computed data for the Next Halving widget.
 struct HalvingInfo {
 
+    /// Current block height, derived as `nextRetargetHeight − remainingBlocks`.
+    let currentBlockHeight: Int
+
     /// Block height at which the next halving occurs (multiple of 210,000).
     let nextHalvingHeight: Int
 
@@ -40,6 +43,7 @@ extension HalvingInfo {
         let epochProgress     = Double(blocksIntoEpoch) / Double(halvingInterval)
 
         return HalvingInfo(
+            currentBlockHeight: currentHeight,
             nextHalvingHeight: nextHalvingHeight,
             blocksUntil: blocksUntil,
             estimatedDate: estimatedDate,
