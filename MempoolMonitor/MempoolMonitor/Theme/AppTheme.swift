@@ -14,6 +14,10 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     /// Bitcoin-orange accent replaces the system blue everywhere.
     case bitcoinOnly
 
+    /// Faithful recreation of the Windows XP Luna theme —
+    /// Tahoma font, XP blue accent, ECE9D8 window surfaces, squared corners.
+    case windowsXP
+
     // MARK: - Identifiable
 
     var id: String { rawValue }
@@ -24,6 +28,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .default:     return "Default"
         case .bitcoinOnly: return "Bitcoin Only"
+        case .windowsXP:   return "Windows XP"
         }
     }
 
@@ -31,6 +36,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .default:     return "Follows the iOS system appearance"
         case .bitcoinOnly: return "Orange accent — Bitcoin to the core"
+        case .windowsXP:   return "Luna blue, Tahoma font, classic XP surfaces"
         }
     }
 
@@ -38,6 +44,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .default:     return "iphone"
         case .bitcoinOnly: return "bitcoinsign.circle.fill"
+        case .windowsXP:   return "desktopcomputer"
         }
     }
 
@@ -48,6 +55,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .default:     return .defaultTheme
         case .bitcoinOnly: return .bitcoinOnlyTheme
+        case .windowsXP:   return .windowsXPTheme
         }
     }
 }
@@ -150,6 +158,74 @@ extension AppThemeDefinition {
             spacingM:           12,
             spacingL:           16,
             spacingXL:          24
+        )
+    )
+
+    // MARK: - Windows XP colour helpers
+
+    /// Luna title-bar / interactive blue — #2178E0
+    private static let xpBlue    = Color(red: 0.129, green: 0.471, blue: 0.878)
+    /// XP window / dialog surface — #ECE9D8
+    private static let xpSurface = Color(red: 0.925, green: 0.914, blue: 0.847)
+    /// XP raised panel / toolbar background — #D4D0C8
+    private static let xpPanel   = Color(red: 0.831, green: 0.816, blue: 0.784)
+    /// Start-button green — #13920D
+    private static let xpGreen   = Color(red: 0.075, green: 0.573, blue: 0.051)
+    /// XP warning orange — #FF9933
+    private static let xpOrange  = Color(red: 1.000, green: 0.600, blue: 0.200)
+    /// XP gold / dark yellow — #FCCF03
+    private static let xpGold    = Color(red: 0.988, green: 0.812, blue: 0.012)
+    /// XP destructive red — #CC0000
+    private static let xpRed     = Color(red: 0.800, green: 0.000, blue: 0.000)
+    /// XP success green — #008000
+    private static let xpSuccess = Color(red: 0.000, green: 0.502, blue: 0.000)
+    /// XP muted purple for halving widget — #6B238E
+    private static let xpPurple  = Color(red: 0.420, green: 0.137, blue: 0.557)
+
+    /// Windows XP Luna — Tahoma font, ECE9D8 surfaces, XP-blue accent,
+    /// squared corners (4 pt) and the full Luna colour palette.
+    static let windowsXPTheme = AppThemeDefinition(
+        colors: ThemeColors(
+            background:          xpSurface,
+            backgroundSecondary: xpPanel,
+            card:                xpSurface,
+            contentPrimary:      Color.black,
+            contentSecondary:    Color(white: 0.30),
+            contentTertiary:     Color(white: 0.50),
+            accent:              xpBlue,
+            accentForeground:    Color.white,
+            success:             xpSuccess,
+            warning:             xpOrange,
+            destructive:         xpRed,
+            widgetFearGreed:     xpOrange,
+            widgetBalance:       xpGold,
+            widgetBlockHeight:   xpBlue,
+            widgetFees:          xpGreen,
+            widgetHalving:       xpPurple
+        ),
+        typography: ThemeTypography(
+            // Tahoma — the Windows XP system font (Courier New for monospaced).
+            // Falls back to the system font if Tahoma is not available on device.
+            largeTitle:  .custom("Tahoma-Bold", size: 34),
+            title:       .custom("Tahoma-Bold", size: 28),
+            headline:    .custom("Tahoma-Bold", size: 17),
+            subheadline: .custom("Tahoma", size: 15),
+            body:        .custom("Tahoma", size: 17),
+            caption:     .custom("Tahoma", size: 12),
+            caption2:    .custom("Tahoma", size: 11),
+            monospaced:  .custom("Courier New", size: 13),
+            scoreLarge:  .custom("Tahoma-Bold", size: 48)
+        ),
+        shape: ThemeShape(
+            // XP windows and buttons have nearly square corners (3–4 pt).
+            cornerRadiusCard:    4,
+            cornerRadiusButton:  4,
+            cornerRadiusSmall:   2,
+            spacingXS:           2,
+            spacingS:            4,
+            spacingM:            8,
+            spacingL:           12,
+            spacingXL:          16
         )
     )
 }

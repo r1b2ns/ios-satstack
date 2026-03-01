@@ -30,7 +30,6 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: SettingsCoordinator
-    @EnvironmentObject private var themeManager: ThemeManager
     @Environment(\.appTheme) private var theme
 
     init(viewModel: ViewModel) {
@@ -40,44 +39,11 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             List {
-                buildThemeRow()
                 buildAPNsTokenIndicator()
             }
             .navigationTitle("Settings")
             .navigationDestinations()
         }
-    }
-
-    // MARK: - Theme row
-
-    private func buildThemeRow() -> some View {
-        Button {
-            coordinator.navigateToTheme()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "paintpalette.fill")
-                    .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
-                    .frame(width: 28)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Theme")
-                        .font(theme.typography.subheadline)
-                        .fontWeight(.medium)
-                    Text(themeManager.current.displayName)
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(theme.colors.contentTertiary)
-            }
-            .padding(.vertical, 4)
-        }
-        .foregroundStyle(.foreground)
     }
 
     // MARK: - APNs indicator
