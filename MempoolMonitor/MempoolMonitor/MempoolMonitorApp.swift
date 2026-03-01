@@ -37,10 +37,19 @@ struct MempoolMonitorApp: App {
                         }
                     }
 
+                WalletsViewFactory.build()
+                    .tabItem {
+                        Label {
+                            Text("Wallets")
+                        } icon: {
+                            Image(systemName: "creditcard")
+                        }
+                    }
+                
                 TransactionListViewFactory.build()
                     .tabItem {
                         Label {
-                            Text("Transactions")
+                            Text("Watching")
                         } icon: {
                             Image(systemName: "list.bullet")
                         }
