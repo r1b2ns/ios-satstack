@@ -93,30 +93,47 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
         if !transactions.isEmpty {
             Section(title) {
                 ForEach(transactions, id: \.txId) { transaction in
-                    buildTransactionRow(transaction)
-                        .onTapGesture {
-                            coordinator.navigateToDetail(txId: transaction.txId)
-                        }
+                    Button {
+                        coordinator.navigateToDetail(txId: transaction.txId)
+                    } label: {
+                        buildTransactionRow(transaction)
+                    }
+                    .foregroundStyle(.foreground)
+                }
+                .onDelete { indexSet in
+                    for index in indexSet {
+                        let txId = transactions[index].txId
+                        Task { await viewModel.deleteTransaction(txId: txId) }
+                    }
                 }
             }
         }
     }
 
     private func buildTransactionRow(_ transaction: WatchTransactionResponse) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            buildTxIdLabel(transaction.txId)
-
-            HStack {
-                buildStatusBadge(transaction.status)
-                Spacer()
-                buildConfirmationsLabel(transaction.confirmations)
-            }
-
-            if let valueBtc = transaction.valueBtc {
-                buildValueLabel(valueBtc)
-            }
+        HStack(alignment: .center, spacing: 12) {
+            buildRowLeftColumn(transaction)
+            Spacer()
+            buildRowRightColumn(transaction.status)
         }
         .padding(.vertical, 4)
+    }
+
+    private func buildRowLeftColumn(_ transaction: WatchTransactionResponse) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            buildValueLabel(transaction.valueBtc)
+            buildTxIdLabel(transaction.txId)
+            buildConfirmationsLabel(transaction.confirmations)
+        }
+    }
+
+    private func buildRowRightColumn(_ status: TransactionStatus) -> some View {
+        HStack(spacing: 6) {
+            buildStatusBadge(status)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
     }
 
     private func buildTxIdLabel(_ txId: String) -> some View {
@@ -124,7 +141,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
             .font(.system(.footnote, design: .monospaced))
             .lineLimit(1)
             .truncationMode(.middle)
-            .foregroundStyle(.primary)
+            .foregroundStyle(.secondary)
     }
 
     private func buildStatusBadge(_ status: TransactionStatus) -> some View {
@@ -151,10 +168,20 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
             .foregroundStyle(.secondary)
     }
 
-    private func buildValueLabel(_ valueBtc: Double) -> some View {
-        Text(String(format: "₿ %.8f", valueBtc))
-            .font(.caption)
-            .foregroundStyle(.secondary)
+    private func buildValueLabel(_ valueBtc: Double?) -> some View {
+        Group {
+            if let valueBtc {
+                Text(String(format: "₿ %.8f", valueBtc))
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+            } else {
+                Text("₿ —")
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - Toolbar

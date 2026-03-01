@@ -6,6 +6,7 @@ import SwiftUI
 protocol TransactionListViewModelProtocol: ObservableObject {
     var uiState: TransactionListUiState { get set }
     func loadTransactions() async
+    func deleteTransaction(txId: String) async
 }
 
 // MARK: - UiState
@@ -29,19 +30,22 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
     @Published var uiState: TransactionListUiState
 
     private let storage: PersistentStorable
+    private let api: MempoolMonitorAPIProtocol
 
     init(
         uiState: TransactionListUiState = .init(),
-        storage: PersistentStorable
+        storage: PersistentStorable,
+        api: MempoolMonitorAPIProtocol
     ) {
         self.uiState = uiState
         self.storage = storage
+        self.api = api
     }
 
-    /// Convenience initializer that uses the shared SwiftData store.
+    /// Convenience initializer that uses the shared SwiftData store and API.
     @MainActor
     convenience init() {
-        self.init(storage: SwiftDataStorable.shared)
+        self.init(storage: SwiftDataStorable.shared, api: MempoolMonitorAPI.shared)
     }
 
     // MARK: - Actions
@@ -50,12 +54,34 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
         Task { @MainActor in
             uiState.isLoading = true
             defer { uiState.isLoading = false }
-            
+
             do {
-                uiState.transactions = try await storage.fetchAll(WatchTransactionResponse.self)
-                
+                // 1. Display saved transactions immediately from local storage.
+                let stored = try await storage.fetchAll(WatchTransactionResponse.self)
+                uiState.transactions = stored
+
+                // 2. Refresh each transaction from the API and persist the updated state.
+                for transaction in stored {
+                    guard let refreshed = try? await api.fetchTransaction(txId: transaction.txId) else { continue }
+                    try? await storage.save(refreshed, id: refreshed.txId)
+                    if let index = uiState.transactions.firstIndex(where: { $0.txId == refreshed.txId }) {
+                        uiState.transactions[index] = refreshed
+                    }
+                }
             } catch {
                 Log.print.error("❌ Failed to load transactions: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func deleteTransaction(txId: String) async {
+        Task { @MainActor in
+            do {
+                try await storage.delete(WatchTransactionResponse.self, id: txId)
+                uiState.transactions.removeAll { $0.txId == txId }
+                Log.print.info("🗑️ Transaction deleted: \(txId)")
+            } catch {
+                Log.print.error("❌ Failed to delete transaction \(txId): \(error.localizedDescription)")
             }
         }
     }

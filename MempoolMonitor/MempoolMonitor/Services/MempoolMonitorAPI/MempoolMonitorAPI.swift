@@ -70,4 +70,14 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
             )
         )
     }
+
+    /// Fetches the current state of a monitored Bitcoin transaction.
+    ///
+    /// - Parameter txId: Bitcoin transaction hash (64-character hex string).
+    /// - Returns: The current transaction state from the server.
+    func fetchTransaction(txId: String) async throws -> WatchTransactionResponse {
+        try await network.perform(
+            GetTransactionRequest(baseURL: baseURL, txId: txId)
+        )
+    }
 }
