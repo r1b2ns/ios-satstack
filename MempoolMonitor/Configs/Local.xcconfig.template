@@ -5,6 +5,7 @@
 
 PRODUCT_BUNDLE_IDENTIFIER        = com.example.mempoolmonitor
 PRODUCT_BUNDLE_IDENTIFIER_WIDGET = com.example.mempoolmonitor.widget
+DEVELOPMENT_TEAM                 = XXXXXXXXXX
 
 // Mempool Monitor server host (no scheme — host:port only).
 // Note: do not include http:// here; // starts a comment in xcconfig.

@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 @main
-struct MempoolMonitorApp: App {
+struct SatStackApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     /// Drives the app-wide visual theme. Injected into the environment

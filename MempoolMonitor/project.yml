@@ -1,4 +1,4 @@
-name: MempoolMonitor
+name: SatStack
 
 options:
   deploymentTarget:
@@ -82,20 +82,20 @@ packages:
 
 # ─── Targets ───────────────────────────────────────────────────────────────────
 targets:
-  MempoolMonitor:
+  SatStack:
     type: application
     platform: iOS
     deploymentTarget: "17.0"
 
     # Fontes do app + tipos compartilhados com o widget extension
     sources:
-      - path: MempoolMonitor
+      - path: SatStack
       - path: Shared
 
     # Info.plist gerenciado pelo XcodeGen — source of truth está aqui.
     # "properties" faz o XcodeGen gerar/sobrescrever o arquivo em cada "xcodegen generate".
     info:
-      path: MempoolMonitor/Info.plist
+      path: SatStack/Info.plist
       properties:
         # ── Bundle identity ────────────────────────────────────────────────
         CFBundleDevelopmentRegion:    "$(DEVELOPMENT_LANGUAGE)"
@@ -103,14 +103,13 @@ targets:
         CFBundleIdentifier:           "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleInfoDictionaryVersion: "6.0"
         CFBundleName:                 "$(PRODUCT_NAME)"
-        CFBundleDisplayName:          Mempool Monitor
+        CFBundleDisplayName:          SatStack
         CFBundlePackageType:          APPL
         CFBundleShortVersionString:   "$(MARKETING_VERSION)"
         CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
 
-        # ── Launch screen (obrigatório para resolução nativa no iPhone) ────
-        # Sem esta chave o iOS exibe o app em modo compatibilidade (barras pretas).
-        UILaunchScreen: {}
+        # ── Launch screen ──────────────────────────────────────────────
+        UILaunchStoryboardName: LaunchScreen
 
         # ── Cenas ─────────────────────────────────────────────────────────
         UIApplicationSceneManifest:
@@ -136,7 +135,7 @@ targets:
     # Entitlements — XcodeGen define CODE_SIGN_ENTITLEMENTS automaticamente.
     # "properties" faz o XcodeGen gerar/sobrescrever o arquivo (source of truth aqui).
     entitlements:
-      path: MempoolMonitor/MempoolMonitor.entitlements
+      path: SatStack/SatStack.entitlements
       properties:
         # Push Notifications — obrigatório para APNs funcionar no device.
         # Use "development" para builds Debug/Ad-hoc e "production" para App Store.
@@ -155,9 +154,9 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_IDENTITY: "Apple Development"
-        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_STYLE: Manual
         CURRENT_PROJECT_VERSION: "1"
-        DEVELOPMENT_TEAM: X7R68587M4
+        # DEVELOPMENT_TEAM: on local.xcconfig
         # INFOPLIST_FILE e GENERATE_INFOPLIST_FILE são definidos automaticamente
         # pelo XcodeGen a partir de info.path acima — não duplicar aqui.
         LD_RUNPATH_SEARCH_PATHS:
@@ -173,26 +172,26 @@ targets:
 
     # ─── Widget extension embutido no app ────────────────────────────────────
     dependencies:
-      - target: MempoolMonitorWidget
+      - target: SatStackWidget
         embed: true
       # netfox: apenas importado/iniciado em DEBUG — ver AppDelegate.swift
       - package: netfox
         product: netfox
 
 # ─────────────────────────────────────────────────────────────────────────────
-  MempoolMonitorWidget:
+  SatStackWidget:
     type: app-extension
     platform: iOS
     deploymentTarget: "17.0"
 
     # Fontes do widget + tipos compartilhados com o app
     sources:
-      - path: MempoolMonitorWidget
+      - path: SatStackWidget
       - path: Shared
 
     # Info.plist do widget — gerenciado pelo XcodeGen
     info:
-      path: MempoolMonitorWidget/Info.plist
+      path: SatStackWidget/Info.plist
       properties:
         CFBundleDevelopmentRegion:    "$(DEVELOPMENT_LANGUAGE)"
         CFBundleExecutable:           "$(EXECUTABLE_NAME)"
@@ -215,9 +214,9 @@ targets:
     settings:
       base:
         CODE_SIGN_IDENTITY: "Apple Development"
-        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_STYLE: Manual
         CURRENT_PROJECT_VERSION: "1"
-        DEVELOPMENT_TEAM: X7R68587M4
+        # DEVELOPMENT_TEAM: on local.xcconfig
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/../../Frameworks"
@@ -232,17 +231,17 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
 
 # ─────────────────────────────────────────────────────────────────────────────
-  MempoolMonitorTests:
+  SatStackTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "17.0"
 
     sources:
-      - path: MempoolMonitorTests
+      - path: SatStackTests
 
     # Info.plist gerado pelo XcodeGen (não versionar — está no .gitignore)
     info:
-      path: MempoolMonitorTests/Info.plist
+      path: SatStackTests/Info.plist
       properties:
         CFBundleDevelopmentRegion:    "$(DEVELOPMENT_LANGUAGE)"
         CFBundleExecutable:           "$(EXECUTABLE_NAME)"
@@ -261,13 +260,13 @@ targets:
     settings:
       base:
         # Carrega o test bundle dentro do processo do app host, permitindo
-        # @testable import MempoolMonitor e acesso a tipos internos.
+        # @testable import SatStack e acesso a tipos internos.
         BUNDLE_LOADER:        "$(TEST_HOST)"
-        TEST_HOST:            "$(BUILT_PRODUCTS_DIR)/MempoolMonitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MempoolMonitor"
+        TEST_HOST:            "$(BUILT_PRODUCTS_DIR)/SatStack.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SatStack"
         CODE_SIGN_IDENTITY:   "Apple Development"
-        CODE_SIGN_STYLE:      Automatic
+        CODE_SIGN_STYLE:      Manual
         CURRENT_PROJECT_VERSION: "1"
-        DEVELOPMENT_TEAM:     X7R68587M4
+        # DEVELOPMENT_TEAM: on local.xcconfig
         MARKETING_VERSION:    "1.0"
         # Bundle ID vem da chave PRODUCT_BUNDLE_IDENTIFIER_TESTS do Local.xcconfig
         PRODUCT_BUNDLE_IDENTIFIER: "$(PRODUCT_BUNDLE_IDENTIFIER_TESTS)"
@@ -276,55 +275,55 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
 
     dependencies:
-      - target: MempoolMonitor
+      - target: SatStack
 
 # ─── Schemes ──────────────────────────────────────────────────────────────────
 # Widget extensions não podem ser lançadas diretamente — precisam do app host.
-# O scheme do widget é configurado para lançar o MempoolMonitor como executable,
+# O scheme do widget é configurado para lançar o SatStack como executable,
 # o que instala o app (que já embute o widget) e permite debug/preview da extension.
 schemes:
-  MempoolMonitor:
+  SatStack:
     build:
       targets:
-        MempoolMonitor:      all
-        MempoolMonitorWidget: all          # widget é embutido no app
-        MempoolMonitorTests: [build, test]
+        SatStack:      all
+        SatStackWidget: all          # widget é embutido no app
+        SatStackTests: [build, test]
     run:
       config: Debug
-      executable: MempoolMonitor
+      executable: SatStack
     test:
       config: Debug
       targets:
-        - MempoolMonitorTests
+        - SatStackTests
     profile:
       config: Release
-      executable: MempoolMonitor
+      executable: SatStack
     analyze:
       config: Debug
     archive:
       config: Release
 
-  MempoolMonitorWidget:
+  SatStackWidget:
     build:
       targets:
-        MempoolMonitor: all           # garante que o app host seja buildado junto
-        MempoolMonitorWidget: all
+        SatStack: all           # garante que o app host seja buildado junto
+        SatStackWidget: all
     run:
       config: Debug
-      executable: MempoolMonitor      # lança o app host, não a extension isolada
+      executable: SatStack      # lança o app host, não a extension isolada
     profile:
       config: Release
-      executable: MempoolMonitor
+      executable: SatStack
 
-  MempoolMonitorTests:
+  SatStackTests:
     build:
       targets:
-        MempoolMonitor:      [build, test]   # app host obrigatório para bundle loader
-        MempoolMonitorTests: [build, test]
+        SatStack:      [build, test]   # app host obrigatório para bundle loader
+        SatStackTests: [build, test]
     test:
       config: Debug
       targets:
-        - MempoolMonitorTests
+        - SatStackTests
     run:
       config: Debug
-      executable: MempoolMonitor
+      executable: SatStack

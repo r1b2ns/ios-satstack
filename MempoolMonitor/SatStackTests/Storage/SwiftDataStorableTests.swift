@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import MempoolMonitor
+@testable import SatStack
 
 final class SwiftDataStorableTests: XCTestCase {
 

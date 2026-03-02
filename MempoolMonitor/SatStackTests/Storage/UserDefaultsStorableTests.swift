@@ -1,5 +1,5 @@
 import XCTest
-@testable import MempoolMonitor
+@testable import SatStack
 
 final class UserDefaultsStorableTests: XCTestCase {
 

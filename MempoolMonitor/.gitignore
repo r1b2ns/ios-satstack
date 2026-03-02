@@ -2,10 +2,10 @@
 Configs/Local.xcconfig
 
 # ─── Xcode project e plists gerados pelo XcodeGen ────────────────────────────
-MempoolMonitor.xcodeproj/
-MempoolMonitor/Info.plist
-MempoolMonitorWidget/Info.plist
-MempoolMonitorTests/Info.plist
+SatStack.xcodeproj/
+SatStack/Info.plist
+SatStackWidget/Info.plist
+SatStackTests/Info.plist
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 build/

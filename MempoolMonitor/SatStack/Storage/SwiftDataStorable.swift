@@ -123,6 +123,6 @@ final actor SwiftDataStorable: PersistentStorable {
 extension SwiftDataStorable {
 
     /// Shared instance for production use.
-    /// Must be initialized after `ModelContainer` is created in `MempoolMonitorApp`.
+    /// Must be initialized after `ModelContainer` is created in `SatStackApp`.
     @MainActor static var shared: SwiftDataStorable!
 }
