@@ -1,4 +1,4 @@
-# iOS Mempool Monitor
+# SatStack
 
 An iOS app for monitoring Bitcoin transactions in the mempool. Enter a transaction ID and the app starts a **Live Activity** that displays real-time status — confirmations, value, and fee — directly on the Lock Screen and Dynamic Island.
 
@@ -9,22 +9,20 @@ Updates are delivered via **APNs (Apple Push Notification service)**, with no ne
 ## Screenshots
 
 <p align="center">
-  <img src="snapshots/01.png" width="22%" alt="Home — widget grid" />
-  <img src="snapshots/001.png" width="22%" alt="Home — customize widgets" />
-  <img src="snapshots/02.png" width="22%" alt="Transactions list" />
-  <img src="snapshots/03.png" width="22%" alt="Watch Transaction" />
-</p>
-<p align="center">
-  <img src="snapshots/04.png" width="22%" alt="Live Activity on Lock Screen" />
+  <img src="snapshots/01.png" width="18%" alt="Home — widget grid" />
+  <img src="snapshots/02.png" width="18%" alt="Transactions list" />
+  <img src="snapshots/03.png" width="18%" alt="Watch Transaction" />
+  <img src="snapshots/04.png" width="18%" alt="Live Activity on Lock Screen" />
+  <img src="snapshots/05.png" width="18%" alt="Wallets" />
 </p>
 
 | Screenshot | Description |
 |---|---|
 | 1 | **Home** — widget grid with Greed & Fear Index (expanded) and compact widgets |
-| 2 | **Customize** — reorder, add, and remove widgets via the sheet |
-| 3 | **Transactions** — list of monitored transactions grouped by status |
-| 4 | **Watch Transaction** — add a new transaction by pasting a TXID |
-| 5 | **Live Activity** — real-time transaction status on the Lock Screen |
+| 2 | **Transactions** — list of monitored transactions grouped by status |
+| 3 | **Watch Transaction** — add a new transaction by pasting a TXID |
+| 4 | **Live Activity** — real-time transaction status on the Lock Screen |
+| 5 | **Wallets** — manage your Bitcoin wallets |
 
 ---
 
@@ -58,9 +56,9 @@ cp MempoolMonitor/Configs/Local.xcconfig.template MempoolMonitor/Configs/Local.x
 Edit `Configs/Local.xcconfig` with your own values:
 
 ```
-PRODUCT_BUNDLE_IDENTIFIER        = com.yourcompany.mempoolmonitor
-PRODUCT_BUNDLE_IDENTIFIER_WIDGET = com.yourcompany.mempoolmonitor.widget
-PRODUCT_BUNDLE_IDENTIFIER_TESTS  = com.yourcompany.mempoolmonitor.tests
+PRODUCT_BUNDLE_IDENTIFIER        = com.yourcompany.satstack
+PRODUCT_BUNDLE_IDENTIFIER_WIDGET = com.yourcompany.satstack.widget
+PRODUCT_BUNDLE_IDENTIFIER_TESTS  = com.yourcompany.satstack.tests
 
 # api-mempool-monitor server host (without http://)
 MEMPOOL_MONITOR_HOST = 192.168.x.x:3000
@@ -75,10 +73,10 @@ xcodegen generate --spec MempoolMonitor/project.yml
 ### 4. Open in Xcode and run on device
 
 ```bash
-open MempoolMonitor/MempoolMonitor.xcodeproj
+open MempoolMonitor/SatStack.xcodeproj
 ```
 
-Select the **MempoolMonitor** scheme, connect an iPhone, and run with `⌘R`.
+Select the **SatStack** scheme, connect an iPhone, and run with `⌘R`.
 
 ---
 
@@ -98,10 +96,9 @@ See the server's README for setup instructions.
 
 ```bash
 xcodebuild test \
-  -project MempoolMonitor/MempoolMonitor.xcodeproj \
-  -scheme MempoolMonitorTests \
+  -project MempoolMonitor/SatStack.xcodeproj \
+  -scheme SatStackTests \
   -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-Or from Xcode: select the **MempoolMonitor** scheme and press `⌘U`.
-
+Or from Xcode: select the **SatStack** scheme and press `⌘U`.
