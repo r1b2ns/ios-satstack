@@ -79,6 +79,9 @@ packages:
   netfox:
     url: https://github.com/rubensmachion/netfox
     branch: develop
+  bdk-swift:
+    url: https://github.com/bitcoindevkit/bdk-swift
+    exactVersion: "2.3.0"
 
 # ─── Targets ───────────────────────────────────────────────────────────────────
 targets:
@@ -177,6 +180,8 @@ targets:
       # netfox: apenas importado/iniciado em DEBUG — ver AppDelegate.swift
       - package: netfox
         product: netfox
+      - package: bdk-swift
+        product: BitcoinDevKit
 
 # ─────────────────────────────────────────────────────────────────────────────
   SatStackWidget:

@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Wallet model
 
 /// Represents a tracked wallet entry.
-struct Wallet: Identifiable {
+struct Wallet: Identifiable, Codable {
 
     let id: UUID
 
@@ -15,6 +15,17 @@ struct Wallet: Identifiable {
 
     /// Current balance in BTC.
     let balanceBTC: Double
+
+    /// BIP-39 mnemonic phrase (space-separated words). Nil for watch-only wallets.
+    let mnemonicPhrase: String?
+
+    init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil) {
+        self.id = id
+        self.name = name
+        self.theme = theme
+        self.balanceBTC = balanceBTC
+        self.mnemonicPhrase = mnemonicPhrase
+    }
 }
 
 // MARK: - WalletTransaction model
@@ -103,6 +114,7 @@ protocol WalletsViewModelProtocol: ObservableObject {
     func deselectWallet()
     func showRenameAlert()
     func updateWalletName(id: UUID, name: String)
+    func addWallet(_ wallet: Wallet)
 }
 
 // MARK: - UiState
@@ -142,7 +154,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
     private let walletService: any WalletServiceProtocol
 
-    init(walletService: any WalletServiceProtocol = MockWalletService()) {
+    init(walletService: any WalletServiceProtocol = BDKWalletService()) {
         self.walletService = walletService
         Task { @MainActor in await self.loadWallets() }
     }
@@ -177,31 +189,42 @@ final class WalletsViewModel: WalletsViewModelProtocol {
               let index = uiState.wallets.firstIndex(where: { $0.id == id }) else { return }
         uiState.wallets[index].name = trimmed
     }
+
+    func addWallet(_ wallet: Wallet) {
+        uiState.wallets.append(wallet)
+        uiState.isPresentingAddSheet = false
+        Task { await persistWallet(wallet) }
+    }
 }
 
 // MARK: - Private async
 
 private extension WalletsViewModel {
 
-    /// Loads the wallet list on startup.
-    ///
-    /// Currently backed by in-process fixtures; will be replaced by
-    /// SwiftData persistence once the storage layer is wired up.
+    /// Loads persisted wallets from SwiftData on startup.
     @MainActor
     func loadWallets() async {
         uiState.isLoadingWallets = true
 
-        let fixtures: [Wallet] = [
-            Wallet(id: UUID(), name: "Cold Storage",   theme: .watchOnly, balanceBTC: 1.24780000),
-            Wallet(id: UUID(), name: "Daily Spending", theme: .bitcoin,   balanceBTC: 0.00420000),
-            Wallet(id: UUID(), name: "SatsCard #001",  theme: .satsCard,  balanceBTC: 0.10000000)
-        ]
+        do {
+            let stored: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
+            uiState.wallets = stored
+        } catch {
+            Log.print.error("Failed to load wallets: \(error.localizedDescription)")
+            uiState.wallets = []
+        }
 
-        // Simulate I/O latency — remove once real persistence is in place.
-        try? await Task.sleep(nanoseconds: 400_000_000)
-
-        uiState.wallets = fixtures
         uiState.isLoadingWallets = false
+    }
+
+    /// Persists a wallet to SwiftData.
+    func persistWallet(_ wallet: Wallet) async {
+        do {
+            try await SwiftDataStorable.shared.save(wallet, id: wallet.id.uuidString)
+            Log.print.info("Wallet saved: \(wallet.id.uuidString)")
+        } catch {
+            Log.print.error("Failed to persist wallet: \(error.localizedDescription)")
+        }
     }
 
     /// Fetches on-chain transactions for a given wallet via the injected service.

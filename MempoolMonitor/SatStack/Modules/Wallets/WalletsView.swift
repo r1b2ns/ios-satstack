@@ -256,12 +256,7 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     // MARK: - Add sheet
 
     private func buildAddSheet() -> some View {
-        ContentUnavailableView(
-            "Coming Soon",
-            systemImage: "hammer.circle",
-            description: Text("Wallet creation will be available in a future update.")
-        )
-        .presentationDetents([.medium])
+        AddWalletSheetView(viewModel: viewModel)
     }
 
     // MARK: - Toolbar
