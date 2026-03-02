@@ -2,7 +2,7 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-struct MempoolMonitorLiveActivity: Widget {
+struct SatStackLiveActivity: Widget {
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TransactionActivityAttributes.self) { context in
@@ -207,7 +207,7 @@ private extension String {
 #Preview("Lock Screen", as: .content, using: TransactionActivityAttributes(
     txId: "36cee26102cd9676b9c812c7e6a4cdbf3d4b66f249be3df6765a0c3f9cc8bba7"
 )) {
-    MempoolMonitorLiveActivity()
+    SatStackLiveActivity()
 } contentStates: {
     TransactionActivityAttributes.ContentState(
         confirmations: 0,

@@ -1,5 +1,5 @@
 import Foundation
-@testable import MempoolMonitor
+@testable import SatStack
 
 /// Fake implementation of `NetworkProtocol` for `MempoolMonitorAPI` tests.
 ///

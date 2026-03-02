@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import MempoolMonitor
+@testable import SatStack
 
 // MARK: - Test Requestables
 
