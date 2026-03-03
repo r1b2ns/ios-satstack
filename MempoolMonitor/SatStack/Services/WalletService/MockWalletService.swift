@@ -116,6 +116,14 @@ struct MockWalletService: WalletServiceProtocol {
         return WalletTransaction.mocked
     }
 
+    // MARK: - syncWallet
+
+    /// Returns fixture balance and transactions in a single call.
+    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await simulateDelay()
+        return (balance: 2_100_000, transactions: WalletTransaction.mocked)
+    }
+
     // MARK: - fetchWalletBackup
 
     /// Returns a seed-phrase backup for `.bitcoin` / `.satsCard` themed wallets

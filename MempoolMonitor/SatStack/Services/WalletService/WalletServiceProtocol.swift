@@ -150,6 +150,13 @@ protocol WalletServiceProtocol {
     /// - Returns: A list of `WalletTransaction` entries, newest first.
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction]
 
+    /// Synchronises the wallet once and returns both balance and transaction
+    /// history in a single pass, avoiding redundant network calls.
+    ///
+    /// - Parameter wallet: The wallet to synchronise.
+    /// - Returns: A tuple with the total balance in satoshis and the transaction list (newest first).
+    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
     /// Retrieves the backup data for the given wallet.
     ///
     /// For HD wallets this returns the seed phrase. For watch-only wallets

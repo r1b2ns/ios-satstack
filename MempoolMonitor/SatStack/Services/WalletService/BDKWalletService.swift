@@ -33,12 +33,15 @@ struct BDKWalletService: WalletServiceProtocol {
         let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
 
         let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: walletId))
-        _ = try BitcoinDevKit.Wallet(
+        let bdkWallet = try BitcoinDevKit.Wallet(
             descriptor: externalDescriptor,
             changeDescriptor: internalDescriptor,
             network: .bitcoin,
             persister: persister
         )
+        // Persist the initial wallet state so Wallet.load succeeds on next open.
+        _ = try bdkWallet.persist(persister: persister)
+        Log.print.info("[BDK] New wallet created and persisted: \(walletId.uuidString)")
 
         let wallet = Wallet(id: walletId, name: "My Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
         let backup = WalletBackup(walletId: walletId, kind: .seedPhrase(words))
@@ -59,12 +62,16 @@ struct BDKWalletService: WalletServiceProtocol {
             let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
 
             let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: walletId))
-            _ = try BitcoinDevKit.Wallet(
+            let bdkWallet = try BitcoinDevKit.Wallet(
                 descriptor: externalDescriptor,
                 changeDescriptor: internalDescriptor,
                 network: .bitcoin,
                 persister: persister
             )
+            // Persist the initial wallet state so Wallet.load succeeds on next open.
+            _ = try bdkWallet.persist(persister: persister)
+            Log.print.info("[BDK] Imported wallet created and persisted: \(walletId.uuidString)")
+
             return Wallet(id: walletId, name: "Imported Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
 
         case .address(let address):
@@ -100,27 +107,21 @@ struct BDKWalletService: WalletServiceProtocol {
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction] {
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
         try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id)
+        return Self.extractTransactions(from: bdkWallet)
+    }
 
-        return bdkWallet.transactions()
-            .map { canonical -> WalletTransaction in
-                let tx = canonical.transaction
-                let txid = tx.computeTxid().description
+    // MARK: - syncWallet
 
-                let sentReceived = bdkWallet.sentAndReceived(tx: tx)
-                let netSats = Int64(sentReceived.received.toSat()) - Int64(sentReceived.sent.toSat())
-                let valueBTC = Double(netSats) / 100_000_000.0
-
-                let date: Date
-                switch canonical.chainPosition {
-                case .confirmed(let blockTime, _):
-                    date = Date(timeIntervalSince1970: TimeInterval(blockTime.confirmationTime))
-                case .unconfirmed:
-                    date = .now
-                }
-
-                return WalletTransaction(id: UUID(), address: txid, valueBTC: valueBTC, date: date)
-            }
-            .sorted { $0.date > $1.date }
+    /// Loads the BDK wallet, syncs **once**, and returns both the balance and the
+    /// transaction list in a single pass — avoiding the redundant double-sync that
+    /// happens when `fetchWalletBalance` and `fetchWalletTransactions` are called
+    /// independently.
+    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
+        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id)
+        let balance = bdkWallet.balance().total.toSat()
+        let transactions = Self.extractTransactions(from: bdkWallet)
+        return (balance, transactions)
     }
 
     // MARK: - fetchWalletBackup
@@ -165,8 +166,8 @@ private extension BDKWalletService {
             .build()
         let update = try client.fullScan(request: request, stopGap: 20, parallelRequests: 5)
         try bdkWallet.applyUpdate(update: update)
-        _ = try bdkWallet.persist(persister: persister)
-        Log.print.info("[FullScan] Wallet \(walletId.uuidString): full scan completed and persisted.")
+        let persisted = try bdkWallet.persist(persister: persister)
+        Log.print.info("[FullScan] Wallet \(walletId.uuidString): full scan completed. Persisted: \(persisted)")
     }
 
     /// Runs an incremental sync against the Esplora backend using only the
@@ -183,12 +184,15 @@ private extension BDKWalletService {
             .build()
         let update = try client.sync(request: request, parallelRequests: 5)
         try bdkWallet.applyUpdate(update: update)
-        _ = try bdkWallet.persist(persister: persister)
-        Log.print.info("[Sync] Wallet \(walletId.uuidString): incremental sync completed and persisted.")
+        let persisted = try bdkWallet.persist(persister: persister)
+        Log.print.info("[Sync] Wallet \(walletId.uuidString): incremental sync completed. Persisted: \(persisted)")
     }
 
     /// Loads (or creates) the on-disk BDK wallet for the given app `Wallet`.
     /// Returns both the wallet and its persister so callers can flush updates to SQLite.
+    ///
+    /// When `Wallet.load` fails (first run or corrupted database), a brand-new
+    /// BDK wallet is created and its initial state is persisted immediately.
     func loadBDKWallet(for wallet: Wallet) throws -> (BitcoinDevKit.Wallet, Persister) {
         guard let phrase = wallet.mnemonicPhrase else {
             throw WalletServiceError.unknown("No mnemonic available for this wallet.")
@@ -198,23 +202,64 @@ private extension BDKWalletService {
         let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: .bitcoin)
         let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
 
-        let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: wallet.id))
+        let dbPath = Self.walletDatabasePath(for: wallet.id)
+        let persister = try Persister.newSqlite(path: dbPath)
+
         do {
             let bdkWallet = try BitcoinDevKit.Wallet.load(
                 descriptor: externalDescriptor,
                 changeDescriptor: internalDescriptor,
                 persister: persister
             )
+            Log.print.info("[BDK] Wallet loaded from SQLite: \(wallet.id.uuidString)")
             return (bdkWallet, persister)
         } catch {
+            Log.print.warning("[BDK] Wallet.load failed for \(wallet.id.uuidString): \(error.localizedDescription). Creating new wallet.")
+
+            // Remove the potentially corrupted database and create a fresh persister.
+            try? FileManager.default.removeItem(atPath: dbPath)
+            let freshPersister = try Persister.newSqlite(path: dbPath)
+
             let bdkWallet = try BitcoinDevKit.Wallet(
                 descriptor: externalDescriptor,
                 changeDescriptor: internalDescriptor,
                 network: .bitcoin,
-                persister: persister
+                persister: freshPersister
             )
-            return (bdkWallet, persister)
+            // Persist the initial state so Wallet.load succeeds next time.
+            _ = try bdkWallet.persist(persister: freshPersister)
+
+            // A new wallet always needs a full scan, regardless of UserDefaults.
+            Self.resetFullScanFlag(for: wallet.id)
+            Log.print.info("[BDK] Fresh wallet created and persisted: \(wallet.id.uuidString)")
+            return (bdkWallet, freshPersister)
         }
+    }
+
+    // MARK: - Transaction extraction
+
+    /// Converts BDK canonical transactions into the app's `WalletTransaction` model.
+    static func extractTransactions(from bdkWallet: BitcoinDevKit.Wallet) -> [WalletTransaction] {
+        bdkWallet.transactions()
+            .map { canonical -> WalletTransaction in
+                let tx = canonical.transaction
+                let txid = tx.computeTxid().description
+
+                let sentReceived = bdkWallet.sentAndReceived(tx: tx)
+                let netSats = Int64(sentReceived.received.toSat()) - Int64(sentReceived.sent.toSat())
+                let valueBTC = Double(netSats) / 100_000_000.0
+
+                let date: Date
+                switch canonical.chainPosition {
+                case .confirmed(let blockTime, _):
+                    date = Date(timeIntervalSince1970: TimeInterval(blockTime.confirmationTime))
+                case .unconfirmed:
+                    date = .now
+                }
+
+                return WalletTransaction(id: UUID(), address: txid, valueBTC: valueBTC, date: date)
+            }
+            .sorted { $0.date > $1.date }
     }
 
     // MARK: - Full-scan state (UserDefaults)
@@ -229,6 +274,12 @@ private extension BDKWalletService {
     static func markFullScanCompleted(for walletId: UUID) {
         UserDefaults.standard.set(true, forKey: "bdk_full_scan_\(walletId.uuidString)")
         Log.print.info("[BDK] Full scan state saved for wallet \(walletId.uuidString)")
+    }
+
+    /// Resets the full-scan flag so the next sync performs a full scan.
+    static func resetFullScanFlag(for walletId: UUID) {
+        UserDefaults.standard.removeObject(forKey: "bdk_full_scan_\(walletId.uuidString)")
+        Log.print.info("[BDK] Full scan flag reset for wallet \(walletId.uuidString)")
     }
 
     /// Returns the SQLite database path for the given wallet UUID.

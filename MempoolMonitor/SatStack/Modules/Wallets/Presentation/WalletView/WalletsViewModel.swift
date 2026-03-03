@@ -339,8 +339,8 @@ private extension WalletsViewModel {
 
     // MARK: - Detail-view sync
 
-    /// Syncs a wallet when it is tapped into (detail view):
-    /// balance is fetched first (card updates immediately), then transactions.
+    /// Syncs a wallet once when it is tapped into (detail view), fetching
+    /// both balance and transactions in a single network pass.
     @MainActor
     func syncSelectedWallet(_ wallet: Wallet) async {
         uiState.selectedWalletBalanceSats = nil
@@ -348,26 +348,18 @@ private extension WalletsViewModel {
         uiState.isLoadingTransactions = true
         uiState.transactions = []
 
-        var encounteredError: String? = nil
-
         do {
-            let balance = try await walletService.fetchWalletBalance(for: wallet)
-            uiState.selectedWalletBalanceSats = balance
-            uiState.walletBalances[wallet.id] = balance
+            let result = try await walletService.syncWallet(wallet)
+            uiState.selectedWalletBalanceSats = result.balance
+            uiState.walletBalances[wallet.id] = result.balance
+            uiState.transactions = result.transactions
+            uiState.walletSyncStates[wallet.id] = .synced
         } catch {
-            encounteredError = error.localizedDescription
-            Log.print.error("[BDK] Balance fetch failed for wallet \(wallet.id): \(error.localizedDescription)")
-        }
-
-        do {
-            uiState.transactions = try await walletService.fetchWalletTransactions(for: wallet)
-        } catch {
-            encounteredError = encounteredError ?? error.localizedDescription
-            Log.print.error("[BDK] Transactions fetch failed for wallet \(wallet.id): \(error.localizedDescription)")
+            uiState.walletSyncStates[wallet.id] = .failed(error.localizedDescription)
+            Log.print.error("[BDK] Sync failed for wallet \(wallet.id): \(error.localizedDescription)")
         }
 
         uiState.isLoadingTransactions = false
-        uiState.walletSyncStates[wallet.id] = encounteredError.map { .failed($0) } ?? .synced
     }
 
     // MARK: - Persistence
