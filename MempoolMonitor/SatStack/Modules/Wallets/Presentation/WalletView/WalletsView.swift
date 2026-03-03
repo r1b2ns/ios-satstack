@@ -155,22 +155,27 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     }
 
     /// The expanded card at the top of the detail view.
+    /// Shows the live balance from the ViewModel while syncing.
     /// Dragging down on the card returns to the stacked view.
     private func buildSelectedCard(wallet: Wallet) -> some View {
-        WalletCardView(wallet: wallet)
-            .padding(.horizontal, 20)
-            .gesture(
-                DragGesture()
-                    .onEnded { value in
-                        let isDownward  = value.translation.height > 60
-                        let isVertical  = abs(value.translation.height) > abs(value.translation.width)
-                        if isDownward && isVertical {
-                            withAnimation(.spring(duration: 0.42)) {
-                                viewModel.deselectWallet()
-                            }
+        WalletCardView(
+            wallet: wallet,
+            balanceSats: viewModel.uiState.selectedWalletBalanceSats,
+            isLoadingBalance: viewModel.uiState.isLoadingBalance
+        )
+        .padding(.horizontal, 20)
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    let isDownward  = value.translation.height > 60
+                    let isVertical  = abs(value.translation.height) > abs(value.translation.width)
+                    if isDownward && isVertical {
+                        withAnimation(.spring(duration: 0.42)) {
+                            viewModel.deselectWallet()
                         }
                     }
-            )
+                }
+        )
     }
 
     // MARK: - Bitcoin action bar
@@ -264,7 +269,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     }
 
     private func buildTransactionRow(_ tx: WalletTransaction) -> some View {
-        HStack(spacing: 12) {
+        let isReceived = tx.valueBTC >= 0
+        return HStack(spacing: 12) {
+            buildTransactionIcon(isReceived: isReceived)
             VStack(alignment: .leading, spacing: 3) {
                 Text(tx.shortAddress)
                     .font(.callout)
@@ -275,16 +282,28 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text("₿ \(String(format: "%.5f", tx.valueBTC))")
+            Text(formattedTxValue(tx.valueBTC))
                 .font(.callout)
                 .fontWeight(.semibold)
-                .foregroundStyle(.primary)
+                .foregroundStyle(isReceived ? Color.green : Color.red)
             Image(systemName: "chevron.right")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    private func buildTransactionIcon(isReceived: Bool) -> some View {
+        Image(systemName: isReceived ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
+            .font(.title3)
+            .foregroundStyle(isReceived ? Color.green : Color.red)
+            .frame(width: 32)
+    }
+
+    private func formattedTxValue(_ valueBTC: Double) -> String {
+        let sign = valueBTC >= 0 ? "+" : ""
+        return "\(sign)₿ \(String(format: "%.5f", valueBTC))"
     }
 
     // MARK: - Loading state

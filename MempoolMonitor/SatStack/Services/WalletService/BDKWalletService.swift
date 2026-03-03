@@ -6,7 +6,11 @@ import Foundation
 /// Uses BDK to generate and validate BIP-39 seed phrases, derive BIP-84
 /// (native SegWit) descriptors, and initialise a `BitcoinDevKit.Wallet` backed
 /// by a per-wallet SQLite database stored in the app's Documents directory.
+/// Live balance and transaction data are fetched via the mempool.space Esplora API.
 struct BDKWalletService: WalletServiceProtocol {
+
+    /// Esplora endpoint used for wallet synchronisation.
+    private static let esploraUrl = "https://mempool.space/api"
 
     // MARK: - createNewWallet
 
@@ -32,8 +36,7 @@ struct BDKWalletService: WalletServiceProtocol {
         )
 
         // Initialise a SQLite-backed BDK wallet to validate descriptor setup.
-        let dbPath = Self.walletDatabasePath(for: walletId)
-        let persister = try Persister.newSqlite(path: dbPath)
+        let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: walletId))
         _ = try BitcoinDevKit.Wallet(
             descriptor: externalDescriptor,
             changeDescriptor: internalDescriptor,
@@ -77,8 +80,7 @@ struct BDKWalletService: WalletServiceProtocol {
             )
 
             // Initialise a SQLite-backed BDK wallet to confirm the full setup.
-            let dbPath = Self.walletDatabasePath(for: walletId)
-            let persister = try Persister.newSqlite(path: dbPath)
+            let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: walletId))
             _ = try BitcoinDevKit.Wallet(
                 descriptor: externalDescriptor,
                 changeDescriptor: internalDescriptor,
@@ -127,11 +129,52 @@ struct BDKWalletService: WalletServiceProtocol {
         }
     }
 
+    // MARK: - fetchWalletBalance
+
+    /// Performs a full Esplora scan via mempool.space and returns the wallet's
+    /// total balance in satoshis (confirmed + trusted-pending).
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64 {
+        let bdkWallet = try loadBDKWallet(for: wallet)
+        try syncWithEsplora(bdkWallet)
+        return bdkWallet.balance().total.toSat()
+    }
+
     // MARK: - fetchWalletTransactions
 
-    /// On-chain transaction sync is not yet implemented.
+    /// Performs a full Esplora scan and returns the wallet's transaction history,
+    /// sorted newest-first. Each entry shows the net BTC value from the wallet's
+    /// perspective (positive = received, negative = sent).
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction] {
-        return []
+        let bdkWallet = try loadBDKWallet(for: wallet)
+        try syncWithEsplora(bdkWallet)
+
+        return bdkWallet.transactions()
+            .map { canonical -> WalletTransaction in
+                let tx = canonical.transaction
+                let txid = tx.computeTxid().description
+
+                // Net value from the wallet's perspective.
+                let sentReceived = bdkWallet.sentAndReceived(tx: tx)
+                let netSats = Int64(sentReceived.received.toSat()) - Int64(sentReceived.sent.toSat())
+                let valueBTC = Double(netSats) / 100_000_000.0
+
+                // Resolve confirmation date.
+                let date: Date
+                switch canonical.chainPosition {
+                case .confirmed(let blockTime, _):
+                    date = Date(timeIntervalSince1970: TimeInterval(blockTime.confirmationTime))
+                case .unconfirmed:
+                    date = .now
+                }
+
+                return WalletTransaction(
+                    id: UUID(),
+                    address: txid,
+                    valueBTC: valueBTC,
+                    date: date
+                )
+            }
+            .sorted { $0.date > $1.date }
     }
 
     // MARK: - fetchWalletBackup
@@ -149,6 +192,61 @@ struct BDKWalletService: WalletServiceProtocol {
 // MARK: - Private helpers
 
 private extension BDKWalletService {
+
+    /// Loads (or creates) the on-disk BDK wallet for the given `Wallet`.
+    ///
+    /// Tries `Wallet.load` first so that the existing keychain index is preserved
+    /// across restarts; falls back to `Wallet.init` when no prior database exists.
+    func loadBDKWallet(for wallet: Wallet) throws -> BitcoinDevKit.Wallet {
+        guard let phrase = wallet.mnemonicPhrase else {
+            throw WalletServiceError.unknown("No mnemonic available for this wallet.")
+        }
+
+        let mnemonic = try Mnemonic.fromString(mnemonic: phrase)
+        let secretKey = DescriptorSecretKey(network: .bitcoin, mnemonic: mnemonic, password: nil)
+        let externalDescriptor = Descriptor.newBip84(
+            secretKey: secretKey,
+            keychainKind: .external,
+            network: .bitcoin
+        )
+        let internalDescriptor = Descriptor.newBip84(
+            secretKey: secretKey,
+            keychainKind: .internal,
+            network: .bitcoin
+        )
+
+        let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: wallet.id))
+
+        // Attempt to load the existing wallet; create it fresh if none is found.
+        do {
+            return try BitcoinDevKit.Wallet.load(
+                descriptor: externalDescriptor,
+                changeDescriptor: internalDescriptor,
+                persister: persister
+            )
+        } catch {
+            return try BitcoinDevKit.Wallet(
+                descriptor: externalDescriptor,
+                changeDescriptor: internalDescriptor,
+                network: .bitcoin,
+                persister: persister
+            )
+        }
+    }
+
+    /// Performs a full-scan against the mempool.space Esplora backend and
+    /// applies the result to `bdkWallet` so its UTXO and tx sets are up to date.
+    func syncWithEsplora(_ bdkWallet: BitcoinDevKit.Wallet) throws {
+        let client = EsploraClient(url: Self.esploraUrl)
+        let request = try bdkWallet.startFullScan().build()
+        let update = try client.fullScan(
+            request: request,
+            stopGap: 20,
+            parallelRequests: 4
+        )
+        try bdkWallet.applyUpdate(update: update)
+        Log.print.info("Wallet synced successfully via Esplora.")
+    }
 
     /// Returns the file-system path for the SQLite database associated with a wallet.
     ///

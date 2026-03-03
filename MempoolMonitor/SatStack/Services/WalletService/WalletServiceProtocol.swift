@@ -131,6 +131,15 @@ protocol WalletServiceProtocol {
     /// - Returns: The imported `Wallet` record, ready for use.
     func importWallet(from source: WalletImportSource) async throws -> Wallet
 
+    /// Synchronises the wallet with the blockchain and returns the current balance in satoshis.
+    ///
+    /// Implementations perform a full Esplora scan against mempool.space and
+    /// return the total spendable balance (confirmed + trusted-pending).
+    ///
+    /// - Parameter wallet: The wallet to synchronise and query.
+    /// - Returns: Total balance in satoshis.
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64
+
     /// Fetches the on-chain transaction history for the given wallet.
     ///
     /// Implementations are expected to query the relevant blockchain backend

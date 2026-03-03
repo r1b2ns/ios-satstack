@@ -99,6 +99,14 @@ struct MockWalletService: WalletServiceProtocol {
         }
     }
 
+    // MARK: - fetchWalletBalance
+
+    /// Returns a deterministic fixture balance in satoshis (0.021 BTC).
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64 {
+        try await simulateDelay()
+        return 2_100_000 // 0.021 BTC in satoshis
+    }
+
     // MARK: - fetchWalletTransactions
 
     /// Returns the shared `WalletTransaction.mocked` fixture list, simulating a

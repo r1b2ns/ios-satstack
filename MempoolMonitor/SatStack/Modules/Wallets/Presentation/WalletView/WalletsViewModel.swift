@@ -150,11 +150,18 @@ struct WalletsUiState {
     /// Editable text shown in the rename alert text field.
     var renameText: String = ""
 
-    /// Transactions for the selected wallet — empty until `fetchTransactions` completes.
+    /// Transactions for the selected wallet — empty until the sync completes.
     var transactions: [WalletTransaction] = []
+
+    /// Live balance for the selected wallet in satoshis.
+    /// `nil` while the balance has not yet been fetched (shows loading state).
+    var selectedWalletBalanceSats: UInt64? = nil
 
     /// True while the initial wallet list is being loaded.
     var isLoadingWallets: Bool = false
+
+    /// True while the on-chain balance is being fetched.
+    var isLoadingBalance: Bool = false
 
     /// True while transactions for the selected wallet are being fetched.
     var isLoadingTransactions: Bool = false
@@ -186,12 +193,13 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     func selectWallet(_ id: UUID) {
         uiState.selectedWalletId = id
         guard let wallet = uiState.wallets.first(where: { $0.id == id }) else { return }
-        Task { @MainActor in await self.fetchTransactions(for: wallet) }
+        Task { @MainActor in await self.syncSelectedWallet(wallet) }
     }
 
     func deselectWallet() {
         uiState.selectedWalletId = nil
         uiState.transactions = []
+        uiState.selectedWalletBalanceSats = nil
     }
 
     func showRenameAlert() {
@@ -282,18 +290,30 @@ private extension WalletsViewModel {
         }
     }
 
-    /// Fetches on-chain transactions for a given wallet via the injected service.
+    /// Syncs the selected wallet against the Esplora backend:
+    /// first fetches the balance, then fetches the transaction history.
     @MainActor
-    func fetchTransactions(for wallet: Wallet) async {
+    func syncSelectedWallet(_ wallet: Wallet) async {
+        // Reset state before loading.
+        uiState.selectedWalletBalanceSats = nil
+        uiState.isLoadingBalance = true
         uiState.isLoadingTransactions = true
         uiState.transactions = []
 
+        // Fetch balance first so the card updates as soon as possible.
+        do {
+            uiState.selectedWalletBalanceSats = try await walletService.fetchWalletBalance(for: wallet)
+        } catch {
+            Log.print.error("Balance fetch failed: \(error.localizedDescription)")
+        }
+        uiState.isLoadingBalance = false
+
+        // Then fetch the full transaction history.
         do {
             uiState.transactions = try await walletService.fetchWalletTransactions(for: wallet)
         } catch {
-            Log.print.error("Wallet transactions fetch failed: \(error.localizedDescription)")
+            Log.print.error("Transactions fetch failed: \(error.localizedDescription)")
         }
-
         uiState.isLoadingTransactions = false
     }
 }
