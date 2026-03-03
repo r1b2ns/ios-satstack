@@ -119,7 +119,11 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         return ScrollView {
             ZStack(alignment: .top) {
                 ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
-                    WalletCardView(wallet: wallet)
+                    WalletCardView(
+                            wallet: wallet,
+                            balanceSats: viewModel.uiState.walletBalances[wallet.id],
+                            syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
+                        )
                         .offset(y: CGFloat(index) * headerHeight)
                         .zIndex(Double(index))
                         .onTapGesture {
@@ -160,8 +164,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     private func buildSelectedCard(wallet: Wallet) -> some View {
         WalletCardView(
             wallet: wallet,
-            balanceSats: viewModel.uiState.selectedWalletBalanceSats,
-            isLoadingBalance: viewModel.uiState.isLoadingBalance
+            balanceSats: viewModel.uiState.selectedWalletBalanceSats
+                ?? viewModel.uiState.walletBalances[wallet.id],
+            syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
         )
         .padding(.horizontal, 20)
         .gesture(

@@ -7,14 +7,16 @@ import SwiftUI
 ///
 /// - Parameters:
 ///   - wallet: The wallet data to display.
-///   - balanceSats: Live balance in satoshis fetched from the chain. When `nil`
-///     the card falls back to `wallet.balanceBTC` (stored value, often 0 for new wallets).
-///   - isLoadingBalance: When `true` a spinner replaces the balance text.
+///   - balanceSats: Live balance in satoshis fetched from the chain.
+///     When `nil` and `syncState == .syncing`, the card shows a spinner.
+///     When `nil` and not syncing, falls back to `wallet.balanceBTC`.
+///   - syncState: Current sync lifecycle. Controls the top-right badge
+///     and the balance loading indicator.
 struct WalletCardView: View {
 
     let wallet: Wallet
     var balanceSats: UInt64? = nil
-    var isLoadingBalance: Bool = false
+    var syncState: WalletSyncState = .idle
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -48,6 +50,36 @@ struct WalletCardView: View {
                 .font(.title2)
                 .foregroundStyle(.white.opacity(0.9))
             Spacer()
+            buildStatusBadge()
+        }
+    }
+
+    /// Top-right badge — shows sync progress or the theme name.
+    @ViewBuilder
+    private func buildStatusBadge() -> some View {
+        switch syncState {
+        case .syncing:
+            HStack(spacing: 5) {
+                ProgressView()
+                    .tint(.white)
+                    .scaleEffect(0.65)
+                Text("SYNCING")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .tracking(1.5)
+            }
+        case .failed:
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.circle")
+                    .font(.caption2)
+                Text("SYNC ERROR")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .tracking(1.5)
+            }
+            .foregroundStyle(.white.opacity(0.7))
+        case .idle, .synced:
             Text(wallet.theme.displayName.uppercased())
                 .font(.caption2)
                 .fontWeight(.semibold)
@@ -68,7 +100,8 @@ struct WalletCardView: View {
 
     @ViewBuilder
     private func buildBalanceRow() -> some View {
-        if isLoadingBalance {
+        if syncState == .syncing && balanceSats == nil {
+            // Balance not yet available — show spinner while syncing.
             HStack(spacing: 8) {
                 ProgressView()
                     .tint(.white)

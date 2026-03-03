@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 // MARK: - Wallet model
@@ -35,16 +36,16 @@ struct WalletTransaction: Identifiable {
 
     let id: UUID
 
-    /// Destination address of the transaction.
+    /// Transaction ID or destination address.
     let address: String
 
-    /// Amount transferred, in BTC.
+    /// Net amount in BTC from the wallet's perspective (positive = received, negative = sent).
     let valueBTC: Double
 
-    /// Date the transaction was broadcast.
+    /// Date the transaction was broadcast or confirmed.
     let date: Date
 
-    /// Truncated address suitable for compact display (e.g. `bc1qxy2kg…x0wlh`).
+    /// Truncated identifier suitable for compact display (e.g. `bc1qxy2kg…x0wlh`).
     var shortAddress: String {
         guard address.count > 18 else { return address }
         return "\(address.prefix(10))…\(address.suffix(6))"
@@ -62,50 +63,48 @@ extension WalletTransaction {
 
     /// Ten fixture transactions used by `MockWalletService`.
     static let mocked: [WalletTransaction] = [
-        WalletTransaction(
-            id: UUID(), address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-            valueBTC: 0.00210000, date: .now.addingTimeInterval(-1 * 3_600)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1q8c6fqw2z8pnl0q3qj7x2rkh6vxwnjpz8qk9j3z",
-            valueBTC: 0.00045000, date: .now.addingTimeInterval(-3 * 3_600)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
-            valueBTC: 0.01200000, date: .now.addingTimeInterval(-7 * 3_600)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1q5y2u7gnngl6djrsq0vfk9k7u3ke9aqkrqmne8r",
-            valueBTC: 0.00089000, date: .now.addingTimeInterval(-26 * 3_600)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1qnp57fy8zjq3uc56mtz8s0spkptfurjp9k77q3d",
-            valueBTC: 0.00512000, date: .now.addingTimeInterval(-48 * 3_600)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1qhkdrknrwz3cz5f2eue7e7euh5r5q3j8j7m3d3x",
-            valueBTC: 0.00033000, date: .now.addingTimeInterval(-72 * 3_600)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1qjyp2xa3r7gwrfkjhg2sf9lf68kt2j9mvf0ek0h",
-            valueBTC: 0.00750000, date: .now.addingTimeInterval(-5 * 86_400)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1qkk3vk9k6s7zqr4vhv0y8u4q3x2w1e5t6r9p2m",
-            valueBTC: 0.00190000, date: .now.addingTimeInterval(-7 * 86_400)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1q2vx4wk8h1j3n6r5t7e9y2u0i4o8p3l6m9k2j5",
-            valueBTC: 0.02100000, date: .now.addingTimeInterval(-10 * 86_400)
-        ),
-        WalletTransaction(
-            id: UUID(), address: "bc1q9s3d5f7g1h4k8l2m6n0p4r8v2w5x9y3z7a1c4",
-            valueBTC: 0.00067000, date: .now.addingTimeInterval(-14 * 86_400)
-        )
+        WalletTransaction(id: UUID(), address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+                          valueBTC:  0.00210000, date: .now.addingTimeInterval(-1 * 3_600)),
+        WalletTransaction(id: UUID(), address: "bc1q8c6fqw2z8pnl0q3qj7x2rkh6vxwnjpz8qk9j3z",
+                          valueBTC:  0.00045000, date: .now.addingTimeInterval(-3 * 3_600)),
+        WalletTransaction(id: UUID(), address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+                          valueBTC:  0.01200000, date: .now.addingTimeInterval(-7 * 3_600)),
+        WalletTransaction(id: UUID(), address: "bc1q5y2u7gnngl6djrsq0vfk9k7u3ke9aqkrqmne8r",
+                          valueBTC:  0.00089000, date: .now.addingTimeInterval(-26 * 3_600)),
+        WalletTransaction(id: UUID(), address: "bc1qnp57fy8zjq3uc56mtz8s0spkptfurjp9k77q3d",
+                          valueBTC:  0.00512000, date: .now.addingTimeInterval(-48 * 3_600)),
+        WalletTransaction(id: UUID(), address: "bc1qhkdrknrwz3cz5f2eue7e7euh5r5q3j8j7m3d3x",
+                          valueBTC:  0.00033000, date: .now.addingTimeInterval(-72 * 3_600)),
+        WalletTransaction(id: UUID(), address: "bc1qjyp2xa3r7gwrfkjhg2sf9lf68kt2j9mvf0ek0h",
+                          valueBTC:  0.00750000, date: .now.addingTimeInterval(-5 * 86_400)),
+        WalletTransaction(id: UUID(), address: "bc1qkk3vk9k6s7zqr4vhv0y8u4q3x2w1e5t6r9p2m",
+                          valueBTC:  0.00190000, date: .now.addingTimeInterval(-7 * 86_400)),
+        WalletTransaction(id: UUID(), address: "bc1q2vx4wk8h1j3n6r5t7e9y2u0i4o8p3l6m9k2j5",
+                          valueBTC:  0.02100000, date: .now.addingTimeInterval(-10 * 86_400)),
+        WalletTransaction(id: UUID(), address: "bc1q9s3d5f7g1h4k8l2m6n0p4r8v2w5x9y3z7a1c4",
+                          valueBTC: -0.00067000, date: .now.addingTimeInterval(-14 * 86_400))
     ]
 }
 
-// MARK: - Protocol
+// MARK: - WalletSyncState
+
+/// Lifecycle state of an on-chain wallet synchronisation.
+enum WalletSyncState: Equatable {
+
+    /// Sync has not been triggered yet for this session.
+    case idle
+
+    /// A full scan or incremental sync is currently running.
+    case syncing
+
+    /// The last sync completed successfully.
+    case synced
+
+    /// The last sync failed with the given reason.
+    case failed(String)
+}
+
+// MARK: - WalletsViewModelProtocol
 
 protocol WalletsViewModelProtocol: ObservableObject {
     var uiState: WalletsUiState { get set }
@@ -118,17 +117,16 @@ protocol WalletsViewModelProtocol: ObservableObject {
     func addWallet(_ wallet: Wallet)
     func deleteWallet(id: UUID)
 
-    /// Generates a new BIP-39 wallet via the wallet service and returns the
-    /// creation result (wallet + seed-phrase backup). The caller is responsible
-    /// for showing the seed phrase and then calling `addWallet(_:)` on confirm.
+    /// Generates a new BIP-39 wallet via the service. Caller must show the seed
+    /// phrase and then call `addWallet(_:)` on confirm.
     func createWallet() async throws -> WalletCreationResult
 
-    /// Validates `phrase` with the wallet service, creates the wallet, adds it
-    /// to the list, and persists it — all in one step.
+    /// Validates the phrase with the wallet service, creates the wallet, adds it
+    /// to the list and persists it — all in one step.
     func importWallet(phrase: String) async throws
 }
 
-// MARK: - UiState
+// MARK: - WalletsUiState
 
 struct WalletsUiState {
 
@@ -153,27 +151,35 @@ struct WalletsUiState {
     /// Transactions for the selected wallet — empty until the sync completes.
     var transactions: [WalletTransaction] = []
 
-    /// Live balance for the selected wallet in satoshis.
-    /// `nil` while the balance has not yet been fetched (shows loading state).
+    /// Live balance for the currently selected wallet in satoshis.
+    /// `nil` means the balance has not been fetched yet (loading state).
     var selectedWalletBalanceSats: UInt64? = nil
+
+    /// Per-wallet balances in satoshis, populated by the background sync
+    /// and by detail-view syncs.
+    var walletBalances: [UUID: UInt64] = [:]
+
+    /// Per-wallet sync lifecycle state. Updated by both background sync
+    /// (on launch) and the detail-view sync (on wallet selection).
+    var walletSyncStates: [UUID: WalletSyncState] = [:]
 
     /// True while the initial wallet list is being loaded.
     var isLoadingWallets: Bool = false
-
-    /// True while the on-chain balance is being fetched.
-    var isLoadingBalance: Bool = false
 
     /// True while transactions for the selected wallet are being fetched.
     var isLoadingTransactions: Bool = false
 }
 
-// MARK: - ViewModel
+// MARK: - WalletsViewModel
 
 final class WalletsViewModel: WalletsViewModelProtocol {
 
     @Published var uiState: WalletsUiState = .init()
 
     private let walletService: any WalletServiceProtocol
+
+    /// Stores Combine subscriptions created by `syncAllWalletsOnLaunch()`.
+    private var syncCancellables = Set<AnyCancellable>()
 
     init(walletService: any WalletServiceProtocol = BDKWalletService()) {
         self.walletService = walletService
@@ -228,6 +234,8 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         uiState.selectedWalletId = nil
         uiState.transactions = []
         uiState.isPresentingWalletSettings = false
+        uiState.walletSyncStates.removeValue(forKey: id)
+        uiState.walletBalances.removeValue(forKey: id)
         Task { await removePersistedWallet(id: id) }
     }
 
@@ -254,11 +262,11 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
 private extension WalletsViewModel {
 
-    /// Loads persisted wallets from SwiftData on startup.
+    /// Loads persisted wallets from SwiftData on startup, then triggers
+    /// a background Esplora sync for all wallets via Combine.
     @MainActor
     func loadWallets() async {
         uiState.isLoadingWallets = true
-
         do {
             let stored: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
             uiState.wallets = stored
@@ -266,11 +274,104 @@ private extension WalletsViewModel {
             Log.print.error("Failed to load wallets: \(error.localizedDescription)")
             uiState.wallets = []
         }
-
         uiState.isLoadingWallets = false
+
+        // Kick off background sync for every loaded wallet.
+        syncAllWalletsOnLaunch()
     }
 
-    /// Persists a wallet to SwiftData.
+    // MARK: - Background sync (Combine)
+
+    /// Creates one `BDKWalletService` instance per wallet and syncs them all
+    /// in parallel using `Publishers.MergeMany`. Each wallet's sync state and
+    /// balance are updated on the main thread as results arrive.
+    @MainActor
+    func syncAllWalletsOnLaunch() {
+        let wallets = uiState.wallets
+        guard !wallets.isEmpty else { return }
+
+        // Mark every wallet as syncing immediately so the UI reacts at once.
+        for wallet in wallets {
+            uiState.walletSyncStates[wallet.id] = .syncing
+        }
+
+        struct SyncResult {
+            let walletId: UUID
+            let balance: UInt64
+            let errorMessage: String?
+        }
+
+        // One BDKWalletService per wallet, all running concurrently.
+        let publishers: [AnyPublisher<SyncResult, Never>] = wallets.map { wallet in
+            let service = BDKWalletService()
+            return Future<SyncResult, Never> { promise in
+                Task {
+                    do {
+                        let balance = try await service.fetchWalletBalance(for: wallet)
+                        promise(.success(SyncResult(walletId: wallet.id, balance: balance, errorMessage: nil)))
+                    } catch {
+                        promise(.success(SyncResult(walletId: wallet.id, balance: 0, errorMessage: error.localizedDescription)))
+                    }
+                }
+            }
+            .eraseToAnyPublisher()
+        }
+
+        Publishers.MergeMany(publishers)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] result in
+                guard let self else { return }
+                if let reason = result.errorMessage {
+                    self.uiState.walletSyncStates[result.walletId] = .failed(reason)
+                    Log.print.error("[BDK] Background sync failed for wallet \(result.walletId): \(reason)")
+                } else {
+                    self.uiState.walletSyncStates[result.walletId] = .synced
+                    self.uiState.walletBalances[result.walletId] = result.balance
+                    // If this is the currently open detail view, also update the detail balance.
+                    if self.uiState.selectedWalletId == result.walletId {
+                        self.uiState.selectedWalletBalanceSats = result.balance
+                    }
+                    Log.print.info("[BDK] Background sync completed for wallet \(result.walletId) — balance: \(result.balance) sats")
+                }
+            }
+            .store(in: &syncCancellables)
+    }
+
+    // MARK: - Detail-view sync
+
+    /// Syncs a wallet when it is tapped into (detail view):
+    /// balance is fetched first (card updates immediately), then transactions.
+    @MainActor
+    func syncSelectedWallet(_ wallet: Wallet) async {
+        uiState.selectedWalletBalanceSats = nil
+        uiState.walletSyncStates[wallet.id] = .syncing
+        uiState.isLoadingTransactions = true
+        uiState.transactions = []
+
+        var encounteredError: String? = nil
+
+        do {
+            let balance = try await walletService.fetchWalletBalance(for: wallet)
+            uiState.selectedWalletBalanceSats = balance
+            uiState.walletBalances[wallet.id] = balance
+        } catch {
+            encounteredError = error.localizedDescription
+            Log.print.error("[BDK] Balance fetch failed for wallet \(wallet.id): \(error.localizedDescription)")
+        }
+
+        do {
+            uiState.transactions = try await walletService.fetchWalletTransactions(for: wallet)
+        } catch {
+            encounteredError = encounteredError ?? error.localizedDescription
+            Log.print.error("[BDK] Transactions fetch failed for wallet \(wallet.id): \(error.localizedDescription)")
+        }
+
+        uiState.isLoadingTransactions = false
+        uiState.walletSyncStates[wallet.id] = encounteredError.map { .failed($0) } ?? .synced
+    }
+
+    // MARK: - Persistence
+
     func persistWallet(_ wallet: Wallet) async {
         do {
             try await SwiftDataStorable.shared.save(wallet, id: wallet.id.uuidString)
@@ -280,7 +381,6 @@ private extension WalletsViewModel {
         }
     }
 
-    /// Removes a wallet from SwiftData.
     func removePersistedWallet(id: UUID) async {
         do {
             try await SwiftDataStorable.shared.delete(Wallet.self, id: id.uuidString)
@@ -288,32 +388,5 @@ private extension WalletsViewModel {
         } catch {
             Log.print.error("Failed to delete wallet: \(error.localizedDescription)")
         }
-    }
-
-    /// Syncs the selected wallet against the Esplora backend:
-    /// first fetches the balance, then fetches the transaction history.
-    @MainActor
-    func syncSelectedWallet(_ wallet: Wallet) async {
-        // Reset state before loading.
-        uiState.selectedWalletBalanceSats = nil
-        uiState.isLoadingBalance = true
-        uiState.isLoadingTransactions = true
-        uiState.transactions = []
-
-        // Fetch balance first so the card updates as soon as possible.
-        do {
-            uiState.selectedWalletBalanceSats = try await walletService.fetchWalletBalance(for: wallet)
-        } catch {
-            Log.print.error("Balance fetch failed: \(error.localizedDescription)")
-        }
-        uiState.isLoadingBalance = false
-
-        // Then fetch the full transaction history.
-        do {
-            uiState.transactions = try await walletService.fetchWalletTransactions(for: wallet)
-        } catch {
-            Log.print.error("Transactions fetch failed: \(error.localizedDescription)")
-        }
-        uiState.isLoadingTransactions = false
     }
 }
