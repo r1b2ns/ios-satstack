@@ -55,8 +55,8 @@ struct WalletBackup {
 /// The result returned after successfully creating a brand-new wallet.
 struct WalletCreationResult {
 
-    /// The newly created wallet record.
-    let wallet: Wallet
+    /// The newly created wallet record. Mutable so the caller can apply a display name.
+    var wallet: Wallet
 
     /// The backup that must be shown to and confirmed by the user.
     let backup: WalletBackup

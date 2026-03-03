@@ -113,8 +113,19 @@ protocol WalletsViewModelProtocol: ObservableObject {
     func selectWallet(_ id: UUID)
     func deselectWallet()
     func showRenameAlert()
+    func showWalletSettings()
     func updateWalletName(id: UUID, name: String)
     func addWallet(_ wallet: Wallet)
+    func deleteWallet(id: UUID)
+
+    /// Generates a new BIP-39 wallet via the wallet service and returns the
+    /// creation result (wallet + seed-phrase backup). The caller is responsible
+    /// for showing the seed phrase and then calling `addWallet(_:)` on confirm.
+    func createWallet() async throws -> WalletCreationResult
+
+    /// Validates `phrase` with the wallet service, creates the wallet, adds it
+    /// to the list, and persists it — all in one step.
+    func importWallet(phrase: String) async throws
 }
 
 // MARK: - UiState
@@ -129,6 +140,9 @@ struct WalletsUiState {
 
     /// Controls whether the "Add Wallet" sheet is presented.
     var isPresentingAddSheet: Bool = false
+
+    /// Controls whether the wallet settings sheet is presented.
+    var isPresentingWalletSettings: Bool = false
 
     /// Controls whether the rename alert is presented.
     var isPresentingRenameAlert: Bool = false
@@ -165,6 +179,10 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         uiState.isPresentingAddSheet = true
     }
 
+    func showWalletSettings() {
+        uiState.isPresentingWalletSettings = true
+    }
+
     func selectWallet(_ id: UUID) {
         uiState.selectedWalletId = id
         guard let wallet = uiState.wallets.first(where: { $0.id == id }) else { return }
@@ -188,12 +206,39 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         guard !trimmed.isEmpty,
               let index = uiState.wallets.firstIndex(where: { $0.id == id }) else { return }
         uiState.wallets[index].name = trimmed
+        Task { await persistWallet(uiState.wallets[index]) }
     }
 
     func addWallet(_ wallet: Wallet) {
         uiState.wallets.append(wallet)
         uiState.isPresentingAddSheet = false
         Task { await persistWallet(wallet) }
+    }
+
+    func deleteWallet(id: UUID) {
+        uiState.wallets.removeAll { $0.id == id }
+        uiState.selectedWalletId = nil
+        uiState.transactions = []
+        uiState.isPresentingWalletSettings = false
+        Task { await removePersistedWallet(id: id) }
+    }
+
+    @MainActor
+    func createWallet() async throws -> WalletCreationResult {
+        var result = try await walletService.createNewWallet()
+        result.wallet.name = "My Wallet \(uiState.wallets.count + 1)"
+        return result
+    }
+
+    @MainActor
+    func importWallet(phrase: String) async throws {
+        let words = phrase
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespaces)
+            .filter { !$0.isEmpty }
+        var wallet = try await walletService.importWallet(from: .seedPhrase(words))
+        wallet.name = "Imported Wallet \(uiState.wallets.count + 1)"
+        addWallet(wallet)
     }
 }
 
@@ -224,6 +269,16 @@ private extension WalletsViewModel {
             Log.print.info("Wallet saved: \(wallet.id.uuidString)")
         } catch {
             Log.print.error("Failed to persist wallet: \(error.localizedDescription)")
+        }
+    }
+
+    /// Removes a wallet from SwiftData.
+    func removePersistedWallet(id: UUID) async {
+        do {
+            try await SwiftDataStorable.shared.delete(Wallet.self, id: id.uuidString)
+            Log.print.info("Wallet deleted: \(id.uuidString)")
+        } catch {
+            Log.print.error("Failed to delete wallet: \(error.localizedDescription)")
         }
     }
 

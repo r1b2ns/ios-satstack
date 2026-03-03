@@ -47,6 +47,12 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 )) {
                     buildAddSheet()
                 }
+                .sheet(isPresented: Binding(
+                    get: { viewModel.uiState.isPresentingWalletSettings },
+                    set: { viewModel.uiState.isPresentingWalletSettings = $0 }
+                )) {
+                    buildSettingsSheet()
+                }
                 .navigationDestinations()
                 .alert("Rename Wallet", isPresented: Binding(
                     get: { viewModel.uiState.isPresentingRenameAlert },
@@ -106,10 +112,6 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     // MARK: - Stacked view
 
     /// Apple Wallet-style collapsed stack.
-    ///
-    /// The first card sits on top (highest `zIndex`) and is fully visible.
-    /// Each subsequent card is offset down by `headerHeight`, peeking from
-    /// behind the card above — exactly like the iOS Wallet app.
     private func buildStackedView() -> some View {
         let wallets = viewModel.uiState.wallets
         let totalHeight = CGFloat(wallets.count - 1) * headerHeight + cardHeight
@@ -144,6 +146,12 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             }
             .padding(.top, 8)
         }
+        .safeAreaInset(edge: .bottom) {
+            if wallet.theme == .bitcoin {
+                buildBitcoinActionBar()
+            }
+        }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     /// The expanded card at the top of the detail view.
@@ -165,11 +173,44 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             )
     }
 
+    // MARK: - Bitcoin action bar
+
+    private func buildBitcoinActionBar() -> some View {
+        HStack(spacing: 12) {
+            buildActionButton(title: "Receive", icon: "arrow.down.circle.fill")
+            buildActionButton(title: "Send", icon: "arrow.up.circle.fill")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background(.regularMaterial)
+    }
+
+    private func buildActionButton(title: String, icon: String) -> some View {
+        Button { } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                Text(title)
+                    .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Color.blue)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     // MARK: - Transaction list
 
     private func buildTransactionList() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            buildTransactionHeader()
+        let txs = viewModel.uiState.transactions
+        let hasContent = viewModel.uiState.isLoadingTransactions || !txs.isEmpty
+
+        return VStack(alignment: .leading, spacing: 0) {
+            if hasContent {
+                buildTransactionHeader()
+            }
             buildTransactionRows()
         }
         .background(Color(.secondarySystemBackground))
@@ -195,6 +236,8 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             ProgressView()
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 28)
+        } else if viewModel.uiState.transactions.isEmpty {
+            buildTransactionEmptyState()
         } else {
             let txs = viewModel.uiState.transactions
             ForEach(Array(txs.enumerated()), id: \.element.id) { index, tx in
@@ -205,6 +248,19 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 }
             }
         }
+    }
+
+    private func buildTransactionEmptyState() -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "tray")
+                .font(.title)
+                .foregroundStyle(.tertiary)
+            Text("No transactions yet")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
     }
 
     private func buildTransactionRow(_ tx: WalletTransaction) -> some View {
@@ -253,24 +309,23 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         )
     }
 
-    // MARK: - Add sheet
+    // MARK: - Sheets
 
     private func buildAddSheet() -> some View {
         AddWalletSheetView(viewModel: viewModel)
+    }
+
+    @ViewBuilder
+    private func buildSettingsSheet() -> some View {
+        if let wallet = selectedWallet {
+            WalletSettingsSheet(wallet: wallet, viewModel: viewModel)
+        }
     }
 
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private func buildToolbar() -> some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                viewModel.showAddWallet()
-            } label: {
-                Image(systemName: "plus")
-            }
-        }
-
         if viewModel.uiState.selectedWalletId != nil {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -284,9 +339,17 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    viewModel.showRenameAlert()
+                    viewModel.showWalletSettings()
                 } label: {
-                    Image(systemName: "pencil")
+                    Image(systemName: "gear")
+                }
+            }
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    viewModel.showAddWallet()
+                } label: {
+                    Image(systemName: "plus")
                 }
             }
         }
