@@ -153,6 +153,9 @@ protocol WalletsViewModelProtocol: ObservableObject {
     /// Detects the input type (seed phrase, xpub, or Bitcoin address), validates
     /// it with the wallet service, checks for duplicates, and persists — all in one step.
     func importWallet(input: String) async throws
+
+    /// Syncs all wallets sequentially. Called on first load and on pull-to-refresh.
+    func syncAllWallets() async
 }
 
 // MARK: - WalletsUiState
@@ -205,7 +208,7 @@ struct WalletsUiState {
     var isPresentingSyncError: Bool {
         get { syncErrorMessage != nil }
         set { if !newValue { syncErrorMessage = nil } }
-    }
+    }   
 }
 
 // MARK: - WalletsViewModel
@@ -216,9 +219,13 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
     private let walletService: any WalletServiceProtocol
 
-    /// Per-wallet Combine subscriptions for background syncs.
-    /// Keyed by wallet ID so individual syncs can be cancelled on deletion.
-    private var syncCancellables = [UUID: AnyCancellable]()
+    /// Per-wallet sync tasks, keyed by wallet ID so individual syncs can be
+    /// cancelled on deletion.
+    private var syncTasks = [UUID: Task<Void, Never>]()
+
+    /// Tracks when each wallet last completed a successful sync.
+    /// Used to avoid re-syncing too frequently (cooldown: 60 s).
+    private var lastSyncDates = [UUID: Date]()
 
     init(walletService: any WalletServiceProtocol = BDKWalletService()) {
         self.walletService = walletService
@@ -273,8 +280,9 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
     func deleteWallet(id: UUID) {
         // Cancel any running sync for this wallet.
-        syncCancellables[id]?.cancel()
-        syncCancellables.removeValue(forKey: id)
+        syncTasks[id]?.cancel()
+        syncTasks.removeValue(forKey: id)
+        lastSyncDates.removeValue(forKey: id)
 
         uiState.wallets.removeAll { $0.id == id }
         uiState.selectedWalletId = nil
@@ -325,6 +333,69 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     }
 }
 
+// MARK: - Batch sync (sequential)
+
+extension WalletsViewModel {
+
+    /// Syncs all wallets **sequentially**. Called on first load and on
+    /// pull-to-refresh.
+    ///
+    /// Wallets are synced one at a time to avoid concurrent `ElectrumClient`
+    /// connections that trigger `CryptoProvider` installation conflicts in the
+    /// underlying Rust TLS stack (`rustls`).
+    @MainActor
+    func syncAllWallets() async {
+        let walletsToSync = uiState.wallets.filter { wallet in
+            uiState.walletSyncStates[wallet.id]?.isSyncing != true
+        }
+        guard !walletsToSync.isEmpty else { return }
+
+        // Mark every wallet as syncing immediately so the UI reacts at once.
+        for wallet in walletsToSync {
+            uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
+        }
+
+        // Single service instance — one Electrum connection at a time.
+        let service = BDKWalletService()
+
+        for wallet in walletsToSync {
+            guard !Task.isCancelled else { break }
+            // Skip wallets deleted while the batch is running.
+            guard uiState.wallets.contains(where: { $0.id == wallet.id }) else {
+                uiState.walletSyncStates.removeValue(forKey: wallet.id)
+                continue
+            }
+
+            do {
+                let walletId = wallet.id
+                let balance = try await service.fetchWalletBalance(for: wallet) { [weak self] progress in
+                    Task { @MainActor in
+                        self?.uiState.walletSyncStates[walletId] = .syncing(progress: progress)
+                    }
+                }
+
+                uiState.walletSyncStates[wallet.id] = .synced
+                uiState.walletBalances[wallet.id] = balance
+                lastSyncDates[wallet.id] = Date()
+
+                if let index = uiState.wallets.firstIndex(where: { $0.id == wallet.id }) {
+                    let btc = Double(balance) / 100_000_000.0
+                    uiState.wallets[index].balanceBTC = btc
+                    Task { await self.persistWallet(self.uiState.wallets[index]) }
+                }
+
+                if uiState.selectedWalletId == wallet.id {
+                    uiState.selectedWalletBalanceSats = balance
+                }
+                Log.print.info("[BDK] Sync completed for wallet \(wallet.id) — balance: \(balance) sats")
+            } catch {
+                uiState.walletSyncStates[wallet.id] = .failed(error.localizedDescription)
+                Log.print.error("[BDK] Sync failed for wallet \(wallet.id): \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
 // MARK: - Private async
 
 private extension WalletsViewModel {
@@ -352,7 +423,7 @@ private extension WalletsViewModel {
         uiState.isLoadingWallets = false
 
         // Kick off background sync for every loaded wallet.
-        syncAllWalletsOnLaunch()
+        await syncAllWallets()
     }
 
     // MARK: - New wallet sync
@@ -362,100 +433,31 @@ private extension WalletsViewModel {
     func syncNewWallet(_ wallet: Wallet) {
         uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
 
-        let service = BDKWalletService()
-        syncCancellables[wallet.id] = Future<(UInt64, String?), Never> { promise in
-            Task { [weak self] in
-                do {
-                    let balance = try await service.fetchWalletBalance(for: wallet) { progress in
-                        Task { @MainActor in
-                            self?.uiState.walletSyncStates[wallet.id] = .syncing(progress: progress)
-                        }
-                    }
-                    promise(.success((balance, nil)))
-                } catch {
-                    promise(.success((0, error.localizedDescription)))
-                }
-            }
-        }
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] balance, errorMessage in
-            guard let self else { return }
-            if let reason = errorMessage {
-                self.uiState.walletSyncStates[wallet.id] = .failed(reason)
-                Log.print.error("[BDK] Sync failed for new wallet \(wallet.id): \(reason)")
-            } else {
-                self.uiState.walletSyncStates[wallet.id] = .synced
-                self.uiState.walletBalances[wallet.id] = balance
-
-                if let index = self.uiState.wallets.firstIndex(where: { $0.id == wallet.id }) {
-                    let btc = Double(balance) / 100_000_000.0
-                    self.uiState.wallets[index].balanceBTC = btc
-                    Task { await self.persistWallet(self.uiState.wallets[index]) }
-                }
-                Log.print.info("[BDK] Sync completed for new wallet \(wallet.id) — balance: \(balance) sats")
-            }
-        }
-    }
-
-    // MARK: - Background sync (Combine)
-
-    /// Creates one `BDKWalletService` instance per wallet and syncs them all
-    /// in parallel using `Publishers.MergeMany`. Each wallet's sync state and
-    /// balance are updated on the main thread as results arrive.
-    /// Progress is forwarded to `walletSyncStates` so the card UI can show it.
-    @MainActor
-    func syncAllWalletsOnLaunch() {
-        // Only sync wallets that are not already being synced.
-        let wallets = uiState.wallets.filter { wallet in
-            uiState.walletSyncStates[wallet.id]?.isSyncing != true
-        }
-        guard !wallets.isEmpty else { return }
-
-        // Mark every wallet as syncing immediately so the UI reacts at once.
-        for wallet in wallets {
-            uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
-        }
-
-        // One BDKWalletService per wallet, all running concurrently.
-        // Each wallet gets its own cancellable so it can be cancelled individually.
-        for wallet in wallets {
+        syncTasks[wallet.id] = Task { [weak self] in
             let service = BDKWalletService()
-            syncCancellables[wallet.id] = Future<(UInt64, String?), Never> { promise in
-                Task { [weak self] in
-                    do {
-                        let balance = try await service.fetchWalletBalance(for: wallet) { progress in
-                            Task { @MainActor in
-                                self?.uiState.walletSyncStates[wallet.id] = .syncing(progress: progress)
-                            }
-                        }
-                        promise(.success((balance, nil)))
-                    } catch {
-                        promise(.success((0, error.localizedDescription)))
+            do {
+                let balance = try await service.fetchWalletBalance(for: wallet) { progress in
+                    Task { @MainActor in
+                        self?.uiState.walletSyncStates[wallet.id] = .syncing(progress: progress)
                     }
                 }
-            }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] balance, errorMessage in
-                guard let self else { return }
-                if let reason = errorMessage {
-                    self.uiState.walletSyncStates[wallet.id] = .failed(reason)
-                    Log.print.error("[BDK] Background sync failed for wallet \(wallet.id): \(reason)")
-                } else {
+                await MainActor.run {
+                    guard let self else { return }
                     self.uiState.walletSyncStates[wallet.id] = .synced
                     self.uiState.walletBalances[wallet.id] = balance
+                    self.lastSyncDates[wallet.id] = Date()
 
-                    // Persist updated balance into the Wallet model.
                     if let index = self.uiState.wallets.firstIndex(where: { $0.id == wallet.id }) {
                         let btc = Double(balance) / 100_000_000.0
                         self.uiState.wallets[index].balanceBTC = btc
                         Task { await self.persistWallet(self.uiState.wallets[index]) }
                     }
-
-                    // If this is the currently open detail view, also update the detail balance.
-                    if self.uiState.selectedWalletId == wallet.id {
-                        self.uiState.selectedWalletBalanceSats = balance
-                    }
-                    Log.print.info("[BDK] Background sync completed for wallet \(wallet.id) — balance: \(balance) sats")
+                    Log.print.info("[BDK] Sync completed for new wallet \(wallet.id) — balance: \(balance) sats")
+                }
+            } catch {
+                await MainActor.run {
+                    self?.uiState.walletSyncStates[wallet.id] = .failed(error.localizedDescription)
+                    Log.print.error("[BDK] Sync failed for new wallet \(wallet.id): \(error.localizedDescription)")
                 }
             }
         }
@@ -487,6 +489,14 @@ private extension WalletsViewModel {
             return
         }
 
+        // Skip if the wallet was successfully synced less than 60 seconds ago.
+        if let lastSync = lastSyncDates[wallet.id],
+           Date().timeIntervalSince(lastSync) < 60 {
+            Log.print.info("[Sync] Wallet \(wallet.id.uuidString) synced \(Int(Date().timeIntervalSince(lastSync)))s ago — cooldown active")
+            uiState.isLoadingTransactions = false
+            return
+        }
+
         uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
 
         do {
@@ -501,6 +511,7 @@ private extension WalletsViewModel {
             uiState.walletBalances[wallet.id] = result.balance
             uiState.transactions = result.transactions
             uiState.walletSyncStates[wallet.id] = .synced
+            lastSyncDates[wallet.id] = Date()
 
             // Persist updated balance and transactions for next time.
             if let index = uiState.wallets.firstIndex(where: { $0.id == wallet.id }) {

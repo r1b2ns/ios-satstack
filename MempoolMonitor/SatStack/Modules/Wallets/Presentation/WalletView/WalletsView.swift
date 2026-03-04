@@ -131,6 +131,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             .padding(.top, 4)
             .padding(.bottom, 32)
         }
+        .refreshable {
+            await viewModel.syncAllWallets()
+        }
     }
 
     // MARK: - Detail view (selected card + transactions)
