@@ -1,6 +1,30 @@
 import BitcoinDevKit
 import Foundation
 
+// MARK: - BlockchainBackend
+
+/// The blockchain data source used by `BDKWalletService` for wallet synchronisation.
+enum BlockchainBackend {
+
+    /// HTTP-based Esplora API (e.g. mempool.space).
+    case esplora
+
+    /// TCP-based Electrum protocol server.
+    case electrum
+    
+    var url: String {
+        switch self {
+        case .esplora:
+            return "https://mempool.space/api"
+            
+        case .electrum:
+            return "ssl://electrum.blockstream.info:50002"
+        }
+    }
+}
+
+// MARK: - BDKWalletService
+
 /// Production implementation of `WalletServiceProtocol` backed by the Bitcoin Dev Kit.
 ///
 /// ### Sync strategy
@@ -11,14 +35,22 @@ import Foundation
 /// which only checks the scripts already revealed by the keychain, making it
 /// much faster.
 ///
+/// ### Backend
+/// The sync backend is configurable via `BlockchainBackend` — either Esplora (HTTP)
+/// or Electrum (TCP). Defaults to mempool.space Esplora.
+///
 /// ### Progress reporting
 /// Both paths attach a script inspector that logs progress to the console via
 /// `Log.print` — `WalletFullScanScriptInspector` for full scans and
 /// `WalletSyncScriptInspector` for incremental syncs.
 struct BDKWalletService: WalletServiceProtocol {
 
-    /// Esplora endpoint used for all wallet synchronisation.
-    private static let esploraUrl = "https://mempool.space/api"
+    /// The blockchain backend used for wallet synchronisation.
+    let backend: BlockchainBackend
+
+    init(backend: BlockchainBackend = .electrum) {
+        self.backend = backend
+    }
 
     // MARK: - createNewWallet
 
@@ -157,7 +189,7 @@ private extension BDKWalletService {
         }
     }
 
-    /// Runs a full BIP-84 wallet scan via the Esplora backend, reporting
+    /// Runs a full BIP-84 wallet scan via the configured backend, reporting
     /// per-script progress to the console through `WalletFullScanScriptInspector`.
     /// Full scans report indeterminate progress (`nil`) since the total is unknown.
     /// Explicitly persists the update to SQLite so subsequent loads reflect the scan results.
@@ -169,20 +201,29 @@ private extension BDKWalletService {
     ) throws {
         let inspector = WalletFullScanScriptInspector { count in
             Log.print.info("[FullScan] Wallet \(walletId.uuidString): \(count) scripts inspected")
-            onProgress(nil) // Indeterminate — full scan has no known upper bound.
+            onProgress(nil)
         }
 
-        let client = EsploraClient(url: Self.esploraUrl)
         let request = try bdkWallet.startFullScan()
             .inspectSpksForAllKeychains(inspector: inspector)
             .build()
-        let update = try client.fullScan(request: request, stopGap: 20, parallelRequests: 5)
+
+        let update: Update
+        switch backend {
+        case .esplora:
+            let client = EsploraClient(url: backend.url)
+            update = try client.fullScan(request: request, stopGap: 20, parallelRequests: 5)
+        case .electrum:
+            let client = try ElectrumClient(url: backend.url)
+            update = try client.fullScan(request: request, stopGap: 20, batchSize: 5, fetchPrevTxouts: true)
+        }
+
         try bdkWallet.applyUpdate(update: update)
         let persisted = try bdkWallet.persist(persister: persister)
         Log.print.info("[FullScan] Wallet \(walletId.uuidString): full scan completed. Persisted: \(persisted)")
     }
 
-    /// Runs an incremental sync against the Esplora backend using only the
+    /// Runs an incremental sync against the configured backend using only the
     /// already-revealed script pubkeys, reporting determinate progress (0.0–1.0)
     /// through `WalletSyncScriptInspector`.
     /// Explicitly persists the update to SQLite so subsequent loads reflect the sync results.
@@ -198,11 +239,20 @@ private extension BDKWalletService {
             onProgress(fraction)
         }
 
-        let client = EsploraClient(url: Self.esploraUrl)
         let request = try bdkWallet.startSyncWithRevealedSpks()
             .inspectSpks(inspector: inspector)
             .build()
-        let update = try client.sync(request: request, parallelRequests: 5)
+
+        let update: Update
+        switch backend {
+        case .esplora:
+            let client = EsploraClient(url: backend.url)
+            update = try client.sync(request: request, parallelRequests: 5)
+        case .electrum:
+            let client = try ElectrumClient(url: backend.url)
+            update = try client.sync(request: request, batchSize: 5, fetchPrevTxouts: true)
+        }
+
         try bdkWallet.applyUpdate(update: update)
         let persisted = try bdkWallet.persist(persister: persister)
         Log.print.info("[Sync] Wallet \(walletId.uuidString): incremental sync completed. Persisted: \(persisted)")
