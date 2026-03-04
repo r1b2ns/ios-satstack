@@ -179,14 +179,15 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     // MARK: - Bitcoin action bar
 
     private func buildBitcoinActionBar() -> some View {
-        HStack(spacing: 12) {
+        let hasTransactions = !viewModel.uiState.transactions.isEmpty
+        return HStack(spacing: 12) {
             buildActionButton(title: "Receive", icon: "arrow.down.circle.fill")
             buildActionButton(title: "Send", icon: "arrow.up.circle.fill")
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 8)
-        .background(.ultraThinMaterial)
+        .background(hasTransactions ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(.clear))
     }
 
     private func buildActionButton(title: String, icon: String) -> some View {
@@ -316,23 +317,24 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     }
 
     private func buildTransactionRow(_ tx: WalletTransaction) -> some View {
-        let isReceived = tx.valueBTC >= 0
-        return HStack(spacing: 12) {
-            buildTransactionIcon(isReceived: isReceived)
+        HStack(spacing: 6) {
+            buildTransactionIcon(isReceived: tx.isReceived)
             VStack(alignment: .leading, spacing: 3) {
-                Text(tx.shortAddress)
+                Text(tx.address)
+                    .truncationMode(.middle)
                     .font(.callout)
                     .fontWeight(.medium)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
                 Text(tx.relativeDate)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text(formattedTxValue(tx.valueBTC))
+            Text(tx.formattedValue)
                 .font(.callout)
                 .fontWeight(.semibold)
-                .foregroundStyle(isReceived ? Color.green : Color.red)
+                .foregroundStyle(tx.isReceived ? Color.green : Color.red)
             Image(systemName: "chevron.right")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
@@ -346,11 +348,6 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             .font(.title3)
             .foregroundStyle(isReceived ? Color.green : Color.red)
             .frame(width: 32)
-    }
-
-    private func formattedTxValue(_ valueBTC: Double) -> String {
-        let sign = valueBTC >= 0 ? "+" : ""
-        return "\(sign)₿ \(String(format: "%.5f", valueBTC))"
     }
 
     // MARK: - Loading state

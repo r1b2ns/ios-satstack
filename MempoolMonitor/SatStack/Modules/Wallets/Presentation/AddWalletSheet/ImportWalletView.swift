@@ -40,17 +40,38 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
     }
 
     private func buildPhraseEditor() -> some View {
-        TextEditor(text: $phrase)
-            .frame(minHeight: 140)
-            .padding(12)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(errorMessage != nil ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)
-            )
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
+        ZStack(alignment: .topTrailing) {
+            TextEditor(text: $phrase)
+                .frame(minHeight: 140)
+                .padding(12)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(errorMessage != nil ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)
+                )
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+
+            buildPasteButton()
+        }
+    }
+
+    private func buildPasteButton() -> some View {
+        Button {
+            guard let clipboard = UIPasteboard.general.string, !clipboard.isEmpty else { return }
+            phrase = clipboard
+        } label: {
+            Image(systemName: "doc.on.clipboard")
+                .font(.callout)
+                .foregroundStyle(.blue)
+                .padding(10)
+                .background(.ultraThinMaterial)
+                .clipShape(Circle())
+        }
+        .padding(8)
+        .opacity(phrase.isEmpty ? 1 : 0)
+        .animation(.easeInOut(duration: 0.2), value: phrase.isEmpty)
     }
 
     private func buildErrorLabel(_ message: String) -> some View {
