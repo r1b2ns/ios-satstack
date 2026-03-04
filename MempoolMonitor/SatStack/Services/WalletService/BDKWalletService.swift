@@ -94,9 +94,9 @@ struct BDKWalletService: WalletServiceProtocol {
     // MARK: - fetchWalletBalance
 
     /// Synchronises the wallet (full scan or incremental) and returns the total balance in satoshis.
-    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64 {
+    func fetchWalletBalance(for wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> UInt64 {
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
-        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id)
+        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id, onProgress: onProgress)
         return bdkWallet.balance().total.toSat()
     }
 
@@ -106,7 +106,7 @@ struct BDKWalletService: WalletServiceProtocol {
     /// history sorted newest-first with net BTC values (positive = received, negative = sent).
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction] {
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
-        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id)
+        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id, onProgress: { _ in })
         return Self.extractTransactions(from: bdkWallet)
     }
 
@@ -116,9 +116,9 @@ struct BDKWalletService: WalletServiceProtocol {
     /// transaction list in a single pass — avoiding the redundant double-sync that
     /// happens when `fetchWalletBalance` and `fetchWalletTransactions` are called
     /// independently.
-    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+    func syncWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
-        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id)
+        try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id, onProgress: onProgress)
         let balance = bdkWallet.balance().total.toSat()
         let transactions = Self.extractTransactions(from: bdkWallet)
         return (balance, transactions)
@@ -141,23 +141,35 @@ private extension BDKWalletService {
 
     /// Decides whether to run a full scan or an incremental sync, executes it,
     /// and marks the full scan as completed in `UserDefaults` on success.
-    func syncOrFullScan(_ bdkWallet: BitcoinDevKit.Wallet, persister: Persister, walletId: UUID) throws {
+    func syncOrFullScan(
+        _ bdkWallet: BitcoinDevKit.Wallet,
+        persister: Persister,
+        walletId: UUID,
+        onProgress: @escaping @Sendable (Double?) -> Void
+    ) throws {
         if Self.needsFullScan(for: walletId) {
             Log.print.info("[BDK] Starting full scan for wallet \(walletId.uuidString)")
-            try performFullScan(bdkWallet, persister: persister, walletId: walletId)
+            try performFullScan(bdkWallet, persister: persister, walletId: walletId, onProgress: onProgress)
             Self.markFullScanCompleted(for: walletId)
         } else {
             Log.print.info("[BDK] Starting incremental sync for wallet \(walletId.uuidString)")
-            try performSync(bdkWallet, persister: persister, walletId: walletId)
+            try performSync(bdkWallet, persister: persister, walletId: walletId, onProgress: onProgress)
         }
     }
 
     /// Runs a full BIP-84 wallet scan via the Esplora backend, reporting
     /// per-script progress to the console through `WalletFullScanScriptInspector`.
+    /// Full scans report indeterminate progress (`nil`) since the total is unknown.
     /// Explicitly persists the update to SQLite so subsequent loads reflect the scan results.
-    func performFullScan(_ bdkWallet: BitcoinDevKit.Wallet, persister: Persister, walletId: UUID) throws {
+    func performFullScan(
+        _ bdkWallet: BitcoinDevKit.Wallet,
+        persister: Persister,
+        walletId: UUID,
+        onProgress: @escaping @Sendable (Double?) -> Void
+    ) throws {
         let inspector = WalletFullScanScriptInspector { count in
             Log.print.info("[FullScan] Wallet \(walletId.uuidString): \(count) scripts inspected")
+            onProgress(nil) // Indeterminate — full scan has no known upper bound.
         }
 
         let client = EsploraClient(url: Self.esploraUrl)
@@ -171,11 +183,19 @@ private extension BDKWalletService {
     }
 
     /// Runs an incremental sync against the Esplora backend using only the
-    /// already-revealed script pubkeys, reporting progress through `WalletSyncScriptInspector`.
+    /// already-revealed script pubkeys, reporting determinate progress (0.0–1.0)
+    /// through `WalletSyncScriptInspector`.
     /// Explicitly persists the update to SQLite so subsequent loads reflect the sync results.
-    func performSync(_ bdkWallet: BitcoinDevKit.Wallet, persister: Persister, walletId: UUID) throws {
+    func performSync(
+        _ bdkWallet: BitcoinDevKit.Wallet,
+        persister: Persister,
+        walletId: UUID,
+        onProgress: @escaping @Sendable (Double?) -> Void
+    ) throws {
         let inspector = WalletSyncScriptInspector { inspected, total in
             Log.print.info("[Sync] Wallet \(walletId.uuidString): \(inspected)/\(total) scripts checked")
+            let fraction = total > 0 ? Double(inspected) / Double(total) : 0.0
+            onProgress(fraction)
         }
 
         let client = EsploraClient(url: Self.esploraUrl)

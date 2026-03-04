@@ -41,33 +41,26 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 .navigationTitle(navigationTitle)
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar { buildToolbar() }
-                .sheet(isPresented: Binding(
-                    get: { viewModel.uiState.isPresentingAddSheet },
-                    set: { viewModel.uiState.isPresentingAddSheet = $0 }
-                )) {
+                .sheet(isPresented: $viewModel.uiState.isPresentingAddSheet) {
                     buildAddSheet()
                 }
-                .sheet(isPresented: Binding(
-                    get: { viewModel.uiState.isPresentingWalletSettings },
-                    set: { viewModel.uiState.isPresentingWalletSettings = $0 }
-                )) {
+                .sheet(isPresented: $viewModel.uiState.isPresentingWalletSettings) {
                     buildSettingsSheet()
                 }
                 .navigationDestinations()
-                .alert("Rename Wallet", isPresented: Binding(
-                    get: { viewModel.uiState.isPresentingRenameAlert },
-                    set: { viewModel.uiState.isPresentingRenameAlert = $0 }
-                )) {
-                    TextField("Wallet name", text: Binding(
-                        get: { viewModel.uiState.renameText },
-                        set: { viewModel.uiState.renameText = $0 }
-                    ))
+                .alert("Rename Wallet", isPresented: $viewModel.uiState.isPresentingRenameAlert) {
+                    TextField("Wallet name", text: $viewModel.uiState.renameText)
                     Button("Save") {
                         if let id = viewModel.uiState.selectedWalletId {
                             viewModel.updateWalletName(id: id, name: viewModel.uiState.renameText)
                         }
                     }
                     Button("Cancel", role: .cancel) { }
+                }
+                .alert("Sync Failed", isPresented: $viewModel.uiState.isPresentingSyncError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(viewModel.uiState.syncErrorMessage ?? "An unknown error occurred.")
                 }
         }
     }
@@ -193,11 +186,12 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 8)
-        .background(.regularMaterial)
+        .background(.ultraThinMaterial)
     }
 
     private func buildActionButton(title: String, icon: String) -> some View {
-        Button { } label: {
+        let isSyncing = selectedWalletSyncState.isSyncing
+        return Button { } label: {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                 Text(title)
@@ -205,17 +199,19 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.blue)
+            .background(isSyncing ? Color.blue.opacity(0.4) : Color.blue)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+        .disabled(isSyncing)
     }
 
     // MARK: - Transaction list
 
     private func buildTransactionList() -> some View {
         let txs = viewModel.uiState.transactions
-        let hasContent = viewModel.uiState.isLoadingTransactions || !txs.isEmpty
+        let isSyncing = selectedWalletSyncState.isSyncing
+        let hasContent = viewModel.uiState.isLoadingTransactions || !txs.isEmpty || isSyncing
 
         return VStack(alignment: .leading, spacing: 0) {
             if hasContent {
@@ -230,6 +226,12 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         .padding(.bottom, 32)
     }
 
+    /// Sync state of the currently selected wallet.
+    private var selectedWalletSyncState: WalletSyncState {
+        guard let id = viewModel.uiState.selectedWalletId else { return .idle }
+        return viewModel.uiState.walletSyncStates[id] ?? .idle
+    }
+
     private func buildTransactionHeader() -> some View {
         Text("Latest Transactions")
             .font(.title3)
@@ -242,14 +244,20 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     @ViewBuilder
     private func buildTransactionRows() -> some View {
-        if viewModel.uiState.isLoadingTransactions {
-            ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 28)
-        } else if viewModel.uiState.transactions.isEmpty {
+        let txs = viewModel.uiState.transactions
+        let isSyncing = selectedWalletSyncState.isSyncing
+
+        if viewModel.uiState.isLoadingTransactions && txs.isEmpty {
+            // No cached transactions and currently loading — show sync message.
+            buildSyncingTransactionsState()
+        } else if txs.isEmpty && !isSyncing {
+            // Not syncing and no transactions — show empty state.
             buildTransactionEmptyState()
+        } else if txs.isEmpty && isSyncing {
+            // Syncing but no cached data yet — show sync message.
+            buildSyncingTransactionsState()
         } else {
-            let txs = viewModel.uiState.transactions
+            // Show transaction rows, with a refreshing indicator at the bottom if syncing.
             ForEach(Array(txs.enumerated()), id: \.element.id) { index, tx in
                 buildTransactionRow(tx)
                 if index < txs.count - 1 {
@@ -257,7 +265,41 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                         .padding(.leading, 16)
                 }
             }
+            if isSyncing {
+                buildRefreshingIndicator()
+            }
         }
+    }
+
+    /// Shown when the wallet is syncing and there are no cached transactions.
+    private func buildSyncingTransactionsState() -> some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Syncing wallet...")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.primary)
+            Text("Transactions will appear once the sync completes.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 16)
+    }
+
+    /// Subtle indicator at the bottom of cached transactions while a refresh is running.
+    private func buildRefreshingIndicator() -> some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .scaleEffect(0.7)
+            Text("Refreshing transactions...")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
     }
 
     private func buildTransactionEmptyState() -> some View {

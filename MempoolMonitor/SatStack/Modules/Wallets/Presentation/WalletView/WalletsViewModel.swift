@@ -14,8 +14,8 @@ struct Wallet: Identifiable, Codable {
     /// Visual theme that determines the card appearance.
     let theme: WalletTheme
 
-    /// Current balance in BTC.
-    let balanceBTC: Double
+    /// Current balance in BTC. Updated and persisted after each successful sync.
+    var balanceBTC: Double
 
     /// BIP-39 mnemonic phrase (space-separated words). Nil for watch-only wallets.
     let mnemonicPhrase: String?
@@ -32,7 +32,7 @@ struct Wallet: Identifiable, Codable {
 // MARK: - WalletTransaction model
 
 /// A single Bitcoin transaction associated with a wallet.
-struct WalletTransaction: Identifiable {
+struct WalletTransaction: Identifiable, Codable {
 
     let id: UUID
 
@@ -86,6 +86,14 @@ extension WalletTransaction {
     ]
 }
 
+// MARK: - WalletTransactionList (persistence wrapper)
+
+/// Wrapper for persisting a wallet's transaction list to SwiftData.
+struct WalletTransactionList: Codable {
+    let walletId: UUID
+    let transactions: [WalletTransaction]
+}
+
 // MARK: - WalletSyncState
 
 /// Lifecycle state of an on-chain wallet synchronisation.
@@ -95,13 +103,20 @@ enum WalletSyncState: Equatable {
     case idle
 
     /// A full scan or incremental sync is currently running.
-    case syncing
+    /// `progress` is `nil` for indeterminate (full scan) or `0.0–1.0` for incremental sync.
+    case syncing(progress: Double?)
 
     /// The last sync completed successfully.
     case synced
 
     /// The last sync failed with the given reason.
     case failed(String)
+
+    /// Convenience check for any syncing variant.
+    var isSyncing: Bool {
+        if case .syncing = self { return true }
+        return false
+    }
 }
 
 // MARK: - WalletsViewModelProtocol
@@ -168,6 +183,15 @@ struct WalletsUiState {
 
     /// True while transactions for the selected wallet are being fetched.
     var isLoadingTransactions: Bool = false
+
+    /// Non-nil when a sync error should be shown to the user.
+    var syncErrorMessage: String? = nil
+
+    /// Controls whether the sync-error alert is presented.
+    var isPresentingSyncError: Bool {
+        get { syncErrorMessage != nil }
+        set { if !newValue { syncErrorMessage = nil } }
+    }
 }
 
 // MARK: - WalletsViewModel
@@ -236,7 +260,10 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         uiState.isPresentingWalletSettings = false
         uiState.walletSyncStates.removeValue(forKey: id)
         uiState.walletBalances.removeValue(forKey: id)
-        Task { await removePersistedWallet(id: id) }
+        Task {
+            await removePersistedWallet(id: id)
+            await removePersistedTransactions(for: id)
+        }
     }
 
     @MainActor
@@ -262,7 +289,8 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
 private extension WalletsViewModel {
 
-    /// Loads persisted wallets from SwiftData on startup, then triggers
+    /// Loads persisted wallets from SwiftData on startup, seeds the balance
+    /// dictionary from the last persisted `balanceBTC`, then triggers
     /// a background Esplora sync for all wallets via Combine.
     @MainActor
     func loadWallets() async {
@@ -270,6 +298,13 @@ private extension WalletsViewModel {
         do {
             let stored: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
             uiState.wallets = stored
+
+            // Seed per-wallet balances from the last persisted value so the UI
+            // shows something immediately, even before the network sync completes.
+            for wallet in stored where wallet.balanceBTC > 0 {
+                let sats = UInt64(wallet.balanceBTC * 100_000_000)
+                uiState.walletBalances[wallet.id] = sats
+            }
         } catch {
             Log.print.error("Failed to load wallets: \(error.localizedDescription)")
             uiState.wallets = []
@@ -285,14 +320,18 @@ private extension WalletsViewModel {
     /// Creates one `BDKWalletService` instance per wallet and syncs them all
     /// in parallel using `Publishers.MergeMany`. Each wallet's sync state and
     /// balance are updated on the main thread as results arrive.
+    /// Progress is forwarded to `walletSyncStates` so the card UI can show it.
     @MainActor
     func syncAllWalletsOnLaunch() {
-        let wallets = uiState.wallets
+        // Only sync wallets that are not already being synced.
+        let wallets = uiState.wallets.filter { wallet in
+            uiState.walletSyncStates[wallet.id]?.isSyncing != true
+        }
         guard !wallets.isEmpty else { return }
 
         // Mark every wallet as syncing immediately so the UI reacts at once.
         for wallet in wallets {
-            uiState.walletSyncStates[wallet.id] = .syncing
+            uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
         }
 
         struct SyncResult {
@@ -302,12 +341,16 @@ private extension WalletsViewModel {
         }
 
         // One BDKWalletService per wallet, all running concurrently.
-        let publishers: [AnyPublisher<SyncResult, Never>] = wallets.map { wallet in
+        let publishers: [AnyPublisher<SyncResult, Never>] = wallets.map { [weak self] wallet in
             let service = BDKWalletService()
             return Future<SyncResult, Never> { promise in
                 Task {
                     do {
-                        let balance = try await service.fetchWalletBalance(for: wallet)
+                        let balance = try await service.fetchWalletBalance(for: wallet) { progress in
+                            Task { @MainActor in
+                                self?.uiState.walletSyncStates[wallet.id] = .syncing(progress: progress)
+                            }
+                        }
                         promise(.success(SyncResult(walletId: wallet.id, balance: balance, errorMessage: nil)))
                     } catch {
                         promise(.success(SyncResult(walletId: wallet.id, balance: 0, errorMessage: error.localizedDescription)))
@@ -327,6 +370,14 @@ private extension WalletsViewModel {
                 } else {
                     self.uiState.walletSyncStates[result.walletId] = .synced
                     self.uiState.walletBalances[result.walletId] = result.balance
+
+                    // Persist updated balance into the Wallet model.
+                    if let index = self.uiState.wallets.firstIndex(where: { $0.id == result.walletId }) {
+                        let btc = Double(result.balance) / 100_000_000.0
+                        self.uiState.wallets[index].balanceBTC = btc
+                        Task { await self.persistWallet(self.uiState.wallets[index]) }
+                    }
+
                     // If this is the currently open detail view, also update the detail balance.
                     if self.uiState.selectedWalletId == result.walletId {
                         self.uiState.selectedWalletBalanceSats = result.balance
@@ -341,21 +392,50 @@ private extension WalletsViewModel {
 
     /// Syncs a wallet once when it is tapped into (detail view), fetching
     /// both balance and transactions in a single network pass.
+    ///
+    /// The flow preserves the last-known balance and shows cached transactions
+    /// immediately while the network sync runs in the background.
     @MainActor
     func syncSelectedWallet(_ wallet: Wallet) async {
-        uiState.selectedWalletBalanceSats = nil
-        uiState.walletSyncStates[wallet.id] = .syncing
-        uiState.isLoadingTransactions = true
-        uiState.transactions = []
+        // Skip if this wallet is already being synced.
+        if uiState.walletSyncStates[wallet.id]?.isSyncing == true {
+            Log.print.info("[Sync] Wallet \(wallet.id.uuidString) is already syncing — skipping")
+            return
+        }
+
+        // Keep the last known balance visible — never blank it out.
+        uiState.selectedWalletBalanceSats = uiState.walletBalances[wallet.id]
+        uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
+
+        // Load cached transactions from SwiftData so the user sees something
+        // while the network sync runs. Only show the loading spinner if there
+        // is no cached data at all.
+        let cachedTxs = await loadCachedTransactions(for: wallet.id)
+        uiState.transactions = cachedTxs
+        uiState.isLoadingTransactions = cachedTxs.isEmpty
 
         do {
-            let result = try await walletService.syncWallet(wallet)
+            let walletId = wallet.id
+            let result = try await walletService.syncWallet(wallet) { [weak self] progress in
+                Task { @MainActor in
+                    self?.uiState.walletSyncStates[walletId] = .syncing(progress: progress)
+                }
+            }
+
             uiState.selectedWalletBalanceSats = result.balance
             uiState.walletBalances[wallet.id] = result.balance
             uiState.transactions = result.transactions
             uiState.walletSyncStates[wallet.id] = .synced
+
+            // Persist updated balance and transactions for next time.
+            if let index = uiState.wallets.firstIndex(where: { $0.id == wallet.id }) {
+                uiState.wallets[index].balanceBTC = Double(result.balance) / 100_000_000.0
+                Task { await persistWallet(uiState.wallets[index]) }
+            }
+            Task { await persistTransactions(result.transactions, for: wallet.id) }
         } catch {
             uiState.walletSyncStates[wallet.id] = .failed(error.localizedDescription)
+            uiState.syncErrorMessage = error.localizedDescription
             Log.print.error("[BDK] Sync failed for wallet \(wallet.id): \(error.localizedDescription)")
         }
 
@@ -379,6 +459,47 @@ private extension WalletsViewModel {
             Log.print.info("Wallet deleted: \(id.uuidString)")
         } catch {
             Log.print.error("Failed to delete wallet: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Transaction persistence
+
+    /// Persists the transaction list for a wallet so it can be shown from cache
+    /// before the next network sync completes.
+    func persistTransactions(_ transactions: [WalletTransaction], for walletId: UUID) async {
+        let list = WalletTransactionList(walletId: walletId, transactions: transactions)
+        do {
+            try await SwiftDataStorable.shared.save(list, id: "txs_\(walletId.uuidString)")
+            Log.print.info("Transactions cached for wallet: \(walletId.uuidString)")
+        } catch {
+            Log.print.error("Failed to cache transactions: \(error.localizedDescription)")
+        }
+    }
+
+    /// Loads previously cached transactions for a wallet from SwiftData.
+    func loadCachedTransactions(for walletId: UUID) async -> [WalletTransaction] {
+        do {
+            let list: WalletTransactionList? = try await SwiftDataStorable.shared.fetch(
+                WalletTransactionList.self,
+                id: "txs_\(walletId.uuidString)"
+            )
+            return list?.transactions ?? []
+        } catch {
+            Log.print.error("Failed to load cached transactions: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    /// Removes cached transactions for a deleted wallet.
+    func removePersistedTransactions(for walletId: UUID) async {
+        do {
+            try await SwiftDataStorable.shared.delete(
+                WalletTransactionList.self,
+                id: "txs_\(walletId.uuidString)"
+            )
+            Log.print.info("Cached transactions deleted for wallet: \(walletId.uuidString)")
+        } catch {
+            Log.print.error("Failed to delete cached transactions: \(error.localizedDescription)")
         }
     }
 }

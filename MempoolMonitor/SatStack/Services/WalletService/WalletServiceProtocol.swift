@@ -133,12 +133,12 @@ protocol WalletServiceProtocol {
 
     /// Synchronises the wallet with the blockchain and returns the current balance in satoshis.
     ///
-    /// Implementations perform a full Esplora scan against mempool.space and
-    /// return the total spendable balance (confirmed + trusted-pending).
-    ///
-    /// - Parameter wallet: The wallet to synchronise and query.
+    /// - Parameters:
+    ///   - wallet: The wallet to synchronise and query.
+    ///   - onProgress: Called periodically with sync progress. `nil` means indeterminate
+    ///     (full scan), `0.0–1.0` means determinate (incremental sync).
     /// - Returns: Total balance in satoshis.
-    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64
+    func fetchWalletBalance(for wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> UInt64
 
     /// Fetches the on-chain transaction history for the given wallet.
     ///
@@ -153,8 +153,18 @@ protocol WalletServiceProtocol {
     /// Synchronises the wallet once and returns both balance and transaction
     /// history in a single pass, avoiding redundant network calls.
     ///
-    /// - Parameter wallet: The wallet to synchronise.
+    /// - Parameters:
+    ///   - wallet: The wallet to synchronise.
+    ///   - onProgress: Called periodically with sync progress. `nil` means indeterminate
+    ///     (full scan), `0.0–1.0` means determinate (incremental sync).
     /// - Returns: A tuple with the total balance in satoshis and the transaction list (newest first).
+    func syncWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Synchronises the wallet with the blockchain and returns the current balance in satoshis.
+    /// Convenience overload without progress reporting.
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64
+
+    /// Synchronises the wallet once without progress reporting.
     func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
 
     /// Retrieves the backup data for the given wallet.
@@ -167,4 +177,17 @@ protocol WalletServiceProtocol {
     /// - Returns: A `WalletBackup` with the appropriate `WalletBackupKind`.
     /// - Throws: `WalletServiceError.backupUnavailable` if no backup exists.
     func fetchWalletBackup(for wallet: Wallet) async throws -> WalletBackup
+}
+
+// MARK: - Default implementations (no-progress overloads)
+
+extension WalletServiceProtocol {
+
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64 {
+        try await fetchWalletBalance(for: wallet, onProgress: { _ in })
+    }
+
+    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await syncWallet(wallet, onProgress: { _ in })
+    }
 }
