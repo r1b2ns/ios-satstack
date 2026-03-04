@@ -116,6 +116,9 @@ enum WalletSyncState: Equatable {
     /// Sync has not been triggered yet for this session.
     case idle
 
+    /// Waiting in the sequential sync queue — another wallet is syncing first.
+    case queued
+
     /// A full scan or incremental sync is currently running.
     /// `progress` is `nil` for indeterminate (full scan) or `0.0–1.0` for incremental sync.
     case syncing(progress: Double?)
@@ -130,6 +133,14 @@ enum WalletSyncState: Equatable {
     var isSyncing: Bool {
         if case .syncing = self { return true }
         return false
+    }
+
+    /// True when the wallet is either queued or actively syncing.
+    var isBusy: Bool {
+        switch self {
+        case .queued, .syncing: return true
+        default: return false
+        }
     }
 }
 
@@ -346,13 +357,13 @@ extension WalletsViewModel {
     @MainActor
     func syncAllWallets() async {
         let walletsToSync = uiState.wallets.filter { wallet in
-            uiState.walletSyncStates[wallet.id]?.isSyncing != true
+            uiState.walletSyncStates[wallet.id]?.isBusy != true
         }
         guard !walletsToSync.isEmpty else { return }
 
-        // Mark every wallet as syncing immediately so the UI reacts at once.
+        // Mark every wallet as queued so the UI shows they are waiting.
         for wallet in walletsToSync {
-            uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
+            uiState.walletSyncStates[wallet.id] = .queued
         }
 
         // Single service instance — one Electrum connection at a time.
@@ -365,6 +376,9 @@ extension WalletsViewModel {
                 uiState.walletSyncStates.removeValue(forKey: wallet.id)
                 continue
             }
+
+            // Promote from queued → syncing now that this wallet's turn has arrived.
+            uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
 
             do {
                 let walletId = wallet.id

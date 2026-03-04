@@ -194,7 +194,7 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     }
 
     private func buildActionButton(title: String, icon: String) -> some View {
-        let isSyncing = selectedWalletSyncState.isSyncing
+        let isSyncing = selectedWalletSyncState.isBusy
         return Button { } label: {
             HStack(spacing: 8) {
                 Image(systemName: icon)

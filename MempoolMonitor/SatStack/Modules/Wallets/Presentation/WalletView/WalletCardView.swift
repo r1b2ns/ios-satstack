@@ -58,10 +58,12 @@ struct WalletCardView: View {
         }
     }
 
-    /// Top-right badge — shows circular progress during sync, error icon, or theme name.
+    /// Top-right badge — shows queue/sync status, error icon, or theme name.
     @ViewBuilder
     private func buildStatusBadge() -> some View {
         switch syncState {
+        case .queued:
+            buildQueuedBadge()
         case .syncing(let progress):
             buildSyncProgressBadge(progress: progress)
         case .failed:
@@ -81,6 +83,19 @@ struct WalletCardView: View {
                 .foregroundStyle(.white.opacity(0.7))
                 .tracking(1.5)
         }
+    }
+
+    /// Badge shown when the wallet is waiting in the sequential sync queue.
+    private func buildQueuedBadge() -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "clock")
+                .font(.caption2)
+            Text("QUEUED")
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .tracking(1.5)
+        }
+        .foregroundStyle(.white.opacity(0.7))
     }
 
     /// Circular progress indicator with percentage text for determinate syncs,

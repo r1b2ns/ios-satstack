@@ -14,8 +14,8 @@ struct WalletsTransactionsView: View {
     let isLoading: Bool
     let syncState: WalletSyncState
 
-    private var isSyncing: Bool { syncState.isSyncing }
-    private var hasContent: Bool { isLoading || !transactions.isEmpty || isSyncing }
+    private var isBusy: Bool { syncState.isBusy }
+    private var hasContent: Bool { isLoading || !transactions.isEmpty || isBusy }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -49,9 +49,9 @@ struct WalletsTransactionsView: View {
     private func buildTransactionRows() -> some View {
         if isLoading && transactions.isEmpty {
             buildSyncingState()
-        } else if transactions.isEmpty && !isSyncing {
+        } else if transactions.isEmpty && !isBusy {
             buildEmptyState()
-        } else if transactions.isEmpty && isSyncing {
+        } else if transactions.isEmpty && isBusy {
             buildSyncingState()
         } else {
             ForEach(Array(transactions.enumerated()), id: \.element.id) { index, tx in
@@ -61,7 +61,7 @@ struct WalletsTransactionsView: View {
                         .padding(.leading, 16)
                 }
             }
-            if isSyncing {
+            if isBusy {
                 buildRefreshingIndicator()
             }
         }
