@@ -1,4 +1,5 @@
 import BitcoinDevKit
+import CryptoKit
 import Foundation
 
 // MARK: - BlockchainBackend
@@ -110,13 +111,13 @@ struct BDKWalletService: WalletServiceProtocol {
             guard address.hasPrefix("bc1") || address.hasPrefix("1") || address.hasPrefix("3") else {
                 throw WalletServiceError.invalidImportSource("'\(address)' does not look like a valid Bitcoin address.")
             }
-            return Wallet(id: UUID(), name: "Watch-only Address", theme: .watchOnly, balanceBTC: 0.0)
+            return Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: address)
 
         case .xpub(let key):
             guard key.hasPrefix("xpub") || key.hasPrefix("ypub") || key.hasPrefix("zpub") else {
                 throw WalletServiceError.invalidImportSource("'\(key.prefix(8))…' is not a recognised extended public key prefix.")
             }
-            return Wallet(id: UUID(), name: "Watch-only xpub", theme: .watchOnly, balanceBTC: 0.0)
+            return Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: key)
 
         case .privateKey:
             throw WalletServiceError.invalidImportSource("Private key import is not yet supported.")
@@ -258,21 +259,125 @@ private extension BDKWalletService {
         Log.print.info("[Sync] Wallet \(walletId.uuidString): incremental sync completed. Persisted: \(persisted)")
     }
 
-    /// Loads (or creates) the on-disk BDK wallet for the given app `Wallet`.
-    /// Returns both the wallet and its persister so callers can flush updates to SQLite.
+    /// Identifies the wallet type (seed, xpub, or address) and delegates loading
+    /// to the appropriate specialised method.
+    ///
+    /// - Seed wallets → `loadSeedWallet` (full HD with signing capability)
+    /// - xpub/ypub/zpub → `loadXpubWallet` (watch-only HD tracking)
+    /// - Bitcoin address → `loadAddressWallet` (single-address watch-only)
+    func loadBDKWallet(for wallet: Wallet) throws -> (BitcoinDevKit.Wallet, Persister) {
+        if wallet.mnemonicPhrase != nil {
+            return try loadSeedWallet(for: wallet)
+        }
+
+        if let descriptor = wallet.descriptor {
+            if descriptor.hasPrefix("xpub") || descriptor.hasPrefix("ypub") || descriptor.hasPrefix("zpub") {
+                return try loadXpubWallet(for: wallet, xpub: descriptor)
+            }
+            if descriptor.hasPrefix("bc1") || descriptor.hasPrefix("1") || descriptor.hasPrefix("3") {
+                return try loadAddressWallet(for: wallet, address: descriptor)
+            }
+        }
+
+        throw WalletServiceError.unknown("Unable to determine wallet type for \(wallet.id.uuidString).")
+    }
+
+    // MARK: - Seed wallet
+
+    /// Loads (or creates) a full HD wallet from a BIP-39 mnemonic phrase.
     ///
     /// When `Wallet.load` fails (first run or corrupted database), a brand-new
     /// BDK wallet is created and its initial state is persisted immediately.
-    func loadBDKWallet(for wallet: Wallet) throws -> (BitcoinDevKit.Wallet, Persister) {
+    func loadSeedWallet(for wallet: Wallet) throws -> (BitcoinDevKit.Wallet, Persister) {
         guard let phrase = wallet.mnemonicPhrase else {
-            throw WalletServiceError.unknown("No mnemonic available for this wallet.")
+            throw WalletServiceError.unknown("No mnemonic available for wallet \(wallet.id.uuidString).")
         }
+
         let mnemonic = try Mnemonic.fromString(mnemonic: phrase)
         let secretKey = DescriptorSecretKey(network: .bitcoin, mnemonic: mnemonic, password: nil)
         let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: .bitcoin)
         let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
 
+        return try loadOrCreateDualDescriptorWallet(
+            walletId: wallet.id,
+            externalDescriptor: externalDescriptor,
+            internalDescriptor: internalDescriptor
+        )
+    }
+
+    // MARK: - Xpub wallet
+
+    /// Loads (or creates) a watch-only HD wallet from an extended public key.
+    ///
+    /// BDK's miniscript parser only understands standard BIP-32 `xpub` encoding,
+    /// so SLIP-0132 keys (`zpub`, `ypub`) are converted to `xpub` first.
+    /// The descriptor type is selected based on the **original** prefix:
+    /// - `zpub` → `wpkh()` — BIP-84 (native segwit)
+    /// - `ypub` → `sh(wpkh())` — BIP-49 (nested segwit)
+    /// - `xpub` → `pkh()` — BIP-44 (legacy)
+    func loadXpubWallet(for wallet: Wallet, xpub: String) throws -> (BitcoinDevKit.Wallet, Persister) {
+        // Convert SLIP-0132 encoding to standard BIP-32 xpub for BDK compatibility.
+        let standardKey = Self.convertToXpub(xpub)
+
+        let externalDescriptor: Descriptor
+        let internalDescriptor: Descriptor
+
+        if xpub.hasPrefix("zpub") {
+            externalDescriptor = try Descriptor(descriptor: "wpkh(\(standardKey)/0/*)", network: .bitcoin)
+            internalDescriptor = try Descriptor(descriptor: "wpkh(\(standardKey)/1/*)", network: .bitcoin)
+        } else if xpub.hasPrefix("ypub") {
+            externalDescriptor = try Descriptor(descriptor: "sh(wpkh(\(standardKey)/0/*))", network: .bitcoin)
+            internalDescriptor = try Descriptor(descriptor: "sh(wpkh(\(standardKey)/1/*))", network: .bitcoin)
+        } else {
+            externalDescriptor = try Descriptor(descriptor: "pkh(\(standardKey)/0/*)", network: .bitcoin)
+            internalDescriptor = try Descriptor(descriptor: "pkh(\(standardKey)/1/*)", network: .bitcoin)
+        }
+
+        return try loadOrCreateDualDescriptorWallet(
+            walletId: wallet.id,
+            externalDescriptor: externalDescriptor,
+            internalDescriptor: internalDescriptor
+        )
+    }
+
+    // MARK: - Address wallet
+
+    /// Loads (or creates) a single-address watch-only wallet using the `addr()` descriptor.
+    func loadAddressWallet(for wallet: Wallet, address: String) throws -> (BitcoinDevKit.Wallet, Persister) {
+        let descriptor = try Descriptor(descriptor: "addr(\(address))", network: .bitcoin)
         let dbPath = Self.walletDatabasePath(for: wallet.id)
+        let persister = try Persister.newSqlite(path: dbPath)
+
+        do {
+            let bdkWallet = try BitcoinDevKit.Wallet.loadSingle(descriptor: descriptor, persister: persister)
+            Log.print.info("[BDK] Address wallet loaded from SQLite: \(wallet.id.uuidString)")
+            return (bdkWallet, persister)
+        } catch {
+            Log.print.warning("[BDK] Address wallet load failed for \(wallet.id.uuidString): \(error.localizedDescription). Creating new.")
+
+            try? FileManager.default.removeItem(atPath: dbPath)
+            let freshPersister = try Persister.newSqlite(path: dbPath)
+
+            let bdkWallet = try BitcoinDevKit.Wallet.createSingle(
+                descriptor: descriptor, network: .bitcoin, persister: freshPersister
+            )
+            _ = try bdkWallet.persist(persister: freshPersister)
+            Self.resetFullScanFlag(for: wallet.id)
+            Log.print.info("[BDK] Fresh address wallet created: \(wallet.id.uuidString)")
+            return (bdkWallet, freshPersister)
+        }
+    }
+
+    // MARK: - Shared dual-descriptor loader
+
+    /// Loads an existing dual-descriptor wallet from SQLite, or creates a fresh one
+    /// if the database is missing or corrupted.
+    func loadOrCreateDualDescriptorWallet(
+        walletId: UUID,
+        externalDescriptor: Descriptor,
+        internalDescriptor: Descriptor
+    ) throws -> (BitcoinDevKit.Wallet, Persister) {
+        let dbPath = Self.walletDatabasePath(for: walletId)
         let persister = try Persister.newSqlite(path: dbPath)
 
         do {
@@ -281,12 +386,11 @@ private extension BDKWalletService {
                 changeDescriptor: internalDescriptor,
                 persister: persister
             )
-            Log.print.info("[BDK] Wallet loaded from SQLite: \(wallet.id.uuidString)")
+            Log.print.info("[BDK] Wallet loaded from SQLite: \(walletId.uuidString)")
             return (bdkWallet, persister)
         } catch {
-            Log.print.warning("[BDK] Wallet.load failed for \(wallet.id.uuidString): \(error.localizedDescription). Creating new wallet.")
+            Log.print.warning("[BDK] Wallet.load failed for \(walletId.uuidString): \(error.localizedDescription). Creating new wallet.")
 
-            // Remove the potentially corrupted database and create a fresh persister.
             try? FileManager.default.removeItem(atPath: dbPath)
             let freshPersister = try Persister.newSqlite(path: dbPath)
 
@@ -296,12 +400,9 @@ private extension BDKWalletService {
                 network: .bitcoin,
                 persister: freshPersister
             )
-            // Persist the initial state so Wallet.load succeeds next time.
             _ = try bdkWallet.persist(persister: freshPersister)
-
-            // A new wallet always needs a full scan, regardless of UserDefaults.
-            Self.resetFullScanFlag(for: wallet.id)
-            Log.print.info("[BDK] Fresh wallet created and persisted: \(wallet.id.uuidString)")
+            Self.resetFullScanFlag(for: walletId)
+            Log.print.info("[BDK] Fresh wallet created and persisted: \(walletId.uuidString)")
             return (bdkWallet, freshPersister)
         }
     }
@@ -356,5 +457,105 @@ private extension BDKWalletService {
     static func walletDatabasePath(for id: UUID) -> String {
         let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return documentsDir.appendingPathComponent("wallet_\(id.uuidString).sqlite").path
+    }
+
+    // MARK: - SLIP-0132 → BIP-32 conversion
+
+    /// Converts a SLIP-0132 extended public key (`zpub`/`ypub`) to standard BIP-32
+    /// `xpub` encoding. Returns the key unchanged if it already starts with `xpub`.
+    ///
+    /// BDK's miniscript parser only recognises `xpub`/`tpub`, so this conversion
+    /// is required before constructing descriptors.
+    static func convertToXpub(_ key: String) -> String {
+        guard key.hasPrefix("zpub") || key.hasPrefix("ypub") else { return key }
+        guard var payload = base58CheckDecode(key) else {
+            Log.print.warning("[BDK] Failed to Base58Check-decode key: \(key.prefix(8))…")
+            return key
+        }
+
+        // Replace version bytes with standard xpub (0x0488B21E).
+        let xpubVersion: [UInt8] = [0x04, 0x88, 0xB2, 0x1E]
+        payload[0] = xpubVersion[0]
+        payload[1] = xpubVersion[1]
+        payload[2] = xpubVersion[2]
+        payload[3] = xpubVersion[3]
+
+        return base58CheckEncode(payload)
+    }
+
+    // MARK: - Base58Check codec
+
+    private static let base58Alphabet = Array("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+
+    /// Double-SHA256 convenience.
+    private static func doubleSHA256(_ data: [UInt8]) -> [UInt8] {
+        let first  = Data(SHA256.hash(data: data))
+        let second = Data(SHA256.hash(data: first))
+        return Array(second)
+    }
+
+    /// Decodes a Base58Check-encoded string, verifies the checksum, and returns
+    /// the payload **without** the trailing 4-byte checksum.
+    private static func base58CheckDecode(_ string: String) -> [UInt8]? {
+        // Count leading '1' characters (each represents a 0x00 byte).
+        var leadingZeros = 0
+        for ch in string { if ch == "1" { leadingZeros += 1 } else { break } }
+
+        // Convert base58 string → big integer stored in a byte array.
+        var result: [UInt8] = [0]
+        for char in string {
+            guard let digitIndex = base58Alphabet.firstIndex(of: char) else { return nil }
+            var carry = digitIndex
+            for j in stride(from: result.count - 1, through: 0, by: -1) {
+                carry += Int(result[j]) * 58
+                result[j] = UInt8(carry & 0xFF)
+                carry >>= 8
+            }
+            while carry > 0 {
+                result.insert(UInt8(carry & 0xFF), at: 0)
+                carry >>= 8
+            }
+        }
+
+        let bytes = [UInt8](repeating: 0, count: leadingZeros) + result
+        guard bytes.count >= 4 else { return nil }
+
+        let payload  = Array(bytes[0 ..< bytes.count - 4])
+        let checksum = Array(bytes[bytes.count - 4 ..< bytes.count])
+        let expected = Array(doubleSHA256(payload).prefix(4))
+        guard checksum == expected else { return nil }
+
+        return payload
+    }
+
+    /// Base58Check-encodes a payload (appends a 4-byte double-SHA256 checksum).
+    private static func base58CheckEncode(_ payload: [UInt8]) -> String {
+        let checksum = Array(doubleSHA256(payload).prefix(4))
+        let bytes = payload + checksum
+
+        // Count leading zero bytes (each becomes a '1' in base58).
+        var leadingZeros = 0
+        for b in bytes { if b == 0 { leadingZeros += 1 } else { break } }
+
+        // Encode big integer → base58.
+        var digits: [Character] = []
+        var num = bytes
+        while !num.allSatisfy({ $0 == 0 }) {
+            var remainder = 0
+            var quotient: [UInt8] = []
+            for byte in num {
+                let acc = remainder * 256 + Int(byte)
+                let digit = acc / 58
+                remainder = acc % 58
+                if !quotient.isEmpty || digit > 0 {
+                    quotient.append(UInt8(digit))
+                }
+            }
+            digits.append(base58Alphabet[remainder])
+            num = quotient.isEmpty ? [0] : quotient
+        }
+
+        let prefix = String(repeating: "1", count: leadingZeros)
+        return prefix + String(digits.reversed())
     }
 }

@@ -2,82 +2,79 @@ import SwiftUI
 
 // MARK: - ImportWalletView
 
-/// Screen where the user enters a BIP-39 seed phrase to import a wallet.
+/// Screen where the user enters a seed phrase, xpub, or Bitcoin address to import a wallet.
 ///
 /// Delegates validation and wallet creation to the injected `ViewModel`,
-/// which calls `BDKWalletService.importWallet(from:)` internally.
+/// which auto-detects the input type and calls `BDKWalletService.importWallet(from:)`.
 struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
 
-    @State private var phrase: String = ""
+    @State private var input: String = ""
     @State private var isImporting = false
     @State private var errorMessage: String?
+    @State private var clipboardHasContent = false
 
-    private var trimmedPhrase: String { phrase.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var isImportEnabled: Bool { !trimmedPhrase.isEmpty && !isImporting }
+    private var trimmedInput: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var isImportEnabled: Bool { !trimmedInput.isEmpty && !isImporting }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 buildInstructions()
-                buildPhraseEditor()
+                buildInputEditor()
                 if let error = errorMessage { buildErrorLabel(error) }
+                buildPasteButton()
                 buildImportButton()
             }
             .padding(24)
         }
         .navigationTitle("Import Wallet")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { checkClipboard() }
     }
 
     // MARK: - Builders
 
     private func buildInstructions() -> some View {
-        Text("Enter your 12 or 24-word seed phrase, with each word separated by a space.")
+        Text("Enter a 12 or 24-word seed phrase, an extended public key (xpub/ypub/zpub), or a Bitcoin address.")
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }
 
-    private func buildPhraseEditor() -> some View {
-        ZStack(alignment: .topTrailing) {
-            TextEditor(text: $phrase)
-                .frame(minHeight: 140)
-                .padding(12)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(errorMessage != nil ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)
-                )
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-
-            buildPasteButton()
-        }
-    }
-
-    private func buildPasteButton() -> some View {
-        Button {
-            guard let clipboard = UIPasteboard.general.string, !clipboard.isEmpty else { return }
-            phrase = clipboard
-        } label: {
-            Image(systemName: "doc.on.clipboard")
-                .font(.callout)
-                .foregroundStyle(.blue)
-                .padding(10)
-                .background(.ultraThinMaterial)
-                .clipShape(Circle())
-        }
-        .padding(8)
-        .opacity(phrase.isEmpty ? 1 : 0)
-        .animation(.easeInOut(duration: 0.2), value: phrase.isEmpty)
+    private func buildInputEditor() -> some View {
+        TextEditor(text: $input)
+            .frame(minHeight: 140)
+            .padding(12)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(errorMessage != nil ? Color.red.opacity(0.5) : Color.clear, lineWidth: 1)
+            )
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
     }
 
     private func buildErrorLabel(_ message: String) -> some View {
         Text(message)
             .font(.caption)
             .foregroundStyle(.red)
+    }
+
+    private func buildPasteButton() -> some View {
+        Button {
+            guard let clipboard = UIPasteboard.general.string, !clipboard.isEmpty else { return }
+            input = clipboard
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "doc.on.clipboard")
+                Text("Paste")
+            }
+        }
+        .buttonStyle(.appSecondary)
+        .disabled(!clipboardHasContent || !input.isEmpty)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func buildImportButton() -> some View {
@@ -109,12 +106,18 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
         errorMessage = nil
 
         do {
-            try await viewModel.importWallet(phrase: trimmedPhrase)
+            try await viewModel.importWallet(input: trimmedInput)
         } catch {
-            errorMessage = "Invalid seed phrase. Please check all words and try again."
+            errorMessage = error.localizedDescription
             Log.print.warning("Wallet import failed: \(error.localizedDescription)")
         }
 
         isImporting = false
+    }
+
+    // MARK: - Clipboard
+
+    private func checkClipboard() {
+        clipboardHasContent = UIPasteboard.general.hasStrings
     }
 }

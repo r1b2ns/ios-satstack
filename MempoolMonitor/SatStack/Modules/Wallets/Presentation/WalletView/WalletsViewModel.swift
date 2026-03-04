@@ -20,12 +20,17 @@ struct Wallet: Identifiable, Codable {
     /// BIP-39 mnemonic phrase (space-separated words). Nil for watch-only wallets.
     let mnemonicPhrase: String?
 
-    init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil) {
+    /// Original import descriptor (xpub or Bitcoin address) for watch-only wallets.
+    /// Used for duplicate detection. Nil for seed-based wallets.
+    let descriptor: String?
+
+    init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil, descriptor: String? = nil) {
         self.id = id
         self.name = name
         self.theme = theme
         self.balanceBTC = balanceBTC
         self.mnemonicPhrase = mnemonicPhrase
+        self.descriptor = descriptor
     }
 }
 
@@ -145,9 +150,9 @@ protocol WalletsViewModelProtocol: ObservableObject {
     /// phrase and then call `addWallet(_:)` on confirm.
     func createWallet() async throws -> WalletCreationResult
 
-    /// Validates the phrase with the wallet service, creates the wallet, adds it
-    /// to the list and persists it — all in one step.
-    func importWallet(phrase: String) async throws
+    /// Detects the input type (seed phrase, xpub, or Bitcoin address), validates
+    /// it with the wallet service, checks for duplicates, and persists — all in one step.
+    func importWallet(input: String) async throws
 }
 
 // MARK: - WalletsUiState
@@ -211,8 +216,9 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
     private let walletService: any WalletServiceProtocol
 
-    /// Stores Combine subscriptions created by `syncAllWalletsOnLaunch()`.
-    private var syncCancellables = Set<AnyCancellable>()
+    /// Per-wallet Combine subscriptions for background syncs.
+    /// Keyed by wallet ID so individual syncs can be cancelled on deletion.
+    private var syncCancellables = [UUID: AnyCancellable]()
 
     init(walletService: any WalletServiceProtocol = BDKWalletService()) {
         self.walletService = walletService
@@ -266,6 +272,10 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     }
 
     func deleteWallet(id: UUID) {
+        // Cancel any running sync for this wallet.
+        syncCancellables[id]?.cancel()
+        syncCancellables.removeValue(forKey: id)
+
         uiState.wallets.removeAll { $0.id == id }
         uiState.selectedWalletId = nil
         uiState.transactions = []
@@ -286,13 +296,31 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     }
 
     @MainActor
-    func importWallet(phrase: String) async throws {
-        let words = phrase
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .components(separatedBy: .whitespaces)
-            .filter { !$0.isEmpty }
-        var wallet = try await walletService.importWallet(from: .seedPhrase(words))
-        wallet.name = "Imported Wallet \(uiState.wallets.count + 1)"
+    func importWallet(input: String) async throws {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let source: WalletImportSource
+        if trimmed.hasPrefix("xpub") || trimmed.hasPrefix("ypub") || trimmed.hasPrefix("zpub") {
+            guard !uiState.wallets.contains(where: { $0.descriptor == trimmed }) else {
+                throw WalletServiceError.invalidImportSource("This xpub is already imported.")
+            }
+            source = .xpub(trimmed)
+        } else if trimmed.hasPrefix("bc1") || trimmed.hasPrefix("1") || trimmed.hasPrefix("3") {
+            guard !uiState.wallets.contains(where: { $0.descriptor == trimmed }) else {
+                throw WalletServiceError.invalidImportSource("This address is already imported.")
+            }
+            source = .address(trimmed)
+        } else {
+            let words = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            let phrase = words.joined(separator: " ")
+            guard !uiState.wallets.contains(where: { $0.mnemonicPhrase == phrase }) else {
+                throw WalletServiceError.invalidImportSource("This seed phrase is already imported.")
+            }
+            source = .seedPhrase(words)
+        }
+
+        var wallet = try await walletService.importWallet(from: source)
+        wallet.name = "\(wallet.name) \(uiState.wallets.count + 1)"
         addWallet(wallet)
     }
 }
@@ -335,7 +363,7 @@ private extension WalletsViewModel {
         uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
 
         let service = BDKWalletService()
-        Future<(UInt64, String?), Never> { promise in
+        syncCancellables[wallet.id] = Future<(UInt64, String?), Never> { promise in
             Task { [weak self] in
                 do {
                     let balance = try await service.fetchWalletBalance(for: wallet) { progress in
@@ -367,7 +395,6 @@ private extension WalletsViewModel {
                 Log.print.info("[BDK] Sync completed for new wallet \(wallet.id) — balance: \(balance) sats")
             }
         }
-        .store(in: &syncCancellables)
     }
 
     // MARK: - Background sync (Combine)
@@ -389,58 +416,49 @@ private extension WalletsViewModel {
             uiState.walletSyncStates[wallet.id] = .syncing(progress: nil)
         }
 
-        struct SyncResult {
-            let walletId: UUID
-            let balance: UInt64
-            let errorMessage: String?
-        }
-
         // One BDKWalletService per wallet, all running concurrently.
-        let publishers: [AnyPublisher<SyncResult, Never>] = wallets.map { [weak self] wallet in
+        // Each wallet gets its own cancellable so it can be cancelled individually.
+        for wallet in wallets {
             let service = BDKWalletService()
-            return Future<SyncResult, Never> { promise in
-                Task {
+            syncCancellables[wallet.id] = Future<(UInt64, String?), Never> { promise in
+                Task { [weak self] in
                     do {
                         let balance = try await service.fetchWalletBalance(for: wallet) { progress in
                             Task { @MainActor in
                                 self?.uiState.walletSyncStates[wallet.id] = .syncing(progress: progress)
                             }
                         }
-                        promise(.success(SyncResult(walletId: wallet.id, balance: balance, errorMessage: nil)))
+                        promise(.success((balance, nil)))
                     } catch {
-                        promise(.success(SyncResult(walletId: wallet.id, balance: 0, errorMessage: error.localizedDescription)))
+                        promise(.success((0, error.localizedDescription)))
                     }
                 }
             }
-            .eraseToAnyPublisher()
-        }
-
-        Publishers.MergeMany(publishers)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] result in
+            .sink { [weak self] balance, errorMessage in
                 guard let self else { return }
-                if let reason = result.errorMessage {
-                    self.uiState.walletSyncStates[result.walletId] = .failed(reason)
-                    Log.print.error("[BDK] Background sync failed for wallet \(result.walletId): \(reason)")
+                if let reason = errorMessage {
+                    self.uiState.walletSyncStates[wallet.id] = .failed(reason)
+                    Log.print.error("[BDK] Background sync failed for wallet \(wallet.id): \(reason)")
                 } else {
-                    self.uiState.walletSyncStates[result.walletId] = .synced
-                    self.uiState.walletBalances[result.walletId] = result.balance
+                    self.uiState.walletSyncStates[wallet.id] = .synced
+                    self.uiState.walletBalances[wallet.id] = balance
 
                     // Persist updated balance into the Wallet model.
-                    if let index = self.uiState.wallets.firstIndex(where: { $0.id == result.walletId }) {
-                        let btc = Double(result.balance) / 100_000_000.0
+                    if let index = self.uiState.wallets.firstIndex(where: { $0.id == wallet.id }) {
+                        let btc = Double(balance) / 100_000_000.0
                         self.uiState.wallets[index].balanceBTC = btc
                         Task { await self.persistWallet(self.uiState.wallets[index]) }
                     }
 
                     // If this is the currently open detail view, also update the detail balance.
-                    if self.uiState.selectedWalletId == result.walletId {
-                        self.uiState.selectedWalletBalanceSats = result.balance
+                    if self.uiState.selectedWalletId == wallet.id {
+                        self.uiState.selectedWalletBalanceSats = balance
                     }
-                    Log.print.info("[BDK] Background sync completed for wallet \(result.walletId) — balance: \(result.balance) sats")
+                    Log.print.info("[BDK] Background sync completed for wallet \(wallet.id) — balance: \(balance) sats")
                 }
             }
-            .store(in: &syncCancellables)
+        }
     }
 
     // MARK: - Detail-view sync

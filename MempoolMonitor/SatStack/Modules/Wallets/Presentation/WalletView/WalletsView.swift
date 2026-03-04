@@ -144,9 +144,7 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             .padding(.top, 8)
         }
         .safeAreaInset(edge: .bottom) {
-            if wallet.theme == .bitcoin {
-                buildBitcoinActionBar()
-            }
+            buildActionBar(isWatchOnly: wallet.mnemonicPhrase == nil)
         }
         .toolbar(.hidden, for: .tabBar)
     }
@@ -178,11 +176,13 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     // MARK: - Bitcoin action bar
 
-    private func buildBitcoinActionBar() -> some View {
+    private func buildActionBar(isWatchOnly: Bool) -> some View {
         let hasTransactions = !viewModel.uiState.transactions.isEmpty
         return HStack(spacing: 12) {
             buildActionButton(title: "Receive", icon: "arrow.down.circle.fill")
-            buildActionButton(title: "Send", icon: "arrow.up.circle.fill")
+            if !isWatchOnly {
+                buildActionButton(title: "Send", icon: "arrow.up.circle.fill")
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
@@ -210,144 +210,17 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     // MARK: - Transaction list
 
     private func buildTransactionList() -> some View {
-        let txs = viewModel.uiState.transactions
-        let isSyncing = selectedWalletSyncState.isSyncing
-        let hasContent = viewModel.uiState.isLoadingTransactions || !txs.isEmpty || isSyncing
-
-        return VStack(alignment: .leading, spacing: 0) {
-            if hasContent {
-                buildTransactionHeader()
-            }
-            buildTransactionRows()
-        }
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 32)
+        WalletsTransactionsView(
+            transactions: viewModel.uiState.transactions,
+            isLoading: viewModel.uiState.isLoadingTransactions,
+            syncState: selectedWalletSyncState
+        )
     }
 
     /// Sync state of the currently selected wallet.
     private var selectedWalletSyncState: WalletSyncState {
         guard let id = viewModel.uiState.selectedWalletId else { return .idle }
         return viewModel.uiState.walletSyncStates[id] ?? .idle
-    }
-
-    private func buildTransactionHeader() -> some View {
-        Text("Latest Transactions")
-            .font(.title3)
-            .fontWeight(.bold)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, 8)
-    }
-
-    @ViewBuilder
-    private func buildTransactionRows() -> some View {
-        let txs = viewModel.uiState.transactions
-        let isSyncing = selectedWalletSyncState.isSyncing
-
-        if viewModel.uiState.isLoadingTransactions && txs.isEmpty {
-            // No cached transactions and currently loading — show sync message.
-            buildSyncingTransactionsState()
-        } else if txs.isEmpty && !isSyncing {
-            // Not syncing and no transactions — show empty state.
-            buildTransactionEmptyState()
-        } else if txs.isEmpty && isSyncing {
-            // Syncing but no cached data yet — show sync message.
-            buildSyncingTransactionsState()
-        } else {
-            // Show transaction rows, with a refreshing indicator at the bottom if syncing.
-            ForEach(Array(txs.enumerated()), id: \.element.id) { index, tx in
-                buildTransactionRow(tx)
-                if index < txs.count - 1 {
-                    Divider()
-                        .padding(.leading, 16)
-                }
-            }
-            if isSyncing {
-                buildRefreshingIndicator()
-            }
-        }
-    }
-
-    /// Shown when the wallet is syncing and there are no cached transactions.
-    private func buildSyncingTransactionsState() -> some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Syncing wallet...")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.primary)
-            Text("Transactions will appear once the sync completes.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
-        .padding(.horizontal, 16)
-    }
-
-    /// Subtle indicator at the bottom of cached transactions while a refresh is running.
-    private func buildRefreshingIndicator() -> some View {
-        HStack(spacing: 6) {
-            ProgressView()
-                .scaleEffect(0.7)
-            Text("Refreshing transactions...")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-    }
-
-    private func buildTransactionEmptyState() -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "tray")
-                .font(.title)
-                .foregroundStyle(.tertiary)
-            Text("No transactions yet")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 32)
-    }
-
-    private func buildTransactionRow(_ tx: WalletTransaction) -> some View {
-        HStack(spacing: 6) {
-            buildTransactionIcon(isReceived: tx.isReceived)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(tx.address)
-                    .truncationMode(.middle)
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(tx.relativeDate)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text(tx.formattedValue)
-                .font(.callout)
-                .fontWeight(.semibold)
-                .foregroundStyle(tx.isReceived ? Color.green : Color.red)
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-
-    private func buildTransactionIcon(isReceived: Bool) -> some View {
-        Image(systemName: isReceived ? "arrow.down.circle.fill" : "arrow.up.circle.fill")
-            .font(.title3)
-            .foregroundStyle(isReceived ? Color.green : Color.red)
-            .frame(width: 32)
     }
 
     // MARK: - Loading state
