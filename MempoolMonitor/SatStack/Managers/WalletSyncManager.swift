@@ -25,6 +25,10 @@ enum WalletSyncEvent {
     /// The wallet is already being synced by another operation.
     case alreadySyncing(walletId: UUID)
 
+    /// A batch sync produced an updated transaction list for a wallet.
+    /// The ViewModel caches these and, if the wallet is selected, updates the UI.
+    case transactionsUpdated(walletId: UUID, transactions: [WalletTransaction])
+
     /// A sync failed with an error message.
     case syncFailed(walletId: UUID, error: String)
 }
@@ -146,17 +150,18 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
 
             do {
                 let walletId = wallet.id
-                let balance = try await service.fetchWalletBalance(for: wallet) { [weak self] progress in
+                let result = try await service.syncWallet(wallet) { [weak self] progress in
                     Task { @MainActor in
                         self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: .syncing(progress: progress)))
                     }
                 }
 
                 eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .synced))
-                eventSubject.send(.balanceUpdated(walletId: wallet.id, balanceSats: balance))
+                eventSubject.send(.balanceUpdated(walletId: wallet.id, balanceSats: result.balance))
+                eventSubject.send(.transactionsUpdated(walletId: wallet.id, transactions: result.transactions))
                 lastSyncDates[wallet.id] = Date()
 
-                Log.print.info("[BDK] Sync completed for wallet '\(wallet.name)' — balance: \(balance) sats")
+                Log.print.info("[BDK] Sync completed for wallet '\(wallet.name)' — balance: \(result.balance) sats, \(result.transactions.count) txs")
             } catch {
                 eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
                 eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
@@ -192,9 +197,10 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
 
                 eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .synced))
                 eventSubject.send(.balanceUpdated(walletId: wallet.id, balanceSats: result.balance))
+                eventSubject.send(.transactionsUpdated(walletId: wallet.id, transactions: result.transactions))
                 lastSyncDates[wallet.id] = Date()
 
-                Log.print.info("[BDK] Full scan completed for wallet '\(wallet.name)' — balance: \(result.balance) sats")
+                Log.print.info("[BDK] Full scan completed for wallet '\(wallet.name)' — balance: \(result.balance) sats, \(result.transactions.count) txs")
             } catch {
                 eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
                 eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))

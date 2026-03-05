@@ -464,6 +464,16 @@ private extension WalletsViewModel {
             }
             Task { await self.persistTransactions(transactions, for: walletId) }
 
+        case .transactionsUpdated(let walletId, let transactions):
+            guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
+            // Cache transactions so they are available when the user opens this wallet.
+            Task { await self.persistTransactions(transactions, for: walletId) }
+            // If this wallet is currently selected, refresh the UI immediately.
+            if uiState.selectedWalletId == walletId {
+                uiState.transactions = transactions
+                uiState.isLoadingTransactions = false
+            }
+
         case .cooldownActive:
             uiState.isLoadingTransactions = false
 
