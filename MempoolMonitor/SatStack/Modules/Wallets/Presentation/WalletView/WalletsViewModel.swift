@@ -167,6 +167,10 @@ protocol WalletsViewModelProtocol: ObservableObject {
 
     /// Syncs all wallets sequentially. Called on first load and on pull-to-refresh.
     func syncAllWallets() async
+
+    /// Forces a full re-scan of the currently selected wallet, bypassing
+    /// the incremental sync and cooldown.
+    func forceFullScan()
 }
 
 // MARK: - WalletsUiState
@@ -385,6 +389,21 @@ extension WalletsViewModel {
             uiState.walletSyncStates[wallet.id]?.isBusy != true
         }
         await syncManager.syncAllWallets(walletsToSync)
+    }
+
+    /// Forces a full re-scan of the currently selected wallet.
+    /// Dismisses settings, resets the transaction loading state, and delegates
+    /// to the sync manager for a complete script-pubkey scan.
+    func forceFullScan() {
+        guard let id = uiState.selectedWalletId,
+              let wallet = uiState.wallets.first(where: { $0.id == id }) else { return }
+
+        uiState.isPresentingWalletSettings = false
+        uiState.isLoadingTransactions = true
+
+        Task { @MainActor in
+            await syncManager.fullScanSelectedWallet(wallet)
+        }
     }
 }
 

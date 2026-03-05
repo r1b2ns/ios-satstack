@@ -124,6 +124,14 @@ struct MockWalletService: WalletServiceProtocol {
         return (balance: 2_100_000, transactions: WalletTransaction.mocked)
     }
 
+    // MARK: - fullScanWallet
+
+    /// Simulates a full scan returning fixture balance and transactions.
+    func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await simulateProgressTicks(onProgress: onProgress)
+        return (balance: 2_100_000, transactions: WalletTransaction.mocked)
+    }
+
     // MARK: - fetchWalletBackup
 
     /// Returns a seed-phrase backup for `.bitcoin` / `.satsCard` themed wallets

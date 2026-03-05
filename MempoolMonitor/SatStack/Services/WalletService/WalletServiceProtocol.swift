@@ -167,6 +167,21 @@ protocol WalletServiceProtocol {
     /// Synchronises the wallet once without progress reporting.
     func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
 
+    /// Forces a full scan of the wallet regardless of prior sync history.
+    ///
+    /// Resets the internal full-scan flag and performs a complete script-pubkey
+    /// scan from scratch, catching any address activity that an incremental
+    /// sync might miss.
+    ///
+    /// - Parameters:
+    ///   - wallet: The wallet to fully re-scan.
+    ///   - onProgress: Called periodically with sync progress. `nil` means indeterminate.
+    /// - Returns: A tuple with the total balance in satoshis and the transaction list (newest first).
+    func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Forces a full scan of the wallet without progress reporting.
+    func fullScanWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
     /// Retrieves the backup data for the given wallet.
     ///
     /// For HD wallets this returns the seed phrase. For watch-only wallets
@@ -189,5 +204,9 @@ extension WalletServiceProtocol {
 
     func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
         try await syncWallet(wallet, onProgress: { _ in })
+    }
+
+    func fullScanWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await fullScanWallet(wallet, onProgress: { _ in })
     }
 }

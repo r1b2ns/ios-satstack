@@ -53,6 +53,11 @@ protocol WalletSyncManagerProtocol: AnyObject {
     /// Respects the 60-second cooldown and skips if already syncing.
     func syncSelectedWallet(_ wallet: Wallet) async
 
+    /// Forces a full scan for the selected wallet, ignoring the cooldown and
+    /// bypassing the incremental sync. Used when the user explicitly requests
+    /// a complete re-scan from wallet settings.
+    func fullScanSelectedWallet(_ wallet: Wallet) async
+
     /// Cancels any running sync task for the given wallet and clears its
     /// cooldown tracking. Called when a wallet is deleted.
     func cancelSync(for walletId: UUID)
@@ -227,6 +232,36 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
             eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
             eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
             Log.print.error("[BDK] Detail sync failed for wallet \(wallet.id): \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - fullScanSelectedWallet
+
+    @MainActor
+    func fullScanSelectedWallet(_ wallet: Wallet) async {
+        // Cancel any existing sync for this wallet before starting a full scan.
+        syncTasks[wallet.id]?.cancel()
+        syncTasks.removeValue(forKey: wallet.id)
+
+        eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .syncing(progress: nil)))
+
+        do {
+            let walletId = wallet.id
+            let result = try await detailSyncService.fullScanWallet(wallet) { [weak self] progress in
+                Task { @MainActor in
+                    self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: .syncing(progress: progress)))
+                }
+            }
+
+            eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .synced))
+            eventSubject.send(.selectedWalletSynced(walletId: wallet.id, balanceSats: result.balance, transactions: result.transactions))
+            lastSyncDates[wallet.id] = Date()
+
+            Log.print.info("[BDK] Full scan completed for wallet \(wallet.id) — balance: \(result.balance) sats")
+        } catch {
+            eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
+            eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
+            Log.print.error("[BDK] Full scan failed for wallet \(wallet.id): \(error.localizedDescription)")
         }
     }
 

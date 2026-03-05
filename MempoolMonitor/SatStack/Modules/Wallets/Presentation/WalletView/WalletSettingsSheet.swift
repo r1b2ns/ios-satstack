@@ -64,6 +64,15 @@ struct WalletSettingsSheet<ViewModel: WalletsViewModelProtocol>: View {
             }
 
             buildOptionRow(
+                icon: "arrow.triangle.2.circlepath",
+                iconColor: .purple,
+                title: "Force Full Scan"
+            ) {
+                dismiss()
+                viewModel.forceFullScan()
+            }
+
+            buildOptionRow(
                 icon: "trash.fill",
                 iconColor: .red,
                 title: "Delete",

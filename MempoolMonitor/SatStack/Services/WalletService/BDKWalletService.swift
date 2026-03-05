@@ -157,6 +157,15 @@ struct BDKWalletService: WalletServiceProtocol {
         return (balance, transactions)
     }
 
+    // MARK: - fullScanWallet
+
+    /// Resets the full-scan flag so that `syncOrFullScan` treats the wallet as
+    /// never-scanned, then performs the sync (which will now be a full scan).
+    func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        Self.resetFullScanFlag(for: wallet.id)
+        return try await syncWallet(wallet, onProgress: onProgress)
+    }
+
     // MARK: - fetchWalletBackup
 
     func fetchWalletBackup(for wallet: Wallet) async throws -> WalletBackup {
