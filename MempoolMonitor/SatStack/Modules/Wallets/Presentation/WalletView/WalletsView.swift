@@ -1,4 +1,26 @@
 import SwiftUI
+import TipKit
+
+// MARK: - FullScanTip
+
+/// Tip displayed in the wallet detail view suggesting a full scan when balances seem incorrect.
+struct FullScanTip: Tip {
+    var title: Text {
+        Text("Balance doesn't look right?")
+    }
+
+    var message: Text? {
+        Text("Try running a Full Scan to rescan all addresses from scratch.")
+    }
+
+    var image: Image? {
+        Image(systemName: "arrow.triangle.2.circlepath")
+    }
+
+    var actions: [Action] {
+        Action(id: "full-scan", title: "Full Scan")
+    }
+}
 
 // MARK: - Factory
 
@@ -132,15 +154,18 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             .padding(.bottom, 32)
         }
         .refreshable {
-            await viewModel.syncAllWallets()
+            await viewModel.fullScanAllWallets()
         }
     }
 
     // MARK: - Detail view (selected card + transactions)
 
+    private let fullScanTip = FullScanTip()
+
     private func buildDetailView(wallet: Wallet) -> some View {
         ScrollView {
             VStack(spacing: 0) {
+                buildFullScanTip()
                 buildSelectedCard(wallet: wallet)
                 buildTransactionList()
             }
@@ -175,6 +200,19 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                     }
                 }
         )
+    }
+
+    // MARK: - Full scan tip
+
+    private func buildFullScanTip() -> some View {
+        TipView(fullScanTip) { action in
+            if action.id == "full-scan" {
+                viewModel.forceFullScan()
+            }
+        }
+        .tipImageSize(CGSize(width: 20, height: 20))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Bitcoin action bar

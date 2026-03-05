@@ -165,8 +165,11 @@ protocol WalletsViewModelProtocol: ObservableObject {
     /// it with the wallet service, checks for duplicates, and persists — all in one step.
     func importWallet(input: String) async throws
 
-    /// Syncs all wallets sequentially. Called on first load and on pull-to-refresh.
+    /// Syncs all wallets sequentially. Called on first load.
     func syncAllWallets() async
+
+    /// Forces a full scan on all wallets sequentially. Called on pull-to-refresh.
+    func fullScanAllWallets() async
 
     /// Forces a full re-scan of the currently selected wallet, bypassing
     /// the incremental sync and cooldown.
@@ -389,6 +392,15 @@ extension WalletsViewModel {
             uiState.walletSyncStates[wallet.id]?.isBusy != true
         }
         await syncManager.syncAllWallets(walletsToSync)
+    }
+
+    /// Forces a full scan on all non-busy wallets. Called on pull-to-refresh.
+    @MainActor
+    func fullScanAllWallets() async {
+        let walletsToSync = uiState.wallets.filter { wallet in
+            uiState.walletSyncStates[wallet.id]?.isBusy != true
+        }
+        await syncManager.fullScanAllWallets(walletsToSync)
     }
 
     /// Forces a full re-scan of the currently selected wallet.
