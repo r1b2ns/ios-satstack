@@ -294,6 +294,11 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             self.uiState.transactions = cachedTxs
             self.uiState.isLoadingTransactions = cachedTxs.isEmpty
 
+            // If the wallet is already queued or syncing (e.g. from a batch
+            // full scan), let the batch handle it — don't start a separate sync.
+            let currentState = self.uiState.walletSyncStates[wallet.id]
+            guard currentState?.isBusy != true else { return }
+
             // Delegate the actual sync to the manager.
             await self.syncManager.syncSelectedWallet(wallet)
         }
@@ -510,7 +515,7 @@ private extension WalletsViewModel {
     func persistWallet(_ wallet: Wallet) async {
         do {
             try await SwiftDataStorable.shared.save(wallet, id: wallet.id.uuidString)
-            Log.print.info("Wallet saved: \(wallet.id.uuidString)")
+            Log.print.info("Wallet saved: '\(wallet.name)'")
         } catch {
             Log.print.error("Failed to persist wallet: \(error.localizedDescription)")
         }
@@ -519,7 +524,7 @@ private extension WalletsViewModel {
     func removePersistedWallet(id: UUID) async {
         do {
             try await SwiftDataStorable.shared.delete(Wallet.self, id: id.uuidString)
-            Log.print.info("Wallet deleted: \(id.uuidString)")
+            Log.print.info("Wallet deleted: \(id)")
         } catch {
             Log.print.error("Failed to delete wallet: \(error.localizedDescription)")
         }
@@ -533,7 +538,8 @@ private extension WalletsViewModel {
         let list = WalletTransactionList(walletId: walletId, transactions: transactions)
         do {
             try await SwiftDataStorable.shared.save(list, id: "txs_\(walletId.uuidString)")
-            Log.print.info("Transactions cached for wallet: \(walletId.uuidString)")
+            let walletName = uiState.wallets.first(where: { $0.id == walletId })?.name ?? walletId.uuidString
+            Log.print.info("Transactions cached for wallet: '\(walletName)'")
         } catch {
             Log.print.error("Failed to cache transactions: \(error.localizedDescription)")
         }
@@ -560,7 +566,7 @@ private extension WalletsViewModel {
                 WalletTransactionList.self,
                 id: "txs_\(walletId.uuidString)"
             )
-            Log.print.info("Cached transactions deleted for wallet: \(walletId.uuidString)")
+            Log.print.info("Cached transactions deleted for wallet: \(walletId)")
         } catch {
             Log.print.error("Failed to delete cached transactions: \(error.localizedDescription)")
         }

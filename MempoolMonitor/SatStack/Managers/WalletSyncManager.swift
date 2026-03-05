@@ -156,11 +156,11 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
                 eventSubject.send(.balanceUpdated(walletId: wallet.id, balanceSats: balance))
                 lastSyncDates[wallet.id] = Date()
 
-                Log.print.info("[BDK] Sync completed for wallet \(wallet.id) — balance: \(balance) sats")
+                Log.print.info("[BDK] Sync completed for wallet '\(wallet.name)' — balance: \(balance) sats")
             } catch {
                 eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
                 eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
-                Log.print.error("[BDK] Sync failed for wallet \(wallet.id): \(error.localizedDescription)")
+                Log.print.error("[BDK] Sync failed for wallet '\(wallet.name)': \(error.localizedDescription)")
             }
         }
     }
@@ -194,11 +194,11 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
                 eventSubject.send(.balanceUpdated(walletId: wallet.id, balanceSats: result.balance))
                 lastSyncDates[wallet.id] = Date()
 
-                Log.print.info("[BDK] Full scan completed for wallet \(wallet.id) — balance: \(result.balance) sats")
+                Log.print.info("[BDK] Full scan completed for wallet '\(wallet.name)' — balance: \(result.balance) sats")
             } catch {
                 eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
                 eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
-                Log.print.error("[BDK] Full scan failed for wallet \(wallet.id): \(error.localizedDescription)")
+                Log.print.error("[BDK] Full scan failed for wallet '\(wallet.name)': \(error.localizedDescription)")
             }
         }
     }
@@ -223,14 +223,14 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
                     self.eventSubject.send(.balanceUpdated(walletId: wallet.id, balanceSats: balance))
                     self.lastSyncDates[wallet.id] = Date()
                     self.syncTasks.removeValue(forKey: wallet.id)
-                    Log.print.info("[BDK] Sync completed for new wallet \(wallet.id) — balance: \(balance) sats")
+                    Log.print.info("[BDK] Sync completed for new wallet '\(wallet.name)' — balance: \(balance) sats")
                 }
             } catch {
                 await MainActor.run {
                     self.eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
                     self.eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
                     self.syncTasks.removeValue(forKey: wallet.id)
-                    Log.print.error("[BDK] Sync failed for new wallet \(wallet.id): \(error.localizedDescription)")
+                    Log.print.error("[BDK] Sync failed for new wallet '\(wallet.name)': \(error.localizedDescription)")
                 }
             }
         }
@@ -243,7 +243,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
         // Check if already syncing.
         if syncTasks[wallet.id] != nil {
             eventSubject.send(.alreadySyncing(walletId: wallet.id))
-            Log.print.info("[Sync] Wallet \(wallet.id.uuidString) is already syncing")
+            Log.print.info("[Sync] Wallet '\(wallet.name)' is already syncing")
             return
         }
 
@@ -251,7 +251,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
         if let lastSync = lastSyncDates[wallet.id],
            Date().timeIntervalSince(lastSync) < cooldownInterval {
             eventSubject.send(.cooldownActive(walletId: wallet.id))
-            Log.print.info("[Sync] Wallet \(wallet.id.uuidString) synced \(Int(Date().timeIntervalSince(lastSync)))s ago — cooldown active")
+            Log.print.info("[Sync] Wallet '\(wallet.name)' synced \(Int(Date().timeIntervalSince(lastSync)))s ago — cooldown active")
             return
         }
 
@@ -269,11 +269,11 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
             eventSubject.send(.selectedWalletSynced(walletId: wallet.id, balanceSats: result.balance, transactions: result.transactions))
             lastSyncDates[wallet.id] = Date()
 
-            Log.print.info("[BDK] Detail sync completed for wallet \(wallet.id) — balance: \(result.balance) sats")
+            Log.print.info("[BDK] Detail sync completed for wallet '\(wallet.name)' — balance: \(result.balance) sats")
         } catch {
             eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
             eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
-            Log.print.error("[BDK] Detail sync failed for wallet \(wallet.id): \(error.localizedDescription)")
+            Log.print.error("[BDK] Detail sync failed for wallet '\(wallet.name)': \(error.localizedDescription)")
         }
     }
 
@@ -299,11 +299,11 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
             eventSubject.send(.selectedWalletSynced(walletId: wallet.id, balanceSats: result.balance, transactions: result.transactions))
             lastSyncDates[wallet.id] = Date()
 
-            Log.print.info("[BDK] Full scan completed for wallet \(wallet.id) — balance: \(result.balance) sats")
+            Log.print.info("[BDK] Full scan completed for wallet '\(wallet.name)' — balance: \(result.balance) sats")
         } catch {
             eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .failed(error.localizedDescription)))
             eventSubject.send(.syncFailed(walletId: wallet.id, error: error.localizedDescription))
-            Log.print.error("[BDK] Full scan failed for wallet \(wallet.id): \(error.localizedDescription)")
+            Log.print.error("[BDK] Full scan failed for wallet '\(wallet.name)': \(error.localizedDescription)")
         }
     }
 
