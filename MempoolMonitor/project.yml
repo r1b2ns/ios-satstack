@@ -82,6 +82,9 @@ packages:
   bdk-swift:
     url: https://github.com/bitcoindevkit/bdk-swift
     exactVersion: "2.3.0"
+  BitcoinUI:
+    url: https://github.com/reez/BitcoinUI.git
+    exactVersion: "1.0.8"
 
 # ─── Targets ───────────────────────────────────────────────────────────────────
 targets:
@@ -182,6 +185,7 @@ targets:
         product: netfox
       - package: bdk-swift
         product: BitcoinDevKit
+      - package: BitcoinUI
 
 # ─────────────────────────────────────────────────────────────────────────────
   SatStackWidget:

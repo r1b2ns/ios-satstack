@@ -1,4 +1,4 @@
-import CoreImage.CIFilterBuiltins
+import BitcoinUI
 import SwiftUI
 
 // MARK: - ReceiveAddressSheet
@@ -18,14 +18,6 @@ struct ReceiveAddressSheet: View {
             buildContent()
                 .navigationTitle("Receive")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { dismiss() } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
@@ -51,52 +43,39 @@ struct ReceiveAddressSheet: View {
     // MARK: - QR Code
 
     private func buildQRCode(for address: String) -> some View {
-        Group {
-            if let qrImage = Self.generateQRCode(from: address) {
-                Image(uiImage: qrImage)
-                    .interpolation(.none)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 220, height: 220)
-                    .foregroundStyle(.black)
-            } else {
-                Image(systemName: "qrcode")
-                    .font(.system(size: 120))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        QRCodeView(qrCodeType: .bitcoin(address))
+            .frame(width: 250, height: 250)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Address label
 
     private func buildAddressLabel(_ address: String) -> some View {
-        VStack(spacing: 8) {
-            Text(address)
-                .font(.system(.callout, design: .monospaced))
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.primary)
-                .lineLimit(3)
-
-            Text(showCopiedFeedback ? "Copied!" : "Tap to copy")
-                .font(.caption)
-                .foregroundStyle(showCopiedFeedback ? .green : .secondary)
-                .animation(.easeInOut, value: showCopiedFeedback)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture {
+        Button {
             UIPasteboard.general.string = address
             showCopiedFeedback = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 showCopiedFeedback = false
             }
+        } label: {
+            VStack(spacing: 8) {
+                Text(address)
+                    .font(.system(.callout, design: .monospaced))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                
+                Text(showCopiedFeedback ? "Copied!" : "Tap to copy")
+                    .font(.caption)
+                    .animation(.easeInOut, value: showCopiedFeedback)
+            }
         }
+        .foregroundStyle(showCopiedFeedback ? .green : .secondary)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Loading
@@ -109,29 +88,5 @@ struct ReceiveAddressSheet: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-// MARK: - QR Code generation
-
-private extension ReceiveAddressSheet {
-
-    /// Generates a high-resolution QR code `UIImage` from the given string
-    /// using Core Image's built-in `CIQRCodeGenerator`.
-    static func generateQRCode(from string: String) -> UIImage? {
-        guard let data = string.data(using: .ascii) else { return nil }
-
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = data
-        filter.correctionLevel = "M"
-
-        guard let ciImage = filter.outputImage else { return nil }
-
-        // Scale up to avoid blurriness — QR codes are tiny by default.
-        let scale: CGFloat = 10
-        let transform = CGAffineTransform(scaleX: scale, y: scale)
-        let scaledImage = ciImage.transformed(by: transform)
-
-        return UIImage(ciImage: scaledImage)
     }
 }

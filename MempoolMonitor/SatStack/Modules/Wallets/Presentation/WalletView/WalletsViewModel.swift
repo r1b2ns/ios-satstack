@@ -448,12 +448,19 @@ extension WalletsViewModel {
     }
 
     /// Derives the next receive address and presents the receive sheet.
+    /// For address-only watch wallets, shows the wallet's own descriptor address directly.
     func showReceiveAddress() {
         guard let id = uiState.selectedWalletId,
               let wallet = uiState.wallets.first(where: { $0.id == id }) else { return }
 
         uiState.receiveAddress = nil
         uiState.isPresentingReceiveSheet = true
+
+        // Address wallets already have the receive address as their descriptor.
+        if wallet.isAddressWallet, let address = wallet.descriptor {
+            uiState.receiveAddress = address
+            return
+        }
 
         Task { @MainActor in
             do {
