@@ -32,6 +32,14 @@ struct Wallet: Identifiable, Codable {
         self.mnemonicPhrase = mnemonicPhrase
         self.descriptor = descriptor
     }
+
+    /// Whether this wallet is a single-address watch-only import (bc1/tb1/1/3).
+    /// Address wallets use the mempool.space API instead of BDK for sync.
+    var isAddressWallet: Bool {
+        guard mnemonicPhrase == nil, let descriptor else { return false }
+        let addressPrefixes = ["bc1", "tb1", "1", "3"]
+        return addressPrefixes.contains(where: { descriptor.hasPrefix($0) })
+    }
 }
 
 // MARK: - WalletTransaction model

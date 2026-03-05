@@ -58,6 +58,7 @@ struct ReceiveAddressSheet: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 220, height: 220)
+                    .foregroundStyle(.black)
             } else {
                 Image(systemName: "qrcode")
                     .font(.system(size: 120))

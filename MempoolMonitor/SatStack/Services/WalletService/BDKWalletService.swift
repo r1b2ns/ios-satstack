@@ -109,7 +109,12 @@ struct BDKWalletService: WalletServiceProtocol {
             guard validPrefixes.contains(where: { address.hasPrefix($0) }) else {
                 throw WalletServiceError.invalidImportSource("'\(address)' does not look like a valid Bitcoin address.")
             }
-            return Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: address)
+            let walletId = UUID()
+            // Address wallets use the `addr()` descriptor which does not support
+            // BDK's `startFullScan()`. Mark the full scan as already completed so
+            // `syncOrFullScan` always uses incremental sync for this wallet.
+            Self.markFullScanCompleted(for: walletId)
+            return Wallet(id: walletId, name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: address)
 
         case .xpub(let key):
             let validPrefixes = ["xpub", "ypub", "zpub", "tpub", "upub", "vpub"]
@@ -126,7 +131,12 @@ struct BDKWalletService: WalletServiceProtocol {
     // MARK: - fetchWalletBalance
 
     /// Synchronises the wallet (full scan or incremental) and returns the total balance in satoshis.
+    /// Address wallets use the mempool.space REST API instead of BDK sync.
     func fetchWalletBalance(for wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> UInt64 {
+        if wallet.isAddressWallet, let address = wallet.descriptor {
+            let result = try await Self.syncAddressWallet(address: address)
+            return result.balance
+        }
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
         try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id, onProgress: onProgress)
         return bdkWallet.balance().total.toSat()
@@ -136,7 +146,12 @@ struct BDKWalletService: WalletServiceProtocol {
 
     /// Synchronises the wallet (full scan or incremental) and returns the transaction
     /// history sorted newest-first with net BTC values (positive = received, negative = sent).
+    /// Address wallets use the mempool.space REST API instead of BDK sync.
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction] {
+        if wallet.isAddressWallet, let address = wallet.descriptor {
+            let result = try await Self.syncAddressWallet(address: address)
+            return result.transactions
+        }
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
         try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id, onProgress: { _ in })
         return Self.extractTransactions(from: bdkWallet)
@@ -148,7 +163,11 @@ struct BDKWalletService: WalletServiceProtocol {
     /// transaction list in a single pass — avoiding the redundant double-sync that
     /// happens when `fetchWalletBalance` and `fetchWalletTransactions` are called
     /// independently.
+    /// Address wallets use the mempool.space REST API instead of BDK sync.
     func syncWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        if wallet.isAddressWallet, let address = wallet.descriptor {
+            return try await Self.syncAddressWallet(address: address)
+        }
         let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
         try syncOrFullScan(bdkWallet, persister: persister, walletId: wallet.id, onProgress: onProgress)
         let balance = bdkWallet.balance().total.toSat()
@@ -160,7 +179,11 @@ struct BDKWalletService: WalletServiceProtocol {
 
     /// Resets the full-scan flag so that `syncOrFullScan` treats the wallet as
     /// never-scanned, then performs the sync (which will now be a full scan).
+    /// Address wallets simply re-fetch from the mempool.space API.
     func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        if wallet.isAddressWallet, let address = wallet.descriptor {
+            return try await Self.syncAddressWallet(address: address)
+        }
         Self.resetFullScanFlag(for: wallet.id)
         return try await syncWallet(wallet, onProgress: onProgress)
     }
@@ -386,7 +409,9 @@ private extension BDKWalletService {
                 descriptor: descriptor, network: BDKNetworkConfig.network, persister: freshPersister
             )
             _ = try bdkWallet.persist(persister: freshPersister)
-            Self.resetFullScanFlag(for: wallet.id)
+            // addr() descriptors only support incremental sync, so mark
+            // full scan as completed to prevent syncOrFullScan from attempting it.
+            Self.markFullScanCompleted(for: wallet.id)
             Log.print.info("[BDK] Fresh address wallet created: \(wallet.id.uuidString)")
             return (bdkWallet, freshPersister)
         }
@@ -458,6 +483,64 @@ private extension BDKWalletService {
                 return WalletTransaction(id: UUID(), address: txid, valueBTC: valueBTC, date: date, isConfirmed: isConfirmed)
             }
             .sorted { $0.date > $1.date }
+    }
+
+    // MARK: - Address wallet sync (mempool.space API)
+
+    /// Fetches balance and transactions for a single-address wallet using
+    /// the mempool.space REST API instead of BDK sync.
+    ///
+    /// The balance is derived from the address stats (funded − spent for both
+    /// confirmed and mempool UTXOs). Transactions are mapped from the API
+    /// response into the app's `WalletTransaction` model.
+    static func syncAddressWallet(
+        address: String,
+        api: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared
+    ) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        async let infoTask = api.fetchAddressInfo(address: address)
+        async let txsTask = api.fetchAddressTransactions(address: address)
+
+        let info = try await infoTask
+        let apiTxs = try await txsTask
+
+        // Balance = total funded − total spent (chain + mempool).
+        let chainBalance = info.chainStats.fundedTxoSum - info.chainStats.spentTxoSum
+        let mempoolBalance = info.mempoolStats.fundedTxoSum - info.mempoolStats.spentTxoSum
+        let totalSats = UInt64(max(0, chainBalance + mempoolBalance))
+
+        // Map API transactions to the app's WalletTransaction model.
+        let transactions: [WalletTransaction] = apiTxs.map { tx in
+            let received = tx.vout
+                .filter { $0.scriptpubkeyAddress == address }
+                .reduce(Int64(0)) { $0 + $1.value }
+
+            let sent = tx.vin
+                .compactMap { $0.prevout }
+                .filter { $0.scriptpubkeyAddress == address }
+                .reduce(Int64(0)) { $0 + $1.value }
+
+            let netSats = received - sent
+            let valueBTC = Double(netSats) / 100_000_000.0
+
+            let date: Date
+            if let blockTime = tx.status.blockTime {
+                date = Date(timeIntervalSince1970: TimeInterval(blockTime))
+            } else {
+                date = .now
+            }
+
+            return WalletTransaction(
+                id: UUID(),
+                address: tx.txid,
+                valueBTC: valueBTC,
+                date: date,
+                isConfirmed: tx.status.confirmed
+            )
+        }
+        .sorted { $0.date > $1.date }
+
+        Log.print.info("[Mempool API] Address \(address): balance = \(totalSats) sats, \(transactions.count) txs")
+        return (totalSats, transactions)
     }
 
     // MARK: - Full-scan state (UserDefaults)
