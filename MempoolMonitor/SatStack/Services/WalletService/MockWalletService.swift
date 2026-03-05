@@ -132,6 +132,13 @@ struct MockWalletService: WalletServiceProtocol {
         return (balance: 2_100_000, transactions: WalletTransaction.mocked)
     }
 
+    // MARK: - getReceiveAddress
+
+    func getReceiveAddress(for wallet: Wallet) async throws -> String {
+        try await simulateDelay()
+        return "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+    }
+
     // MARK: - fetchWalletBackup
 
     /// Returns a seed-phrase backup for `.bitcoin` / `.satsCard` themed wallets

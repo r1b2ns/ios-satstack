@@ -15,7 +15,8 @@ enum WalletImportSource {
     /// A single Bitcoin address imported in watch-only mode.
     case address(String)
 
-    /// An extended public key (xpub / ypub / zpub) for watch-only HD tracking.
+    /// An extended public key for watch-only HD tracking.
+    /// Mainnet: xpub / ypub / zpub. Signet/Testnet: tpub / upub / vpub.
     case xpub(String)
 
     /// A Wallet Import Format (WIF) encoded private key.
@@ -181,6 +182,15 @@ protocol WalletServiceProtocol {
 
     /// Forces a full scan of the wallet without progress reporting.
     func fullScanWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Derives the next unused receive address on the external keychain.
+    ///
+    /// The address index is persisted so subsequent calls return new, unique
+    /// addresses suitable for receiving funds.
+    ///
+    /// - Parameter wallet: The wallet to derive a receive address from.
+    /// - Returns: A Bitcoin address string (e.g. `bc1q…` on mainnet, `tb1q…` on signet).
+    func getReceiveAddress(for wallet: Wallet) async throws -> String
 
     /// Retrieves the backup data for the given wallet.
     ///

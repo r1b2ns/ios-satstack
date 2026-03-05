@@ -69,6 +69,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 .sheet(isPresented: $viewModel.uiState.isPresentingWalletSettings) {
                     buildSettingsSheet()
                 }
+                .sheet(isPresented: $viewModel.uiState.isPresentingReceiveSheet) {
+                    ReceiveAddressSheet(address: viewModel.uiState.receiveAddress)
+                }
                 .navigationDestinations()
                 .alert("Rename Wallet", isPresented: $viewModel.uiState.isPresentingRenameAlert) {
                     TextField("Wallet name", text: $viewModel.uiState.renameText)
@@ -220,9 +223,11 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     private func buildActionBar(isWatchOnly: Bool) -> some View {
         let hasTransactions = !viewModel.uiState.transactions.isEmpty
         return HStack(spacing: 12) {
-            buildActionButton(title: "Receive", icon: "arrow.down.circle.fill")
+            buildActionButton(title: "Receive", icon: "arrow.down.circle.fill") {
+                viewModel.showReceiveAddress()
+            }
             if !isWatchOnly {
-                buildActionButton(title: "Send", icon: "arrow.up.circle.fill")
+                buildActionButton(title: "Send", icon: "arrow.up.circle.fill") { }
             }
         }
         .padding(.horizontal, 20)
@@ -231,9 +236,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         .background(hasTransactions ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(.clear))
     }
 
-    private func buildActionButton(title: String, icon: String) -> some View {
+    private func buildActionButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
         let isSyncing = selectedWalletSyncState.isBusy
-        return Button { } label: {
+        return Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                 Text(title)

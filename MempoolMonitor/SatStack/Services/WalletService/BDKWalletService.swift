@@ -15,11 +15,8 @@ enum BlockchainBackend {
     
     var url: String {
         switch self {
-        case .esplora:
-            return "https://mempool.space/api"
-            
-        case .electrum:
-            return "ssl://electrum.blockstream.info:50002"
+        case .esplora:  return BDKNetworkConfig.esploraURL
+        case .electrum: return BDKNetworkConfig.electrumURL
         }
     }
 }
@@ -61,15 +58,15 @@ struct BDKWalletService: WalletServiceProtocol {
         let words = phrase.components(separatedBy: " ")
         let walletId = UUID()
 
-        let secretKey = DescriptorSecretKey(network: .bitcoin, mnemonic: mnemonic, password: nil)
-        let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: .bitcoin)
-        let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
+        let secretKey = DescriptorSecretKey(network: BDKNetworkConfig.network, mnemonic: mnemonic, password: nil)
+        let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: BDKNetworkConfig.network)
+        let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: BDKNetworkConfig.network)
 
         let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: walletId))
         let bdkWallet = try BitcoinDevKit.Wallet(
             descriptor: externalDescriptor,
             changeDescriptor: internalDescriptor,
-            network: .bitcoin,
+            network: BDKNetworkConfig.network,
             persister: persister
         )
         // Persist the initial wallet state so Wallet.load succeeds on next open.
@@ -90,15 +87,15 @@ struct BDKWalletService: WalletServiceProtocol {
             let mnemonic = try Mnemonic.fromString(mnemonic: phrase)
             let walletId = UUID()
 
-            let secretKey = DescriptorSecretKey(network: .bitcoin, mnemonic: mnemonic, password: nil)
-            let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: .bitcoin)
-            let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
+            let secretKey = DescriptorSecretKey(network: BDKNetworkConfig.network, mnemonic: mnemonic, password: nil)
+            let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: BDKNetworkConfig.network)
+            let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: BDKNetworkConfig.network)
 
             let persister = try Persister.newSqlite(path: Self.walletDatabasePath(for: walletId))
             let bdkWallet = try BitcoinDevKit.Wallet(
                 descriptor: externalDescriptor,
                 changeDescriptor: internalDescriptor,
-                network: .bitcoin,
+                network: BDKNetworkConfig.network,
                 persister: persister
             )
             // Persist the initial wallet state so Wallet.load succeeds on next open.
@@ -108,13 +105,15 @@ struct BDKWalletService: WalletServiceProtocol {
             return Wallet(id: walletId, name: "Imported Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
 
         case .address(let address):
-            guard address.hasPrefix("bc1") || address.hasPrefix("1") || address.hasPrefix("3") else {
+            let validPrefixes = ["bc1", "tb1", "1", "3"]
+            guard validPrefixes.contains(where: { address.hasPrefix($0) }) else {
                 throw WalletServiceError.invalidImportSource("'\(address)' does not look like a valid Bitcoin address.")
             }
             return Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: address)
 
         case .xpub(let key):
-            guard key.hasPrefix("xpub") || key.hasPrefix("ypub") || key.hasPrefix("zpub") else {
+            let validPrefixes = ["xpub", "ypub", "zpub", "tpub", "upub", "vpub"]
+            guard validPrefixes.contains(where: { key.hasPrefix($0) }) else {
                 throw WalletServiceError.invalidImportSource("'\(key.prefix(8))…' is not a recognised extended public key prefix.")
             }
             return Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: key)
@@ -164,6 +163,17 @@ struct BDKWalletService: WalletServiceProtocol {
     func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
         Self.resetFullScanFlag(for: wallet.id)
         return try await syncWallet(wallet, onProgress: onProgress)
+    }
+
+    // MARK: - getReceiveAddress
+
+    func getReceiveAddress(for wallet: Wallet) async throws -> String {
+        let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
+        let addressInfo = bdkWallet.revealNextAddress(keychain: .external)
+        _ = try bdkWallet.persist(persister: persister)
+        let address = addressInfo.address.description
+        Log.print.info("[BDK] Receive address derived (index \(addressInfo.index)): \(address)")
+        return address
     }
 
     // MARK: - fetchWalletBackup
@@ -272,18 +282,21 @@ private extension BDKWalletService {
     /// to the appropriate specialised method.
     ///
     /// - Seed wallets → `loadSeedWallet` (full HD with signing capability)
-    /// - xpub/ypub/zpub → `loadXpubWallet` (watch-only HD tracking)
-    /// - Bitcoin address → `loadAddressWallet` (single-address watch-only)
+    /// - xpub/ypub/zpub/tpub/upub/vpub → `loadXpubWallet` (watch-only HD tracking)
+    /// - Bitcoin address (bc1/tb1/1/3) → `loadAddressWallet` (single-address watch-only)
     func loadBDKWallet(for wallet: Wallet) throws -> (BitcoinDevKit.Wallet, Persister) {
         if wallet.mnemonicPhrase != nil {
             return try loadSeedWallet(for: wallet)
         }
 
         if let descriptor = wallet.descriptor {
-            if descriptor.hasPrefix("xpub") || descriptor.hasPrefix("ypub") || descriptor.hasPrefix("zpub") {
+            let xpubPrefixes = ["xpub", "ypub", "zpub", "tpub", "upub", "vpub"]
+            let addressPrefixes = ["bc1", "tb1", "1", "3"]
+
+            if xpubPrefixes.contains(where: { descriptor.hasPrefix($0) }) {
                 return try loadXpubWallet(for: wallet, xpub: descriptor)
             }
-            if descriptor.hasPrefix("bc1") || descriptor.hasPrefix("1") || descriptor.hasPrefix("3") {
+            if addressPrefixes.contains(where: { descriptor.hasPrefix($0) }) {
                 return try loadAddressWallet(for: wallet, address: descriptor)
             }
         }
@@ -303,9 +316,9 @@ private extension BDKWalletService {
         }
 
         let mnemonic = try Mnemonic.fromString(mnemonic: phrase)
-        let secretKey = DescriptorSecretKey(network: .bitcoin, mnemonic: mnemonic, password: nil)
-        let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: .bitcoin)
-        let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: .bitcoin)
+        let secretKey = DescriptorSecretKey(network: BDKNetworkConfig.network, mnemonic: mnemonic, password: nil)
+        let externalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .external, network: BDKNetworkConfig.network)
+        let internalDescriptor = Descriptor.newBip84(secretKey: secretKey, keychainKind: .internal, network: BDKNetworkConfig.network)
 
         return try loadOrCreateDualDescriptorWallet(
             walletId: wallet.id,
@@ -318,28 +331,30 @@ private extension BDKWalletService {
 
     /// Loads (or creates) a watch-only HD wallet from an extended public key.
     ///
-    /// BDK's miniscript parser only understands standard BIP-32 `xpub` encoding,
-    /// so SLIP-0132 keys (`zpub`, `ypub`) are converted to `xpub` first.
+    /// BDK's miniscript parser only understands standard BIP-32 encoding
+    /// (`xpub` for mainnet, `tpub` for testnet/signet), so SLIP-0132 keys
+    /// are converted to the standard form first.
+    ///
     /// The descriptor type is selected based on the **original** prefix:
-    /// - `zpub` → `wpkh()` — BIP-84 (native segwit)
-    /// - `ypub` → `sh(wpkh())` — BIP-49 (nested segwit)
-    /// - `xpub` → `pkh()` — BIP-44 (legacy)
+    /// - `zpub` / `vpub` → `wpkh()` — BIP-84 (native segwit)
+    /// - `ypub` / `upub` → `sh(wpkh())` — BIP-49 (nested segwit)
+    /// - `xpub` / `tpub` → `pkh()` — BIP-44 (legacy)
     func loadXpubWallet(for wallet: Wallet, xpub: String) throws -> (BitcoinDevKit.Wallet, Persister) {
-        // Convert SLIP-0132 encoding to standard BIP-32 xpub for BDK compatibility.
-        let standardKey = Self.convertToXpub(xpub)
+        // Convert SLIP-0132 encoding to standard BIP-32 xpub/tpub for BDK compatibility.
+        let standardKey = Self.convertToStandardKey(xpub)
 
         let externalDescriptor: Descriptor
         let internalDescriptor: Descriptor
 
-        if xpub.hasPrefix("zpub") {
-            externalDescriptor = try Descriptor(descriptor: "wpkh(\(standardKey)/0/*)", network: .bitcoin)
-            internalDescriptor = try Descriptor(descriptor: "wpkh(\(standardKey)/1/*)", network: .bitcoin)
-        } else if xpub.hasPrefix("ypub") {
-            externalDescriptor = try Descriptor(descriptor: "sh(wpkh(\(standardKey)/0/*))", network: .bitcoin)
-            internalDescriptor = try Descriptor(descriptor: "sh(wpkh(\(standardKey)/1/*))", network: .bitcoin)
+        if xpub.hasPrefix("zpub") || xpub.hasPrefix("vpub") {
+            externalDescriptor = try Descriptor(descriptor: "wpkh(\(standardKey)/0/*)", network: BDKNetworkConfig.network)
+            internalDescriptor = try Descriptor(descriptor: "wpkh(\(standardKey)/1/*)", network: BDKNetworkConfig.network)
+        } else if xpub.hasPrefix("ypub") || xpub.hasPrefix("upub") {
+            externalDescriptor = try Descriptor(descriptor: "sh(wpkh(\(standardKey)/0/*))", network: BDKNetworkConfig.network)
+            internalDescriptor = try Descriptor(descriptor: "sh(wpkh(\(standardKey)/1/*))", network: BDKNetworkConfig.network)
         } else {
-            externalDescriptor = try Descriptor(descriptor: "pkh(\(standardKey)/0/*)", network: .bitcoin)
-            internalDescriptor = try Descriptor(descriptor: "pkh(\(standardKey)/1/*)", network: .bitcoin)
+            externalDescriptor = try Descriptor(descriptor: "pkh(\(standardKey)/0/*)", network: BDKNetworkConfig.network)
+            internalDescriptor = try Descriptor(descriptor: "pkh(\(standardKey)/1/*)", network: BDKNetworkConfig.network)
         }
 
         return try loadOrCreateDualDescriptorWallet(
@@ -353,7 +368,7 @@ private extension BDKWalletService {
 
     /// Loads (or creates) a single-address watch-only wallet using the `addr()` descriptor.
     func loadAddressWallet(for wallet: Wallet, address: String) throws -> (BitcoinDevKit.Wallet, Persister) {
-        let descriptor = try Descriptor(descriptor: "addr(\(address))", network: .bitcoin)
+        let descriptor = try Descriptor(descriptor: "addr(\(address))", network: BDKNetworkConfig.network)
         let dbPath = Self.walletDatabasePath(for: wallet.id)
         let persister = try Persister.newSqlite(path: dbPath)
 
@@ -368,7 +383,7 @@ private extension BDKWalletService {
             let freshPersister = try Persister.newSqlite(path: dbPath)
 
             let bdkWallet = try BitcoinDevKit.Wallet.createSingle(
-                descriptor: descriptor, network: .bitcoin, persister: freshPersister
+                descriptor: descriptor, network: BDKNetworkConfig.network, persister: freshPersister
             )
             _ = try bdkWallet.persist(persister: freshPersister)
             Self.resetFullScanFlag(for: wallet.id)
@@ -406,7 +421,7 @@ private extension BDKWalletService {
             let bdkWallet = try BitcoinDevKit.Wallet(
                 descriptor: externalDescriptor,
                 changeDescriptor: internalDescriptor,
-                network: .bitcoin,
+                network: BDKNetworkConfig.network,
                 persister: freshPersister
             )
             _ = try bdkWallet.persist(persister: freshPersister)
@@ -430,64 +445,87 @@ private extension BDKWalletService {
                 let valueBTC = Double(netSats) / 100_000_000.0
 
                 let date: Date
+                let isConfirmed: Bool
                 switch canonical.chainPosition {
                 case .confirmed(let blockTime, _):
                     date = Date(timeIntervalSince1970: TimeInterval(blockTime.confirmationTime))
+                    isConfirmed = true
                 case .unconfirmed:
                     date = .now
+                    isConfirmed = false
                 }
 
-                return WalletTransaction(id: UUID(), address: txid, valueBTC: valueBTC, date: date)
+                return WalletTransaction(id: UUID(), address: txid, valueBTC: valueBTC, date: date, isConfirmed: isConfirmed)
             }
             .sorted { $0.date > $1.date }
     }
 
     // MARK: - Full-scan state (UserDefaults)
 
+    /// UserDefaults key prefix scoped to the active network so that
+    /// signet and mainnet full-scan states never collide.
+    private static var fullScanKeyPrefix: String {
+        "bdk_full_scan_\(BDKNetworkConfig.networkName)_"
+    }
+
     /// Returns `true` when the wallet has never completed a full scan.
     /// Defaults to `true` for wallets not yet tracked in `UserDefaults`.
     static func needsFullScan(for walletId: UUID) -> Bool {
-        !UserDefaults.standard.bool(forKey: "bdk_full_scan_\(walletId.uuidString)")
+        !UserDefaults.standard.bool(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
     }
 
     /// Persists the fact that the given wallet has completed its initial full scan.
     static func markFullScanCompleted(for walletId: UUID) {
-        UserDefaults.standard.set(true, forKey: "bdk_full_scan_\(walletId.uuidString)")
+        UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
         Log.print.info("[BDK] Full scan state saved for wallet \(walletId.uuidString)")
     }
 
     /// Resets the full-scan flag so the next sync performs a full scan.
     static func resetFullScanFlag(for walletId: UUID) {
-        UserDefaults.standard.removeObject(forKey: "bdk_full_scan_\(walletId.uuidString)")
+        UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
         Log.print.info("[BDK] Full scan flag reset for wallet \(walletId.uuidString)")
     }
 
-    /// Returns the SQLite database path for the given wallet UUID.
+    /// Returns the SQLite database path for the given wallet UUID,
+    /// scoped to the active network (signet vs mainnet).
     static func walletDatabasePath(for id: UUID) -> String {
         let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return documentsDir.appendingPathComponent("wallet_\(id.uuidString).sqlite").path
+        return documentsDir.appendingPathComponent("wallet_\(id.uuidString)_\(BDKNetworkConfig.networkName).sqlite").path
     }
 
     // MARK: - SLIP-0132 → BIP-32 conversion
 
-    /// Converts a SLIP-0132 extended public key (`zpub`/`ypub`) to standard BIP-32
-    /// `xpub` encoding. Returns the key unchanged if it already starts with `xpub`.
+    /// Converts a SLIP-0132 extended public key to standard BIP-32 encoding.
     ///
+    /// - Mainnet: `zpub`/`ypub` → `xpub` (version bytes `0x0488B21E`)
+    /// - Signet/Testnet: `vpub`/`upub` → `tpub` (version bytes `0x043587CF`)
+    ///
+    /// Returns the key unchanged if it already uses a standard prefix (`xpub`/`tpub`).
     /// BDK's miniscript parser only recognises `xpub`/`tpub`, so this conversion
     /// is required before constructing descriptors.
-    static func convertToXpub(_ key: String) -> String {
-        guard key.hasPrefix("zpub") || key.hasPrefix("ypub") else { return key }
+    static func convertToStandardKey(_ key: String) -> String {
+        let targetVersion: [UInt8]
+
+        if key.hasPrefix("zpub") || key.hasPrefix("ypub") {
+            // Mainnet SLIP-0132 → xpub
+            targetVersion = [0x04, 0x88, 0xB2, 0x1E]
+        } else if key.hasPrefix("vpub") || key.hasPrefix("upub") {
+            // Signet/Testnet SLIP-0132 → tpub
+            targetVersion = [0x04, 0x35, 0x87, 0xCF]
+        } else {
+            // Already standard (xpub/tpub) or unknown — return unchanged.
+            return key
+        }
+
         guard var payload = base58CheckDecode(key) else {
             Log.print.warning("[BDK] Failed to Base58Check-decode key: \(key.prefix(8))…")
             return key
         }
 
-        // Replace version bytes with standard xpub (0x0488B21E).
-        let xpubVersion: [UInt8] = [0x04, 0x88, 0xB2, 0x1E]
-        payload[0] = xpubVersion[0]
-        payload[1] = xpubVersion[1]
-        payload[2] = xpubVersion[2]
-        payload[3] = xpubVersion[3]
+        payload[0] = targetVersion[0]
+        payload[1] = targetVersion[1]
+        payload[2] = targetVersion[2]
+        payload[3] = targetVersion[3]
 
         return base58CheckEncode(payload)
     }

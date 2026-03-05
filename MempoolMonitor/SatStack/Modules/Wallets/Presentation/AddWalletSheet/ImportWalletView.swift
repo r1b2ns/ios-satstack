@@ -37,7 +37,7 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
     // MARK: - Builders
 
     private func buildInstructions() -> some View {
-        Text("Enter a 12 or 24-word seed phrase, an extended public key (xpub/ypub/zpub), or a Bitcoin address.")
+        Text("Enter a 12 or 24-word seed phrase, an extended public key (xpub/ypub/zpub/tpub/upub/vpub), or a Bitcoin address.")
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }

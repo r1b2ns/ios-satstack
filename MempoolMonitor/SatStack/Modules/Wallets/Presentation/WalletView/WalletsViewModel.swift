@@ -50,6 +50,9 @@ struct WalletTransaction: Identifiable, Codable {
     /// Date the transaction was broadcast or confirmed.
     let date: Date
 
+    /// Whether the transaction has been included in a confirmed block.
+    let isConfirmed: Bool
+
     /// Truncated identifier suitable for compact display (e.g. `bc1qxy2kg…x0wlh`).
     var shortAddress: String {
         guard address.count > 18 else { return address }
@@ -78,25 +81,25 @@ extension WalletTransaction {
     /// Ten fixture transactions used by `MockWalletService`.
     static let mocked: [WalletTransaction] = [
         WalletTransaction(id: UUID(), address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-                          valueBTC:  0.00210000, date: .now.addingTimeInterval(-1 * 3_600)),
+                          valueBTC:  0.00210000, date: .now.addingTimeInterval(-1 * 3_600), isConfirmed: false),
         WalletTransaction(id: UUID(), address: "bc1q8c6fqw2z8pnl0q3qj7x2rkh6vxwnjpz8qk9j3z",
-                          valueBTC:  0.00045000, date: .now.addingTimeInterval(-3 * 3_600)),
+                          valueBTC:  0.00045000, date: .now.addingTimeInterval(-3 * 3_600), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
-                          valueBTC:  0.01200000, date: .now.addingTimeInterval(-7 * 3_600)),
+                          valueBTC:  0.01200000, date: .now.addingTimeInterval(-7 * 3_600), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1q5y2u7gnngl6djrsq0vfk9k7u3ke9aqkrqmne8r",
-                          valueBTC:  0.00089000, date: .now.addingTimeInterval(-26 * 3_600)),
+                          valueBTC:  0.00089000, date: .now.addingTimeInterval(-26 * 3_600), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1qnp57fy8zjq3uc56mtz8s0spkptfurjp9k77q3d",
-                          valueBTC:  0.00512000, date: .now.addingTimeInterval(-48 * 3_600)),
+                          valueBTC:  0.00512000, date: .now.addingTimeInterval(-48 * 3_600), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1qhkdrknrwz3cz5f2eue7e7euh5r5q3j8j7m3d3x",
-                          valueBTC:  0.00033000, date: .now.addingTimeInterval(-72 * 3_600)),
+                          valueBTC:  0.00033000, date: .now.addingTimeInterval(-72 * 3_600), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1qjyp2xa3r7gwrfkjhg2sf9lf68kt2j9mvf0ek0h",
-                          valueBTC:  0.00750000, date: .now.addingTimeInterval(-5 * 86_400)),
+                          valueBTC:  0.00750000, date: .now.addingTimeInterval(-5 * 86_400), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1qkk3vk9k6s7zqr4vhv0y8u4q3x2w1e5t6r9p2m",
-                          valueBTC:  0.00190000, date: .now.addingTimeInterval(-7 * 86_400)),
+                          valueBTC:  0.00190000, date: .now.addingTimeInterval(-7 * 86_400), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1q2vx4wk8h1j3n6r5t7e9y2u0i4o8p3l6m9k2j5",
-                          valueBTC:  0.02100000, date: .now.addingTimeInterval(-10 * 86_400)),
+                          valueBTC:  0.02100000, date: .now.addingTimeInterval(-10 * 86_400), isConfirmed: true),
         WalletTransaction(id: UUID(), address: "bc1q9s3d5f7g1h4k8l2m6n0p4r8v2w5x9y3z7a1c4",
-                          valueBTC: -0.00067000, date: .now.addingTimeInterval(-14 * 86_400))
+                          valueBTC: -0.00067000, date: .now.addingTimeInterval(-14 * 86_400), isConfirmed: true)
     ]
 }
 
@@ -174,6 +177,10 @@ protocol WalletsViewModelProtocol: ObservableObject {
     /// Forces a full re-scan of the currently selected wallet, bypassing
     /// the incremental sync and cooldown.
     func forceFullScan()
+
+    /// Derives the next receive address for the selected wallet and presents
+    /// the receive sheet with a QR code.
+    func showReceiveAddress()
 }
 
 // MARK: - WalletsUiState
@@ -218,6 +225,12 @@ struct WalletsUiState {
 
     /// True while transactions for the selected wallet are being fetched.
     var isLoadingTransactions: Bool = false
+
+    /// Controls whether the receive-address sheet is presented.
+    var isPresentingReceiveSheet: Bool = false
+
+    /// The derived receive address for the selected wallet, or `nil` while loading.
+    var receiveAddress: String? = nil
 
     /// Non-nil when a sync error should be shown to the user.
     var syncErrorMessage: String? = nil
@@ -361,12 +374,15 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let source: WalletImportSource
-        if trimmed.hasPrefix("xpub") || trimmed.hasPrefix("ypub") || trimmed.hasPrefix("zpub") {
+        let xpubPrefixes = ["xpub", "ypub", "zpub", "tpub", "upub", "vpub"]
+        let addressPrefixes = ["bc1", "tb1", "1", "3"]
+
+        if xpubPrefixes.contains(where: { trimmed.hasPrefix($0) }) {
             guard !uiState.wallets.contains(where: { $0.descriptor == trimmed }) else {
                 throw WalletServiceError.invalidImportSource("This xpub is already imported.")
             }
             source = .xpub(trimmed)
-        } else if trimmed.hasPrefix("bc1") || trimmed.hasPrefix("1") || trimmed.hasPrefix("3") {
+        } else if addressPrefixes.contains(where: { trimmed.hasPrefix($0) }) {
             guard !uiState.wallets.contains(where: { $0.descriptor == trimmed }) else {
                 throw WalletServiceError.invalidImportSource("This address is already imported.")
             }
@@ -420,6 +436,24 @@ extension WalletsViewModel {
 
         Task { @MainActor in
             await syncManager.fullScanSelectedWallet(wallet)
+        }
+    }
+
+    /// Derives the next receive address and presents the receive sheet.
+    func showReceiveAddress() {
+        guard let id = uiState.selectedWalletId,
+              let wallet = uiState.wallets.first(where: { $0.id == id }) else { return }
+
+        uiState.receiveAddress = nil
+        uiState.isPresentingReceiveSheet = true
+
+        Task { @MainActor in
+            do {
+                let address = try await walletLifecycleService.getReceiveAddress(for: wallet)
+                self.uiState.receiveAddress = address
+            } catch {
+                Log.print.error("Failed to get receive address: \(error.localizedDescription)")
+            }
         }
     }
 }

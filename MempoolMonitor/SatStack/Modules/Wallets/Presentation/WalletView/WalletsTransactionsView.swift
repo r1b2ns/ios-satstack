@@ -1,5 +1,15 @@
 import SwiftUI
 
+// MARK: - Mempool transaction URL helper
+
+private extension WalletTransaction {
+
+    /// Full mempool.space URL for this transaction, network-aware.
+    var mempoolURL: URL? {
+        BDKNetworkConfig.transactionURL(txid: address)
+    }
+}
+
 // MARK: - WalletsTransactionsView
 
 /// Displays the transaction list for the currently selected wallet.
@@ -13,6 +23,8 @@ struct WalletsTransactionsView: View {
     let transactions: [WalletTransaction]
     let isLoading: Bool
     let syncState: WalletSyncState
+
+    @Environment(\.openURL) private var openURL
 
     private var isBusy: Bool { syncState.isBusy }
     private var hasContent: Bool { isLoading || !transactions.isEmpty || isBusy }
@@ -70,30 +82,37 @@ struct WalletsTransactionsView: View {
     // MARK: - Transaction row
 
     private func buildTransactionRow(_ tx: WalletTransaction) -> some View {
-        HStack(spacing: 6) {
-            buildTransactionIcon(isReceived: tx.isReceived)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(tx.address)
-                    .truncationMode(.middle)
+        Button {
+            guard let url = tx.mempoolURL else { return }
+            openURL(url)
+        } label: {
+            HStack(spacing: 6) {
+                buildTransactionIcon(isReceived: tx.isReceived)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(tx.address)
+                        .truncationMode(.middle)
+                        .font(.callout)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(tx.relativeDate)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(tx.formattedValue)
                     .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(tx.relativeDate)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(tx.isReceived ? Color.green : Color.red)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
-            Spacer()
-            Text(tx.formattedValue)
-                .font(.callout)
-                .fontWeight(.semibold)
-                .foregroundStyle(tx.isReceived ? Color.green : Color.red)
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .opacity(tx.isConfirmed ? 1 : 0.5)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .buttonStyle(.plain)
     }
 
     private func buildTransactionIcon(isReceived: Bool) -> some View {
