@@ -199,6 +199,54 @@ struct BDKWalletService: WalletServiceProtocol {
         return address
     }
 
+    // MARK: - broadcastTransaction
+
+    func broadcastTransaction(
+        from wallet: Wallet,
+        to address: String,
+        amountSats: UInt64,
+        feeRateSatVB: UInt64
+    ) async throws -> String {
+        guard wallet.mnemonicPhrase != nil else {
+            throw WalletServiceError.broadcastFailed("Watch-only wallets cannot sign transactions.")
+        }
+
+        let (bdkWallet, persister) = try loadBDKWallet(for: wallet)
+
+        // Parse the recipient address and build the transaction.
+        let recipientAddress = try Address(address: address, network: BDKNetworkConfig.network)
+        let script = recipientAddress.scriptPubkey()
+        let amount = Amount.fromSat(satoshi: amountSats)
+        let rate = try FeeRate.fromSatPerVb(satVb: feeRateSatVB)
+
+        let psbt = try TxBuilder()
+            .addRecipient(script: script, amount: amount)
+            .feeRate(feeRate: rate)
+            .finish(wallet: bdkWallet)
+
+        // Sign the transaction.
+        let signed = try bdkWallet.sign(psbt: psbt)
+        guard signed else {
+            throw WalletServiceError.broadcastFailed("Transaction signing failed — wallet may lack a private key.")
+        }
+
+        // Extract the final transaction and broadcast via Esplora (HTTP).
+        // ElectrumClient does not expose a broadcast method in BDK Swift,
+        // so we always use the Esplora endpoint for broadcasting.
+        let tx = try psbt.extractTx()
+        let txid = tx.computeTxid()
+
+        let broadcastClient = EsploraClient(url: BDKNetworkConfig.esploraURL)
+        try broadcastClient.broadcast(transaction: tx)
+
+        // Persist the wallet state so the spent UTXOs are reflected.
+        _ = try bdkWallet.persist(persister: persister)
+        let txidString = txid.description
+        Log.print.info("[BDK] Transaction broadcast successfully: \(txidString)")
+
+        return txidString
+    }
+
     // MARK: - fetchWalletBackup
 
     func fetchWalletBackup(for wallet: Wallet) async throws -> WalletBackup {

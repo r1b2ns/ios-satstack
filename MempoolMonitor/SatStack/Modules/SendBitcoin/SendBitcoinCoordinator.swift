@@ -5,6 +5,7 @@ import SwiftUI
 /// Navigation destinations within the SendBitcoin module.
 enum SendBitcoinRoute: Hashable {
     case reviewTransaction
+    case transactionSuccess
 }
 
 // MARK: - Coordinator
@@ -21,5 +22,9 @@ final class SendBitcoinCoordinator: MainCoordinatorProtocol {
 
     func navigateToReview() {
         path.append(SendBitcoinRoute.reviewTransaction)
+    }
+
+    func navigateToSuccess() {
+        path.append(SendBitcoinRoute.transactionSuccess)
     }
 }

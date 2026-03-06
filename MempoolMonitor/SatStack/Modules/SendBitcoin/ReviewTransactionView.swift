@@ -12,13 +12,31 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
     @EnvironmentObject private var coordinator: SendBitcoinCoordinator
 
     var body: some View {
-        VStack(spacing: 0) {
-            buildContent()
-            buildSendButton()
+        ZStack {
+            VStack(spacing: 0) {
+                buildContent()
+                buildSendButton()
+            }
+
+            if viewModel.uiState.isBroadcasting {
+                buildBroadcastingOverlay()
+            }
         }
         .navigationTitle("Review Transaction")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
+        .onChange(of: viewModel.uiState.broadcastTxId) { _, txid in
+            if txid != nil {
+                coordinator.navigateToSuccess()
+            }
+        }
+        .alert("Broadcast Failed", isPresented: $viewModel.uiState.isBroadcastError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let message = viewModel.uiState.errorMessage {
+                Text(message)
+            }
+        }
     }
 
     // MARK: - Scrollable content
@@ -114,11 +132,32 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
         }
     }
 
+    // MARK: - Broadcasting overlay
+
+    private func buildBroadcastingOverlay() -> some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.white)
+                Text("Broadcasting...")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+            }
+            .padding(32)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
     // MARK: - Send button
 
     private func buildSendButton() -> some View {
         Button {
-            // TODO: Build and broadcast transaction via BDK
+            Task { await viewModel.broadcastTransaction() }
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "paperplane.fill")
@@ -131,6 +170,7 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+        .disabled(viewModel.uiState.isBroadcasting)
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)

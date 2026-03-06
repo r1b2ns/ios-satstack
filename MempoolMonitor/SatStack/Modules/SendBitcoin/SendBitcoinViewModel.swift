@@ -65,6 +65,18 @@ struct SendBitcoinUiState {
 
     /// Controls whether the fee explanation sheet is presented.
     var isPresentingFeeInfo: Bool = false
+
+    /// True while a transaction is being built, signed, and broadcast.
+    var isBroadcasting: Bool = false
+
+    /// The txid returned after a successful broadcast, or `nil`.
+    var broadcastTxId: String? = nil
+
+    /// True when the broadcast failed and an error alert should be shown.
+    var isBroadcastError: Bool = false
+
+    /// Set to `true` to dismiss the entire Send Bitcoin sheet flow.
+    var shouldDismiss: Bool = false
 }
 
 // MARK: - SendBitcoinViewModelProtocol
@@ -105,6 +117,9 @@ protocol SendBitcoinViewModelProtocol: ObservableObject {
 
     /// True when amount + selected fee exceeds the wallet's available balance.
     var isInsufficientFundsWithFee: Bool { get }
+
+    /// Builds, signs, and broadcasts the composed transaction via BDK.
+    func broadcastTransaction() async
 }
 
 // MARK: - SendBitcoinViewModel
@@ -114,14 +129,20 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
     @Published var uiState = SendBitcoinUiState()
     let wallet: Wallet
 
+    private let walletService: WalletServiceProtocol
     private let api: MempoolSpaceAPIProtocol
 
     /// Average transaction size in virtual bytes for a typical
     /// single-input, two-output (P2WPKH) transaction.
     private let estimatedTxSizeVB: Int = 140
 
-    init(wallet: Wallet, api: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared) {
+    init(
+        wallet: Wallet,
+        walletService: WalletServiceProtocol = BDKWalletService(),
+        api: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared
+    ) {
         self.wallet = wallet
+        self.walletService = walletService
         self.api = api
     }
 
@@ -226,6 +247,36 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
     /// The wallet's balance formatted in BTC.
     var formattedBalance: String {
         String(format: "%.8f", wallet.balanceBTC)
+    }
+
+    // MARK: - Broadcast
+
+    @MainActor
+    func broadcastTransaction() async {
+        let text = uiState.amountText.replacingOccurrences(of: ",", with: ".")
+        guard let amountBTC = Double(text),
+              let selectedFee = uiState.selectedFee,
+              let rate = feeRate(for: selectedFee) else { return }
+
+        let amountSats = UInt64(amountBTC * 100_000_000)
+
+        uiState.isBroadcasting = true
+        defer { uiState.isBroadcasting = false }
+
+        do {
+            let txid = try await walletService.broadcastTransaction(
+                from: wallet,
+                to: uiState.address,
+                amountSats: amountSats,
+                feeRateSatVB: UInt64(rate)
+            )
+            Log.print.info("[SendBitcoin] Transaction broadcast successfully: \(txid)")
+            uiState.broadcastTxId = txid
+        } catch {
+            Log.print.error("[SendBitcoin] Broadcast failed: \(error.localizedDescription)")
+            uiState.errorMessage = error.localizedDescription
+            uiState.isBroadcastError = true
+        }
     }
 
     // MARK: - Private

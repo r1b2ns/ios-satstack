@@ -5,8 +5,12 @@ import SwiftUI
 struct SendBitcoinViewFactory {
 
     /// Module entry point — manages coordinator and viewModel lifecycle internally.
-    static func build(wallet: Wallet) -> some View {
-        SendBitcoinEntry(wallet: wallet)
+    /// - Parameters:
+    ///   - wallet: The wallet to send from.
+    ///   - onTransactionSent: Called after a successful broadcast so the caller
+    ///     can trigger a wallet sync or refresh.
+    static func build(wallet: Wallet, onTransactionSent: @escaping () -> Void = {}) -> some View {
+        SendBitcoinEntry(wallet: wallet, onTransactionSent: onTransactionSent)
     }
 }
 
@@ -18,14 +22,24 @@ private struct SendBitcoinEntry: View {
 
     @StateObject private var coordinator = SendBitcoinCoordinator()
     @StateObject private var viewModel: SendBitcoinViewModel
+    @Environment(\.dismiss) private var dismiss
 
-    init(wallet: Wallet) {
+    let onTransactionSent: () -> Void
+
+    init(wallet: Wallet, onTransactionSent: @escaping () -> Void) {
         _viewModel = StateObject(wrappedValue: SendBitcoinViewModel(wallet: wallet))
+        self.onTransactionSent = onTransactionSent
     }
 
     var body: some View {
         SendBitcoinView(viewModel: viewModel)
             .environmentObject(coordinator)
+            .onChange(of: viewModel.uiState.shouldDismiss) { _, shouldDismiss in
+                if shouldDismiss {
+                    onTransactionSent()
+                    dismiss()
+                }
+            }
     }
 }
 
@@ -57,6 +71,16 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
                     switch route {
                     case .reviewTransaction:
                         ReviewTransactionView(viewModel: viewModel)
+                    case .transactionSuccess:
+                        FeedbackView(
+                            image: Image(systemName: "checkmark.circle.fill"),
+                            title: "Transaction Sent",
+                            subtitle: viewModel.uiState.broadcastTxId,
+                            buttonTitle: "OK"
+                        ) {
+                            viewModel.uiState.shouldDismiss = true
+                        }
+                        .navigationBarBackButtonHidden()
                     }
                 }
         }
@@ -81,6 +105,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
             buildRecipientSection()
             buildAmountSection()
             buildFeeSection()
+            buildSummarySection()
         }
     }
 
@@ -357,6 +382,48 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    // MARK: - Summary section
+
+    @ViewBuilder
+    private func buildSummarySection() -> some View {
+        if let selectedFee = viewModel.uiState.selectedFee,
+           let feeSats = viewModel.estimatedFeeSats(for: selectedFee),
+           let amountBTC = parsedAmountBTC,
+           amountBTC > 0 {
+            let feeBTC = Double(feeSats) / 100_000_000.0
+            let totalBTC = amountBTC + feeBTC
+
+            Section {
+                buildSummaryRow(label: "Amount", value: formatBTC(amountBTC))
+                buildSummaryRow(label: "Fee", value: formatBTC(feeBTC))
+                buildSummaryRow(label: "Total", value: formatBTC(totalBTC), bold: true)
+            } header: {
+                Text("Summary")
+            }
+        }
+    }
+
+    private func buildSummaryRow(label: String, value: String, bold: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(.body, design: .monospaced))
+                .fontWeight(bold ? .semibold : .regular)
+        }
+    }
+
+    private func formatBTC(_ value: Double) -> String {
+        "\(String(format: "%.8f", value)) BTC"
+    }
+
+    private var parsedAmountBTC: Double? {
+        let text = viewModel.uiState.amountText.replacingOccurrences(of: ",", with: ".")
+        guard !text.isEmpty else { return nil }
+        return Double(text)
     }
 
     // MARK: - Review button (bottom, styled like Receive/Send)

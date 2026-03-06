@@ -74,7 +74,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 }
                 .sheet(isPresented: $viewModel.uiState.isPresentingSendSheet) {
                     if let wallet = selectedWallet {
-                        SendBitcoinViewFactory.build(wallet: wallet)
+                        SendBitcoinViewFactory.build(wallet: wallet) {
+                            Task { await viewModel.syncAllWallets() }
+                        }
                     }
                 }
                 .navigationDestinations()

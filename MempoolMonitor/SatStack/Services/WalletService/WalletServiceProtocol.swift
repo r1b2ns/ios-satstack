@@ -74,6 +74,9 @@ enum WalletServiceError: LocalizedError {
     /// No backup exists for the requested wallet (e.g. watch-only).
     case backupUnavailable
 
+    /// The transaction could not be built, signed, or broadcast.
+    case broadcastFailed(String)
+
     /// A generic failure with an underlying reason.
     case unknown(String)
 
@@ -81,6 +84,7 @@ enum WalletServiceError: LocalizedError {
         switch self {
         case .invalidImportSource(let reason): return "Invalid import source: \(reason)"
         case .backupUnavailable:               return "No backup is available for this wallet."
+        case .broadcastFailed(let reason):     return "Broadcast failed: \(reason)"
         case .unknown(let reason):             return "Wallet service error: \(reason)"
         }
     }
@@ -191,6 +195,24 @@ protocol WalletServiceProtocol {
     /// - Parameter wallet: The wallet to derive a receive address from.
     /// - Returns: A Bitcoin address string (e.g. `bc1q…` on mainnet, `tb1q…` on signet).
     func getReceiveAddress(for wallet: Wallet) async throws -> String
+
+    /// Builds, signs, and broadcasts a Bitcoin transaction.
+    ///
+    /// Only wallets with signing capability (i.e. those created from a seed phrase)
+    /// can broadcast transactions. Watch-only wallets will fail.
+    ///
+    /// - Parameters:
+    ///   - wallet: The wallet to send from (must have a mnemonic phrase).
+    ///   - address: The recipient Bitcoin address.
+    ///   - amountSats: The amount to send in satoshis.
+    ///   - feeRateSatVB: The fee rate in sat/vB.
+    /// - Returns: The transaction ID (txid) of the broadcast transaction.
+    func broadcastTransaction(
+        from wallet: Wallet,
+        to address: String,
+        amountSats: UInt64,
+        feeRateSatVB: UInt64
+    ) async throws -> String
 
     /// Retrieves the backup data for the given wallet.
     ///

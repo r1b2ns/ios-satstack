@@ -139,6 +139,19 @@ struct MockWalletService: WalletServiceProtocol {
         return "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
     }
 
+    // MARK: - broadcastTransaction
+
+    /// Simulates a successful transaction broadcast, returning a fake txid.
+    func broadcastTransaction(
+        from wallet: Wallet,
+        to address: String,
+        amountSats: UInt64,
+        feeRateSatVB: UInt64
+    ) async throws -> String {
+        try await simulateDelay()
+        return "mock_txid_\(UUID().uuidString.prefix(8))"
+    }
+
     // MARK: - fetchWalletBackup
 
     /// Returns a seed-phrase backup for `.bitcoin` / `.satsCard` themed wallets
