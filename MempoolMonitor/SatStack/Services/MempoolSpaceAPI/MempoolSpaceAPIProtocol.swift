@@ -34,4 +34,14 @@ protocol MempoolSpaceAPIProtocol {
     ///
     /// - Parameter txId: 64-character hex transaction ID.
     func fetchTransaction(txId: String) async throws -> MempoolTransactionResponse
+
+    /// Fetches on-chain and mempool statistics for a Bitcoin address.
+    ///
+    /// - Parameter address: A Bitcoin address (bc1…, tb1…, 1…, 3…).
+    func fetchAddressInfo(address: String) async throws -> AddressInfoResponse
+
+    /// Fetches the transaction history for a Bitcoin address.
+    ///
+    /// - Parameter address: A Bitcoin address (bc1…, tb1…, 1…, 3…).
+    func fetchAddressTransactions(address: String) async throws -> [AddressTransactionResponse]
 }

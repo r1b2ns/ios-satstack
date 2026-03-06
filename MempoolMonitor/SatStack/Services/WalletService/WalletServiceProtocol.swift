@@ -15,7 +15,8 @@ enum WalletImportSource {
     /// A single Bitcoin address imported in watch-only mode.
     case address(String)
 
-    /// An extended public key (xpub / ypub / zpub) for watch-only HD tracking.
+    /// An extended public key for watch-only HD tracking.
+    /// Mainnet: xpub / ypub / zpub. Signet/Testnet: tpub / upub / vpub.
     case xpub(String)
 
     /// A Wallet Import Format (WIF) encoded private key.
@@ -55,8 +56,8 @@ struct WalletBackup {
 /// The result returned after successfully creating a brand-new wallet.
 struct WalletCreationResult {
 
-    /// The newly created wallet record.
-    let wallet: Wallet
+    /// The newly created wallet record. Mutable so the caller can apply a display name.
+    var wallet: Wallet
 
     /// The backup that must be shown to and confirmed by the user.
     let backup: WalletBackup
@@ -73,6 +74,9 @@ enum WalletServiceError: LocalizedError {
     /// No backup exists for the requested wallet (e.g. watch-only).
     case backupUnavailable
 
+    /// The transaction could not be built, signed, or broadcast.
+    case broadcastFailed(String)
+
     /// A generic failure with an underlying reason.
     case unknown(String)
 
@@ -80,6 +84,7 @@ enum WalletServiceError: LocalizedError {
         switch self {
         case .invalidImportSource(let reason): return "Invalid import source: \(reason)"
         case .backupUnavailable:               return "No backup is available for this wallet."
+        case .broadcastFailed(let reason):     return "Broadcast failed: \(reason)"
         case .unknown(let reason):             return "Wallet service error: \(reason)"
         }
     }
@@ -131,6 +136,15 @@ protocol WalletServiceProtocol {
     /// - Returns: The imported `Wallet` record, ready for use.
     func importWallet(from source: WalletImportSource) async throws -> Wallet
 
+    /// Synchronises the wallet with the blockchain and returns the current balance in satoshis.
+    ///
+    /// - Parameters:
+    ///   - wallet: The wallet to synchronise and query.
+    ///   - onProgress: Called periodically with sync progress. `nil` means indeterminate
+    ///     (full scan), `0.0–1.0` means determinate (incremental sync).
+    /// - Returns: Total balance in satoshis.
+    func fetchWalletBalance(for wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> UInt64
+
     /// Fetches the on-chain transaction history for the given wallet.
     ///
     /// Implementations are expected to query the relevant blockchain backend
@@ -140,6 +154,65 @@ protocol WalletServiceProtocol {
     /// - Parameter wallet: The wallet whose transactions should be fetched.
     /// - Returns: A list of `WalletTransaction` entries, newest first.
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction]
+
+    /// Synchronises the wallet once and returns both balance and transaction
+    /// history in a single pass, avoiding redundant network calls.
+    ///
+    /// - Parameters:
+    ///   - wallet: The wallet to synchronise.
+    ///   - onProgress: Called periodically with sync progress. `nil` means indeterminate
+    ///     (full scan), `0.0–1.0` means determinate (incremental sync).
+    /// - Returns: A tuple with the total balance in satoshis and the transaction list (newest first).
+    func syncWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Synchronises the wallet with the blockchain and returns the current balance in satoshis.
+    /// Convenience overload without progress reporting.
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64
+
+    /// Synchronises the wallet once without progress reporting.
+    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Forces a full scan of the wallet regardless of prior sync history.
+    ///
+    /// Resets the internal full-scan flag and performs a complete script-pubkey
+    /// scan from scratch, catching any address activity that an incremental
+    /// sync might miss.
+    ///
+    /// - Parameters:
+    ///   - wallet: The wallet to fully re-scan.
+    ///   - onProgress: Called periodically with sync progress. `nil` means indeterminate.
+    /// - Returns: A tuple with the total balance in satoshis and the transaction list (newest first).
+    func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Forces a full scan of the wallet without progress reporting.
+    func fullScanWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction])
+
+    /// Derives the next unused receive address on the external keychain.
+    ///
+    /// The address index is persisted so subsequent calls return new, unique
+    /// addresses suitable for receiving funds.
+    ///
+    /// - Parameter wallet: The wallet to derive a receive address from.
+    /// - Returns: A Bitcoin address string (e.g. `bc1q…` on mainnet, `tb1q…` on signet).
+    func getReceiveAddress(for wallet: Wallet) async throws -> String
+
+    /// Builds, signs, and broadcasts a Bitcoin transaction.
+    ///
+    /// Only wallets with signing capability (i.e. those created from a seed phrase)
+    /// can broadcast transactions. Watch-only wallets will fail.
+    ///
+    /// - Parameters:
+    ///   - wallet: The wallet to send from (must have a mnemonic phrase).
+    ///   - address: The recipient Bitcoin address.
+    ///   - amountSats: The amount to send in satoshis.
+    ///   - feeRateSatVB: The fee rate in sat/vB.
+    /// - Returns: The transaction ID (txid) of the broadcast transaction.
+    func broadcastTransaction(
+        from wallet: Wallet,
+        to address: String,
+        amountSats: UInt64,
+        feeRateSatVB: UInt64
+    ) async throws -> String
 
     /// Retrieves the backup data for the given wallet.
     ///
@@ -151,4 +224,21 @@ protocol WalletServiceProtocol {
     /// - Returns: A `WalletBackup` with the appropriate `WalletBackupKind`.
     /// - Throws: `WalletServiceError.backupUnavailable` if no backup exists.
     func fetchWalletBackup(for wallet: Wallet) async throws -> WalletBackup
+}
+
+// MARK: - Default implementations (no-progress overloads)
+
+extension WalletServiceProtocol {
+
+    func fetchWalletBalance(for wallet: Wallet) async throws -> UInt64 {
+        try await fetchWalletBalance(for: wallet, onProgress: { _ in })
+    }
+
+    func syncWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await syncWallet(wallet, onProgress: { _ in })
+    }
+
+    func fullScanWallet(_ wallet: Wallet) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await fullScanWallet(wallet, onProgress: { _ in })
+    }
 }

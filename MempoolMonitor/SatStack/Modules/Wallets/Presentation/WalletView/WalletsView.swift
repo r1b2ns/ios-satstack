@@ -1,4 +1,26 @@
 import SwiftUI
+import TipKit
+
+// MARK: - FullScanTip
+
+/// Tip displayed in the wallet detail view suggesting a full scan when balances seem incorrect.
+struct FullScanTip: Tip {
+    var title: Text {
+        Text("Balance doesn't look right?")
+    }
+
+    var message: Text? {
+        Text("Try running a Full Scan to rescan all addresses from scratch.")
+    }
+
+    var image: Image? {
+        Image(systemName: "arrow.triangle.2.circlepath")
+    }
+
+    var actions: [Action] {
+        Action(id: "full-scan", title: "Full Scan")
+    }
+}
 
 // MARK: - Factory
 
@@ -41,27 +63,36 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 .navigationTitle(navigationTitle)
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar { buildToolbar() }
-                .sheet(isPresented: Binding(
-                    get: { viewModel.uiState.isPresentingAddSheet },
-                    set: { viewModel.uiState.isPresentingAddSheet = $0 }
-                )) {
+                .sheet(isPresented: $viewModel.uiState.isPresentingAddSheet) {
                     buildAddSheet()
                 }
+                .sheet(isPresented: $viewModel.uiState.isPresentingWalletSettings) {
+                    buildSettingsSheet()
+                }
+                .sheet(isPresented: $viewModel.uiState.isPresentingReceiveSheet) {
+                    ReceiveAddressSheet(address: viewModel.uiState.receiveAddress)
+                }
+                .sheet(isPresented: $viewModel.uiState.isPresentingSendSheet) {
+                    if let wallet = selectedWallet {
+                        SendBitcoinViewFactory.build(wallet: wallet) {
+                            Task { await viewModel.syncAllWallets() }
+                        }
+                    }
+                }
                 .navigationDestinations()
-                .alert("Rename Wallet", isPresented: Binding(
-                    get: { viewModel.uiState.isPresentingRenameAlert },
-                    set: { viewModel.uiState.isPresentingRenameAlert = $0 }
-                )) {
-                    TextField("Wallet name", text: Binding(
-                        get: { viewModel.uiState.renameText },
-                        set: { viewModel.uiState.renameText = $0 }
-                    ))
+                .alert("Rename Wallet", isPresented: $viewModel.uiState.isPresentingRenameAlert) {
+                    TextField("Wallet name", text: $viewModel.uiState.renameText)
                     Button("Save") {
                         if let id = viewModel.uiState.selectedWalletId {
                             viewModel.updateWalletName(id: id, name: viewModel.uiState.renameText)
                         }
                     }
                     Button("Cancel", role: .cancel) { }
+                }
+                .alert("Sync Failed", isPresented: $viewModel.uiState.isPresentingSyncError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(viewModel.uiState.syncErrorMessage ?? "An unknown error occurred.")
                 }
         }
     }
@@ -106,10 +137,6 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     // MARK: - Stacked view
 
     /// Apple Wallet-style collapsed stack.
-    ///
-    /// The first card sits on top (highest `zIndex`) and is fully visible.
-    /// Each subsequent card is offset down by `headerHeight`, peeking from
-    /// behind the card above — exactly like the iOS Wallet app.
     private func buildStackedView() -> some View {
         let wallets = viewModel.uiState.wallets
         let totalHeight = CGFloat(wallets.count - 1) * headerHeight + cardHeight
@@ -117,7 +144,11 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         return ScrollView {
             ZStack(alignment: .top) {
                 ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
-                    WalletCardView(wallet: wallet)
+                    WalletCardView(
+                            wallet: wallet,
+                            balanceSats: viewModel.uiState.walletBalances[wallet.id],
+                            syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
+                        )
                         .offset(y: CGFloat(index) * headerHeight)
                         .zIndex(Double(index))
                         .onTapGesture {
@@ -132,103 +163,119 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             .padding(.top, 4)
             .padding(.bottom, 32)
         }
+        .refreshable {
+            await viewModel.fullScanAllWallets()
+        }
     }
 
     // MARK: - Detail view (selected card + transactions)
 
+    private let fullScanTip = FullScanTip()
+
     private func buildDetailView(wallet: Wallet) -> some View {
         ScrollView {
             VStack(spacing: 0) {
+                buildFullScanTip()
                 buildSelectedCard(wallet: wallet)
                 buildTransactionList()
             }
             .padding(.top, 8)
         }
+        .safeAreaInset(edge: .bottom) {
+            buildActionBar(isWatchOnly: wallet.mnemonicPhrase == nil)
+        }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     /// The expanded card at the top of the detail view.
+    /// Shows the live balance from the ViewModel while syncing.
     /// Dragging down on the card returns to the stacked view.
     private func buildSelectedCard(wallet: Wallet) -> some View {
-        WalletCardView(wallet: wallet)
-            .padding(.horizontal, 20)
-            .gesture(
-                DragGesture()
-                    .onEnded { value in
-                        let isDownward  = value.translation.height > 60
-                        let isVertical  = abs(value.translation.height) > abs(value.translation.width)
-                        if isDownward && isVertical {
-                            withAnimation(.spring(duration: 0.42)) {
-                                viewModel.deselectWallet()
-                            }
+        WalletCardView(
+            wallet: wallet,
+            balanceSats: viewModel.uiState.selectedWalletBalanceSats
+                ?? viewModel.uiState.walletBalances[wallet.id],
+            syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
+        )
+        .padding(.horizontal, 20)
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    let isDownward  = value.translation.height > 60
+                    let isVertical  = abs(value.translation.height) > abs(value.translation.width)
+                    if isDownward && isVertical {
+                        withAnimation(.spring(duration: 0.42)) {
+                            viewModel.deselectWallet()
                         }
                     }
-            )
+                }
+        )
+    }
+
+    // MARK: - Full scan tip
+
+    private func buildFullScanTip() -> some View {
+        TipView(fullScanTip) { action in
+            if action.id == "full-scan" {
+                viewModel.forceFullScan()
+            }
+        }
+        .tipImageSize(CGSize(width: 20, height: 20))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Bitcoin action bar
+
+    private func buildActionBar(isWatchOnly: Bool) -> some View {
+        let hasTransactions = !viewModel.uiState.transactions.isEmpty
+        return HStack(spacing: 12) {
+            buildActionButton(title: "Receive", icon: "arrow.down.circle.fill") {
+                viewModel.showReceiveAddress()
+            }
+            if !isWatchOnly {
+                buildActionButton(title: "Send", icon: "arrow.up.circle.fill") {
+                    viewModel.showSendSheet()
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background(hasTransactions ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(.clear))
+    }
+
+    private func buildActionButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        let isSyncing = selectedWalletSyncState.isBusy
+        return Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                Text(title)
+                    .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(isSyncing ? Color.blue.opacity(0.4) : Color.blue)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .disabled(isSyncing)
     }
 
     // MARK: - Transaction list
 
     private func buildTransactionList() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            buildTransactionHeader()
-            buildTransactionRows()
-        }
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 32)
+        WalletsTransactionsView(
+            transactions: viewModel.uiState.transactions,
+            isLoading: viewModel.uiState.isLoadingTransactions,
+            syncState: selectedWalletSyncState
+        )
     }
 
-    private func buildTransactionHeader() -> some View {
-        Text("Latest Transactions")
-            .font(.title3)
-            .fontWeight(.bold)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, 8)
-    }
-
-    @ViewBuilder
-    private func buildTransactionRows() -> some View {
-        if viewModel.uiState.isLoadingTransactions {
-            ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 28)
-        } else {
-            let txs = viewModel.uiState.transactions
-            ForEach(Array(txs.enumerated()), id: \.element.id) { index, tx in
-                buildTransactionRow(tx)
-                if index < txs.count - 1 {
-                    Divider()
-                        .padding(.leading, 16)
-                }
-            }
-        }
-    }
-
-    private func buildTransactionRow(_ tx: WalletTransaction) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(tx.shortAddress)
-                    .font(.callout)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
-                Text(tx.relativeDate)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text("₿ \(String(format: "%.5f", tx.valueBTC))")
-                .font(.callout)
-                .fontWeight(.semibold)
-                .foregroundStyle(.primary)
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+    /// Sync state of the currently selected wallet.
+    private var selectedWalletSyncState: WalletSyncState {
+        guard let id = viewModel.uiState.selectedWalletId else { return .idle }
+        return viewModel.uiState.walletSyncStates[id] ?? .idle
     }
 
     // MARK: - Loading state
@@ -253,29 +300,23 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         )
     }
 
-    // MARK: - Add sheet
+    // MARK: - Sheets
 
     private func buildAddSheet() -> some View {
-        ContentUnavailableView(
-            "Coming Soon",
-            systemImage: "hammer.circle",
-            description: Text("Wallet creation will be available in a future update.")
-        )
-        .presentationDetents([.medium])
+        AddWalletSheetView(viewModel: viewModel)
+    }
+
+    @ViewBuilder
+    private func buildSettingsSheet() -> some View {
+        if let wallet = selectedWallet {
+            WalletSettingsSheet(wallet: wallet, viewModel: viewModel)
+        }
     }
 
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private func buildToolbar() -> some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                viewModel.showAddWallet()
-            } label: {
-                Image(systemName: "plus")
-            }
-        }
-
         if viewModel.uiState.selectedWalletId != nil {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
@@ -289,9 +330,17 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    viewModel.showRenameAlert()
+                    viewModel.showWalletSettings()
                 } label: {
-                    Image(systemName: "pencil")
+                    Image(systemName: "gear")
+                }
+            }
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    viewModel.showAddWallet()
+                } label: {
+                    Image(systemName: "plus")
                 }
             }
         }

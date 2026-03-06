@@ -99,6 +99,14 @@ struct MockWalletService: WalletServiceProtocol {
         }
     }
 
+    // MARK: - fetchWalletBalance
+
+    /// Returns a deterministic fixture balance in satoshis (0.021 BTC), simulating progress ticks.
+    func fetchWalletBalance(for wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> UInt64 {
+        try await simulateProgressTicks(onProgress: onProgress)
+        return 2_100_000 // 0.021 BTC in satoshis
+    }
+
     // MARK: - fetchWalletTransactions
 
     /// Returns the shared `WalletTransaction.mocked` fixture list, simulating a
@@ -106,6 +114,42 @@ struct MockWalletService: WalletServiceProtocol {
     func fetchWalletTransactions(for wallet: Wallet) async throws -> [WalletTransaction] {
         try await simulateDelay()
         return WalletTransaction.mocked
+    }
+
+    // MARK: - syncWallet
+
+    /// Returns fixture balance and transactions in a single call, simulating progress ticks.
+    func syncWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await simulateProgressTicks(onProgress: onProgress)
+        return (balance: 2_100_000, transactions: WalletTransaction.mocked)
+    }
+
+    // MARK: - fullScanWallet
+
+    /// Simulates a full scan returning fixture balance and transactions.
+    func fullScanWallet(_ wallet: Wallet, onProgress: @escaping @Sendable (Double?) -> Void) async throws -> (balance: UInt64, transactions: [WalletTransaction]) {
+        try await simulateProgressTicks(onProgress: onProgress)
+        return (balance: 2_100_000, transactions: WalletTransaction.mocked)
+    }
+
+    // MARK: - getReceiveAddress
+
+    func getReceiveAddress(for wallet: Wallet) async throws -> String {
+        try await simulateDelay()
+        return "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+    }
+
+    // MARK: - broadcastTransaction
+
+    /// Simulates a successful transaction broadcast, returning a fake txid.
+    func broadcastTransaction(
+        from wallet: Wallet,
+        to address: String,
+        amountSats: UInt64,
+        feeRateSatVB: UInt64
+    ) async throws -> String {
+        try await simulateDelay()
+        return "mock_txid_\(UUID().uuidString.prefix(8))"
     }
 
     // MARK: - fetchWalletBackup
@@ -138,6 +182,15 @@ private extension MockWalletService {
     func simulateDelay() async throws {
         let nanoseconds = UInt64.random(in: 400_000_000...600_000_000)
         try await Task.sleep(nanoseconds: nanoseconds)
+    }
+
+    /// Simulates a sync with 5 progress ticks over ~0.5 seconds.
+    func simulateProgressTicks(onProgress: @escaping @Sendable (Double?) -> Void) async throws {
+        let steps = 5
+        for step in 1...steps {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            onProgress(Double(step) / Double(steps))
+        }
     }
 
     /// Deterministic 12-word BIP-39 fixture phrase — **never use in production**.

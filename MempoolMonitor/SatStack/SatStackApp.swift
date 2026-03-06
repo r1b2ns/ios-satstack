@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import TipKit
 import UIKit
 
 @main
@@ -23,6 +24,8 @@ struct SatStackApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+
+        try? Tips.configure()
     }
 
     var body: some Scene {
