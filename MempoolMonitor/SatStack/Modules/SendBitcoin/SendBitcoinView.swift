@@ -53,7 +53,12 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
                         viewModel.handleScannedCode(code)
                     }
                 }
-                .navigationDestinations()
+                .navigationDestination(for: SendBitcoinRoute.self) { route in
+                    switch route {
+                    case .reviewTransaction:
+                        ReviewTransactionView(viewModel: viewModel)
+                    }
+                }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -358,7 +363,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
 
     private func buildReviewButton() -> some View {
         Button {
-            // TODO: Build and broadcast transaction via BDK
+            coordinator.navigateToReview()
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.up.circle.fill")
@@ -378,13 +383,3 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
     }
 }
 
-// MARK: - Navigation destinations
-
-private extension View {
-
-    func navigationDestinations() -> some View {
-        navigationDestination(for: SendBitcoinRoute.self) { _ in
-            EmptyView()
-        }
-    }
-}
