@@ -72,6 +72,11 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 .sheet(isPresented: $viewModel.uiState.isPresentingReceiveSheet) {
                     ReceiveAddressSheet(address: viewModel.uiState.receiveAddress)
                 }
+                .sheet(isPresented: $viewModel.uiState.isPresentingSendSheet) {
+                    if let wallet = selectedWallet {
+                        SendBitcoinViewFactory.build(wallet: wallet)
+                    }
+                }
                 .navigationDestinations()
                 .alert("Rename Wallet", isPresented: $viewModel.uiState.isPresentingRenameAlert) {
                     TextField("Wallet name", text: $viewModel.uiState.renameText)
@@ -227,7 +232,9 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                 viewModel.showReceiveAddress()
             }
             if !isWatchOnly {
-                buildActionButton(title: "Send", icon: "arrow.up.circle.fill") { }
+                buildActionButton(title: "Send", icon: "arrow.up.circle.fill") {
+                    viewModel.showSendSheet()
+                }
             }
         }
         .padding(.horizontal, 20)

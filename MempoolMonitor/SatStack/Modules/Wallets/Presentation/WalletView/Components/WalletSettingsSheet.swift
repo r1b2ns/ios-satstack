@@ -44,41 +44,46 @@ struct WalletSettingsSheet<ViewModel: WalletsViewModelProtocol>: View {
 
     private func buildOptionList() -> some View {
         List {
-            buildOptionRow(
-                icon: "pencil",
-                iconColor: .blue,
-                title: "Change Name"
-            ) {
-                dismiss()
-                viewModel.showRenameAlert()
-            }
-
-            if wallet.mnemonicPhrase != nil {
+            Section {
                 buildOptionRow(
-                    icon: "key.fill",
-                    iconColor: .orange,
-                    title: "Backup"
+                    icon: "pencil",
+                    iconColor: .blue,
+                    title: "Change Name"
                 ) {
-                    showBackup = true
+                    dismiss()
+                    viewModel.showRenameAlert()
+                }
+                
+                if wallet.mnemonicPhrase != nil {
+                    buildOptionRow(
+                        icon: "key.fill",
+                        iconColor: .orange,
+                        title: "Backup"
+                    ) {
+                        showBackup = true
+                    }
+                }
+                
+                buildOptionRow(
+                    icon: "arrow.triangle.2.circlepath",
+                    iconColor: .purple,
+                    title: "Force Full Scan"
+                ) {
+                    dismiss()
+                    viewModel.forceFullScan()
                 }
             }
-
-            buildOptionRow(
-                icon: "arrow.triangle.2.circlepath",
-                iconColor: .purple,
-                title: "Force Full Scan"
-            ) {
-                dismiss()
-                viewModel.forceFullScan()
-            }
-
-            buildOptionRow(
-                icon: "trash.fill",
-                iconColor: .red,
-                title: "Delete",
-                titleColor: .red
-            ) {
-                showDeleteAlert = true
+            
+            Section {
+                buildOptionRow(
+                    icon: "trash.fill",
+                    iconColor: .red,
+                    title: "Delete",
+                    titleColor: .red,
+                    shouldShowChevron: false
+                ) {
+                    showDeleteAlert = true
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -89,6 +94,7 @@ struct WalletSettingsSheet<ViewModel: WalletsViewModelProtocol>: View {
         iconColor: Color,
         title: String,
         titleColor: Color = .primary,
+        shouldShowChevron: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -100,10 +106,12 @@ struct WalletSettingsSheet<ViewModel: WalletsViewModelProtocol>: View {
                 Text(title)
                     .foregroundStyle(titleColor)
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.tertiary)
+                if shouldShowChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.tertiary)
+                }
             }
             .contentShape(Rectangle())
         }
