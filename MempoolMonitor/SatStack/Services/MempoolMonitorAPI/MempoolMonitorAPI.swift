@@ -38,12 +38,13 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
 
     // MARK: - Private helpers
 
-    /// Reads `MempoolMonitorHost` from Info.plist (injected by xcconfig) and builds the base URL.
-    /// Falls back to `http://localhost:3000` if the key is absent.
+    /// Reads `MempoolMonitorScheme` and `MempoolMonitorHost` from Info.plist
+    /// (injected by xcconfig) and builds the base URL.
+    /// Falls back to `http://localhost:3000` if the keys are absent.
     private static func resolvedBaseURL() -> URL {
-        let host = Bundle.main.infoDictionary?["MempoolMonitorHost"] as? String
-                   ?? "localhost:3000"
-        return URL(string: "http://\(host)")!
+        let scheme = Bundle.main.infoDictionary?["MempoolMonitorScheme"] as? String ?? "http"
+        let host = Bundle.main.infoDictionary?["MempoolMonitorHost"] as? String ?? "localhost:3000"
+        return URL(string: "\(scheme)://\(host)")!
     }
 
     // MARK: - Endpoints

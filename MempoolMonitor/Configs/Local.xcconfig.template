@@ -10,8 +10,11 @@ PRODUCT_BUNDLE_IDENTIFIER        = com.example.mempoolmonitor
 PRODUCT_BUNDLE_IDENTIFIER_WIDGET = com.example.mempoolmonitor.widget
 DEVELOPMENT_TEAM                 = XXXXXXXXXX
 
+// Mempool Monitor server scheme (http or https).
+// Kept separate because "://" starts a comment in xcconfig.
+MEMPOOL_MONITOR_SCHEME = http
+
 // Mempool Monitor server host (no scheme — host:port only).
-// Note: do not include http:// here; // starts a comment in xcconfig.
 // Ex.: 192.168.15.33:3000  or  localhost:3000
 MEMPOOL_MONITOR_HOST = localhost:3000
 

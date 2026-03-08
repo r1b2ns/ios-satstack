@@ -91,10 +91,11 @@ final class NetworkStatusViewModel: NetworkStatusViewModelProtocol {
         // Mempool Monitor (custom server from Local.xcconfig)
         if let host = Bundle.main.infoDictionary?["MempoolMonitorHost"] as? String,
            !host.isEmpty {
+            let scheme = Bundle.main.infoDictionary?["MempoolMonitorScheme"] as? String ?? "http"
             endpoints.append(
                 NetworkEndpoint(
                     name: "Mempool Monitor",
-                    url: "http://\(host)"
+                    url: "\(scheme)://\(host)"
                 )
             )
         }
