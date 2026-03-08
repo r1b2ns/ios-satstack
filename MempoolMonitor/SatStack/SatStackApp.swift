@@ -12,6 +12,9 @@ struct SatStackApp: App {
     /// `@EnvironmentObject var themeManager: ThemeManager`.
     @StateObject private var themeManager = ThemeManager()
 
+    /// Controls the welcome screen shown on first launch.
+    @State private var showWelcome = !UserDefaults.standard.bool(forKey: "hasSeenWelcome")
+
     /// Shared ModelContainer for SwiftData persistence.
     /// Created once at app launch; the schema includes only `PersistedItem`.
     private let modelContainer: ModelContainer
@@ -71,6 +74,13 @@ struct SatStackApp: App {
             .environmentObject(themeManager)
             .environment(\.appTheme, themeManager.definition)
             .applyThemeAppearance(accent: themeManager.definition.colors.accent)
+            .fullScreenCover(isPresented: $showWelcome) {
+                WelcomeView {
+                    UserDefaults.standard.set(true, forKey: "hasSeenWelcome")
+                    showWelcome = false
+                }
+                .environment(\.appTheme, themeManager.definition)
+            }
         }
     }
 }
