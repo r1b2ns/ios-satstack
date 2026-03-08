@@ -40,10 +40,42 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
         NavigationStack(path: $coordinator.path) {
             List {
                 buildAPNsTokenIndicator()
+                buildNetworkRow()
             }
             .navigationTitle("Settings")
             .navigationDestinations()
         }
+    }
+
+    // MARK: - Network
+
+    private func buildNetworkRow() -> some View {
+        Button {
+            coordinator.navigateToNetwork()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "network")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Network")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text(BDKNetworkConfig.networkName.capitalized)
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
     }
 
     // MARK: - APNs indicator
@@ -89,6 +121,8 @@ private extension View {
                 Text("About")
             case .theme:
                 ThemeSettingsView()
+            case .network:
+                NetworkStatusView()
             }
         }
     }

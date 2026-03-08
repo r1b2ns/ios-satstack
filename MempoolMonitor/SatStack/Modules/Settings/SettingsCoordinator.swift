@@ -7,6 +7,7 @@ enum SettingsRoute: Hashable {
     case notifications
     case about
     case theme
+    case network
 }
 
 // MARK: - Coordinator
@@ -39,5 +40,9 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToTheme() {
         path.append(SettingsRoute.theme)
+    }
+
+    func navigateToNetwork() {
+        path.append(SettingsRoute.network)
     }
 }
