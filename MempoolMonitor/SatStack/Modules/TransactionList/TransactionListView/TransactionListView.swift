@@ -85,6 +85,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
 
     private func buildTransactionList() -> some View {
         List {
+            buildSection(title: "Not Found", transactions: viewModel.uiState.notFoundTransactions)
             buildSection(title: "Pending", transactions: viewModel.uiState.pendingTransactions)
             buildSection(title: "Confirmed", transactions: viewModel.uiState.confirmedTransactions)
         }
@@ -164,6 +165,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
             case .pending:   return theme.colors.warning
             case .confirmed: return theme.colors.success
             case .failed:    return theme.colors.destructive
+            case .notFound:  return .gray
             }
         }()
         return AppBadge(text: status.label, tint: color)

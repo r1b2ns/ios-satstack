@@ -28,12 +28,14 @@ enum TransactionStatus: String, Codable, Hashable {
     case pending   = "pending"
     case confirmed = "confirmed"
     case failed    = "failed"
+    case notFound  = "notFound"
 
     var label: String {
         switch self {
         case .pending:   return "Pending"
         case .confirmed: return "Confirmed"
         case .failed:    return "Failed"
+        case .notFound:  return "Not Found"
         }
     }
 }

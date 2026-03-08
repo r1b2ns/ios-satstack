@@ -18,8 +18,12 @@ struct TransactionListUiState {
     /// TxIds currently being refreshed via the API.
     var loadingTxIds: Set<String> = []
 
+    var notFoundTransactions: [WatchTransactionResponse] {
+        transactions.filter { $0.status == .notFound }
+    }
+
     var pendingTransactions: [WatchTransactionResponse] {
-        transactions.filter { $0.status != .confirmed }
+        transactions.filter { $0.status == .pending }
     }
 
     var confirmedTransactions: [WatchTransactionResponse] {
@@ -135,18 +139,33 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
         Deferred {
             Future { [weak self] promise in
                 Task { [weak self] in
-                    let mempoolTx = try? await self?.mempoolSpaceAPI.fetchTransaction(txId: txId)
-                    let response: WatchTransactionResponse? = mempoolTx.map { tx in
-                        let totalSats = tx.vout.reduce(0) { $0 + $1.value }
-                        return WatchTransactionResponse(
-                            confirmations: tx.status.confirmed ? 1 : 0,
-                            status: tx.status.confirmed ? .confirmed : .pending,
-                            txId: tx.txid,
-                            valueBtc: totalSats > 0 ? Double(totalSats) / 100_000_000 : nil,
-                            feeSats: tx.fee
-                        )
+                    do {
+                        let tx = try await self?.mempoolSpaceAPI.fetchTransaction(txId: txId)
+                        let response: WatchTransactionResponse? = tx.map { tx in
+                            let totalSats = tx.vout.reduce(0) { $0 + $1.value }
+                            return WatchTransactionResponse(
+                                confirmations: tx.status.confirmed ? 1 : 0,
+                                status: tx.status.confirmed ? .confirmed : .pending,
+                                txId: tx.txid,
+                                valueBtc: totalSats > 0 ? Double(totalSats) / 100_000_000 : nil,
+                                feeSats: tx.fee
+                            )
+                        }
+                        promise(.success(RefreshResult(txId: txId, response: response)))
+                    } catch {
+                        if case HTTPError.notFound = error {
+                            let notFound = WatchTransactionResponse(
+                                confirmations: 0,
+                                status: .notFound,
+                                txId: txId,
+                                valueBtc: nil,
+                                feeSats: nil
+                            )
+                            promise(.success(RefreshResult(txId: txId, response: notFound)))
+                        } else {
+                            promise(.success(RefreshResult(txId: txId, response: nil)))
+                        }
                     }
-                    promise(.success(RefreshResult(txId: txId, response: response)))
                 }
             }
         }

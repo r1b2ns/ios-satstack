@@ -177,6 +177,7 @@ private extension TransactionStatus {
         case .pending:   return .orange
         case .confirmed: return .green
         case .failed:    return .red
+        case .notFound:  return .gray
         }
     }
 }
