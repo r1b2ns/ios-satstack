@@ -24,6 +24,13 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
             .onChange(of: viewModel.uiState.shouldDismiss) { _, shouldDismiss in
                 if shouldDismiss { dismiss() }
             }
+            .alert("Error", isPresented: $viewModel.uiState.isShowingError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                if let message = viewModel.uiState.errorMessage {
+                    Text(message)
+                }
+            }
         }
     }
 
@@ -78,22 +85,16 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
 
     @ViewBuilder
     private func buildStatusMessage() -> some View {
-        if !viewModel.uiState.statusMessage.isEmpty {
-            let color: Color = viewModel.uiState.statusIsSuccess
-                ? theme.colors.success
-                : theme.colors.destructive
-
+        if viewModel.uiState.statusIsSuccess, !viewModel.uiState.statusMessage.isEmpty {
             HStack(spacing: theme.shape.spacingS) {
-                Image(systemName: viewModel.uiState.statusIsSuccess
-                      ? "checkmark.circle.fill"
-                      : "xmark.circle.fill")
-                AppText(viewModel.uiState.statusMessage, style: .subheadline, color: .custom(color))
+                Image(systemName: "checkmark.circle.fill")
+                AppText(viewModel.uiState.statusMessage, style: .subheadline, color: .custom(theme.colors.success))
             }
-            .foregroundStyle(color)
+            .foregroundStyle(theme.colors.success)
             .padding(theme.shape.spacingM)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                color.opacity(0.1),
+                theme.colors.success.opacity(0.1),
                 in: RoundedRectangle(cornerRadius: theme.shape.cornerRadiusSmall)
             )
         }

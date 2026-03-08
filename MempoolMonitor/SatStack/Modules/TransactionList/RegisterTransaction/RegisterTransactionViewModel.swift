@@ -21,6 +21,8 @@ struct RegisterTransactionUiState {
     var isLoading: Bool = false
     var shouldDismiss: Bool = false
     var clipboardHasContent: Bool = false
+    var isShowingError: Bool = false
+    var errorMessage: String?
     var transaction: WatchTransactionResponse?
 }
 
@@ -107,9 +109,10 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
             try? await Task.sleep(for: .seconds(1))
             uiState.shouldDismiss = true
         } catch {
-            uiState.statusMessage = (error as? HTTPError)?.localizedDescription
+            Log.print.error("[RegisterTransaction] Watch failed: \(error.localizedDescription)")
+            uiState.errorMessage = (error as? HTTPError)?.localizedDescription
                 ?? error.localizedDescription
-            uiState.statusIsSuccess = false
+            uiState.isShowingError = true
             await liveActivityManager.end()
         }
     }
