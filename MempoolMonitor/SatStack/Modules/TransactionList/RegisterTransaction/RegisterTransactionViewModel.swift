@@ -60,6 +60,15 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
         )
     }
 
+    // MARK: - Validation
+
+    /// A valid Bitcoin transaction ID is a 64-character hexadecimal string.
+    private static let txidRegex = /^[a-fA-F0-9]{64}$/
+
+    private func isValidTxid(_ txid: String) -> Bool {
+        txid.wholeMatch(of: Self.txidRegex) != nil
+    }
+
     // MARK: - Actions
 
     func checkClipboard() {
@@ -72,8 +81,14 @@ final class RegisterTransactionViewModel: @MainActor RegisterTransactionViewMode
     }
 
     func watchTransaction() async {
-        let cleanTxid = uiState.txid.trimmingCharacters(in: .whitespaces)
+        let cleanTxid = uiState.txid.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTxid.isEmpty else { return }
+
+        guard isValidTxid(cleanTxid) else {
+            uiState.errorMessage = "Invalid transaction ID. A valid TXID must be a 64-character hexadecimal string."
+            uiState.isShowingError = true
+            return
+        }
 
         uiState.isLoading = true
         uiState.statusMessage = ""

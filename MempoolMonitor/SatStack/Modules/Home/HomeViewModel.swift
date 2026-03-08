@@ -33,6 +33,10 @@ struct HomeUiState {
     /// `nil` until the first successful fetch.
     var bitcoinPrice: PricesResponse? = nil
 
+    /// Total wallet balance in BTC, computed by summing all persisted wallets.
+    /// `nil` until the first successful fetch from SwiftData.
+    var totalWalletBalanceBTC: Double? = nil
+
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
         let activeItems = Set(activeWidgets.map(\.item))
@@ -65,6 +69,7 @@ final class HomeViewModel: HomeViewModelProtocol {
         Task { @MainActor in await self.fetchHalvingInfo() }
         Task { @MainActor in await self.fetchRecommendedFees() }
         Task { @MainActor in await self.fetchBitcoinPrice() }
+        Task { @MainActor in await self.fetchWalletBalance() }
     }
 
     // MARK: - Actions
@@ -126,7 +131,16 @@ final class HomeViewModel: HomeViewModelProtocol {
             }
             return item.mockType
 
-        default:
+        case .walletBalance:
+            if let balance = uiState.totalWalletBalanceBTC {
+                let formatted = String(format: "₿ %.8f", balance)
+                return .icon(
+                    image: Image(systemName: item.systemImage),
+                    title: item.displayName,
+                    subtitle: formatted,
+                    tintColor: item.tintColor
+                )
+            }
             return item.mockType
         }
     }
@@ -167,6 +181,7 @@ final class HomeViewModel: HomeViewModelProtocol {
             group.addTask { await self.fetchHalvingInfo() }
             group.addTask { await self.fetchRecommendedFees() }
             group.addTask { await self.fetchBitcoinPrice() }
+            group.addTask { await self.fetchWalletBalance() }
         }
     }
 
@@ -215,6 +230,20 @@ final class HomeViewModel: HomeViewModelProtocol {
             uiState.bitcoinPrice = try await mempoolSpaceAPI.fetchPrices()
         } catch {
             Log.print.error("Bitcoin price fetch failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Wallet balance fetch
+
+    /// Loads all persisted wallets from SwiftData and sums their `balanceBTC`.
+    @MainActor
+    private func fetchWalletBalance() async {
+        do {
+            let wallets: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
+            let total = wallets.reduce(0.0) { $0 + $1.balanceBTC }
+            uiState.totalWalletBalanceBTC = total
+        } catch {
+            Log.print.error("Wallet balance fetch failed: \(error.localizedDescription)")
         }
     }
 
