@@ -138,6 +138,11 @@ targets:
         # ── Configurações de servidor (lidas em runtime via Bundle.main) ───
         MempoolMonitorHost: "$(MEMPOOL_MONITOR_HOST)"
 
+        # ── BDK network configuration (read from Debug/Release xcconfig) ─────
+        BDKNetwork: "$(BDK_NETWORK)"
+        BDKMempoolBase: "$(BDK_MEMPOOL_BASE)"
+        BDKElectrumHost: "$(BDK_ELECTRUM_HOST)"
+
     # Entitlements — XcodeGen define CODE_SIGN_ENTITLEMENTS automaticamente.
     # "properties" faz o XcodeGen gerar/sobrescrever o arquivo (source of truth aqui).
     entitlements:
@@ -151,8 +156,8 @@ targets:
     # Contém PRODUCT_BUNDLE_IDENTIFIER e outras chaves privadas.
     # Crie o arquivo a partir do template: cp Configs/Local.xcconfig.template Configs/Local.xcconfig
     configFiles:
-      Debug: Configs/Local.xcconfig
-      Release: Configs/Local.xcconfig
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
 
     # ─── Configurações a nível de target ────────────────────────────────────
     settings:
@@ -214,10 +219,10 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
-    # Mesmo xcconfig do app — expõe PRODUCT_BUNDLE_IDENTIFIER_WIDGET
+    # Same xcconfig chain as the app — Debug/Release include Local.xcconfig
     configFiles:
-      Debug: Configs/Local.xcconfig
-      Release: Configs/Local.xcconfig
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
 
     # ─── Configurações a nível de target ────────────────────────────────────
     settings:
@@ -261,10 +266,10 @@ targets:
         CFBundleShortVersionString:   "$(MARKETING_VERSION)"
         CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
 
-    # Mesmo xcconfig do app — expõe PRODUCT_BUNDLE_IDENTIFIER_TESTS
+    # Same xcconfig chain as the app — Debug/Release include Local.xcconfig
     configFiles:
-      Debug: Configs/Local.xcconfig
-      Release: Configs/Local.xcconfig
+      Debug: Configs/Debug.xcconfig
+      Release: Configs/Release.xcconfig
 
     settings:
       base:

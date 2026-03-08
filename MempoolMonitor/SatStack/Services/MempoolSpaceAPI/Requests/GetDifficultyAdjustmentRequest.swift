@@ -48,7 +48,7 @@ struct GetDifficultyAdjustmentRequest: Requestable {
 
     typealias Response = DifficultyAdjustmentResponse
 
-    var baseURL: URL       { URL(string: "https://mempool.space/api")! }
+    var baseURL: URL       { URL(string: BDKNetworkConfig.esploraURL)! }
     var path: String       { "/v1/difficulty-adjustment" }
     var method: HTTPMethod { .get }
 }

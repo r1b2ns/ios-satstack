@@ -1,0 +1,14 @@
+// Release.xcconfig
+// Imports local settings (bundle IDs, team, Mempool Monitor host).
+#include "Local.xcconfig"
+
+// ── Bitcoin Network ──────────────────────────────────────────────────────
+// Active network: "signet" for testing, "bitcoin" for mainnet.
+BDK_NETWORK = bitcoin
+
+// Mempool.space base (no scheme — "://" starts a comment in xcconfig).
+// Used to derive Esplora API and block explorer URLs.
+BDK_MEMPOOL_BASE = mempool.space
+
+// Electrum server host:port for wallet sync.
+BDK_ELECTRUM_HOST = electrum.blockstream.info:50002

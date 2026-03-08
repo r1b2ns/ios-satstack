@@ -48,7 +48,7 @@ struct GetPricesRequest: Requestable {
 
     typealias Response = PricesResponse
 
-    var baseURL: URL       { URL(string: "https://mempool.space/api")! }
+    var baseURL: URL       { URL(string: BDKNetworkConfig.esploraURL)! }
     var path: String       { "/v1/prices" }
     var method: HTTPMethod { .get }
 }

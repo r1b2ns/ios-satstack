@@ -28,7 +28,7 @@ struct GetRecommendedFeesRequest: Requestable {
 
     typealias Response = RecommendedFeesResponse
 
-    var baseURL: URL       { URL(string: "https://mempool.space/api")! }
+    var baseURL: URL       { URL(string: BDKNetworkConfig.esploraURL)! }
     var path: String       { "/v1/fees/recommended" }
     var method: HTTPMethod { .get }
 }

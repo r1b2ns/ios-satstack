@@ -70,7 +70,7 @@ struct GetMempoolTransactionRequest: Requestable {
     /// Transaction ID to look up (64-character hex string).
     let txId: String
 
-    var baseURL: URL       { URL(string: "https://mempool.space/api")! }
+    var baseURL: URL       { URL(string: BDKNetworkConfig.esploraURL)! }
     var path: String       { "/tx/\(txId)" }
     var method: HTTPMethod { .get }
 }

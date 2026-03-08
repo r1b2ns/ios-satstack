@@ -31,6 +31,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: TransactionListCoordinator
     @Environment(\.appTheme) private var theme
+    @Environment(\.openURL) private var openURL
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
@@ -39,7 +40,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             buildContent()
-                .navigationTitle("Transactions")
+                .navigationTitle("Watching")
                 .toolbar { buildToolbar() }
                 .sheet(isPresented: $coordinator.showRegisterTransaction) {
                     RegisterTransactionView(viewModel: RegisterTransactionViewModel())
@@ -98,7 +99,8 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
             Section(title) {
                 ForEach(transactions, id: \.txId) { transaction in
                     Button {
-                        coordinator.navigateToDetail(txId: transaction.txId)
+                        guard let url = BDKNetworkConfig.transactionURL(txid: transaction.txId) else { return }
+                        openURL(url)
                     } label: {
                         buildTransactionRow(transaction)
                     }
