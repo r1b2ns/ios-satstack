@@ -30,6 +30,27 @@ struct NetworkStatusView: View {
             }
         } header: {
             Text(BDKNetworkConfig.networkName.capitalized)
+        } footer: {
+            buildLegend()
+        }
+    }
+
+    private func buildLegend() -> some View {
+        HStack(spacing: 20) {
+            buildLegendItem(color: .green, label: "Connected")
+            buildLegendItem(color: .red,   label: "Unreachable")
+            buildLegendItem(color: .gray,  label: "Checking")
+        }
+        .padding(.top, 4)
+    }
+
+    private func buildLegendItem(color: Color, label: String) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            Text(label)
+                .font(.caption2)
         }
     }
 

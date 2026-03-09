@@ -8,6 +8,9 @@ enum SettingsRoute: Hashable {
     case about
     case theme
     case network
+    case openSourceSoftware
+    case buyMeACoffee
+    case fiatCurrency
 }
 
 // MARK: - Coordinator
@@ -44,5 +47,17 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToNetwork() {
         path.append(SettingsRoute.network)
+    }
+
+    func navigateToOpenSourceSoftware() {
+        path.append(SettingsRoute.openSourceSoftware)
+    }
+
+    func navigateToBuyMeACoffee() {
+        path.append(SettingsRoute.buyMeACoffee)
+    }
+
+    func navigateToFiatCurrency() {
+        path.append(SettingsRoute.fiatCurrency)
     }
 }

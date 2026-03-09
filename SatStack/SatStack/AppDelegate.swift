@@ -15,33 +15,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Set up the notification center
         UNUserNotificationCenter.current().delegate = self
 
-        // Request notification authorization
+        // Re-register for remote notifications if the user has already granted permission.
+        // Permission is requested contextually (watch transaction / add wallet), not on launch.
         Task {
-            await requestNotificationAuthorization()
-        }
-
-        return true
-    }
-
-    // MARK: - Request authorization
-
-    private func requestNotificationAuthorization() async {
-        do {
-            let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-
-            if granted {
-                Log.print.info("✅ Notification authorization granted")
-
-                // Register for remote notifications on the main thread
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            if settings.authorizationStatus == .authorized {
                 await MainActor.run {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
-            } else {
-                Log.print.warning("❌ Notification authorization denied")
             }
-        } catch {
-            Log.print.error("❌ Error requesting authorization: \(error.localizedDescription)")
         }
+
+        return true
     }
 
     // MARK: - APNs token
