@@ -50,6 +50,11 @@ final class MempoolSpaceAPI: MempoolSpaceAPIProtocol {
         try await network.perform(GetRecommendedFeesRequest())
     }
 
+    /// Fetches the current best block height (chain tip).
+    func fetchBlockTipHeight() async throws -> Int {
+        try await network.perform(GetBlockTipHeightRequest())
+    }
+
     /// Fetches metadata and confirmation status for a Bitcoin transaction.
     ///
     /// - Parameter txId: 64-character hex transaction ID.

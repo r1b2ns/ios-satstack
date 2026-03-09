@@ -30,6 +30,9 @@ protocol MempoolSpaceAPIProtocol {
     /// Fetches the current recommended Bitcoin transaction fee rates.
     func fetchRecommendedFees() async throws -> RecommendedFeesResponse
 
+    /// Fetches the current best block height (chain tip).
+    func fetchBlockTipHeight() async throws -> Int
+
     /// Fetches metadata and confirmation status for a Bitcoin transaction.
     ///
     /// - Parameter txId: 64-character hex transaction ID.

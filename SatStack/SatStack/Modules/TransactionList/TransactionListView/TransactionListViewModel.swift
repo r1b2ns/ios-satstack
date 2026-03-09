@@ -134,23 +134,28 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
     ///   - `status`   ← confirmed boolean
     ///   - `feeSats`  ← fee in satoshis
     ///   - `valueBtc` ← sum of all outputs converted from satoshis to BTC
-    ///   - `confirmations` ← 1 if confirmed, 0 if still pending
+    ///   - `confirmations` ← currentBlockHeight − txBlockHeight + 1 (or 0 if pending)
     private func makeRefreshPublisher(for txId: String) -> AnyPublisher<RefreshResult, Never> {
         Deferred {
             Future { [weak self] promise in
                 Task { [weak self] in
+                    guard let self else { return }
                     do {
-                        let tx = try await self?.mempoolSpaceAPI.fetchTransaction(txId: txId)
-                        let response: WatchTransactionResponse? = tx.map { tx in
-                            let totalSats = tx.vout.reduce(0) { $0 + $1.value }
-                            return WatchTransactionResponse(
-                                confirmations: tx.status.confirmed ? 1 : 0,
-                                status: tx.status.confirmed ? .confirmed : .pending,
-                                txId: tx.txid,
-                                valueBtc: totalSats > 0 ? Double(totalSats) / 100_000_000 : nil,
-                                feeSats: tx.fee
-                            )
-                        }
+                        async let txFetch = self.mempoolSpaceAPI.fetchTransaction(txId: txId)
+                        async let tipFetch = self.mempoolSpaceAPI.fetchBlockTipHeight()
+                        let (tx, tipHeight) = try await (txFetch, tipFetch)
+                        let totalSats = tx.vout.reduce(0) { $0 + $1.value }
+                        let confirmations: Int = {
+                            guard tx.status.confirmed, let blockHeight = tx.status.blockHeight else { return 0 }
+                            return max(0, tipHeight - blockHeight + 1)
+                        }()
+                        let response = WatchTransactionResponse(
+                            confirmations: confirmations,
+                            status: tx.status.confirmed ? .confirmed : .pending,
+                            txId: tx.txid,
+                            valueBtc: totalSats > 0 ? Double(totalSats) / 100_000_000 : nil,
+                            feeSats: tx.fee
+                        )
                         promise(.success(RefreshResult(txId: txId, response: response)))
                     } catch {
                         if case HTTPError.notFound = error {
