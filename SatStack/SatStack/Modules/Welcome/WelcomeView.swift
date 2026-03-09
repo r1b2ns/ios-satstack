@@ -77,10 +77,10 @@ struct WelcomeView: View {
             )
 
             buildFeatureRow(
-                icon: "paperplane.fill",
+                icon: "lock.open.fill",
                 iconColor: theme.colors.warning,
-                title: "Send Bitcoin",
-                description: "Send BTC with smart fee selection, QR scanner, and a full review before broadcast."
+                title: "Open Source",
+                description: "Fully transparent codebase you can audit, contribute to, and trust, no hidden tracking."
             )
         }
     }
