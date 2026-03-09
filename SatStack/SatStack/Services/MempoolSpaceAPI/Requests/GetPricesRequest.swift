@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Response
 
 /// Top-level response for `GET /v1/prices`.
-struct PricesResponse: Decodable {
+struct PricesResponse: Codable {
 
     /// Unix timestamp of the price snapshot.
     let time: Int

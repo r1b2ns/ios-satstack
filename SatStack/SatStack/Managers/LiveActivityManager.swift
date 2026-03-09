@@ -112,7 +112,7 @@ final class LiveActivityManager {
             }
 
             group.addTask {
-                try? await Task.sleep(for: .seconds(5))
+                try? await Task.sleep(for: .seconds(2))
                 Log.print.warning("⏱️ Push token not received within timeout — proceeding without it.")
                 return ""
             }

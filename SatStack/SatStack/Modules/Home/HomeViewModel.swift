@@ -68,6 +68,7 @@ final class HomeViewModel: HomeViewModelProtocol {
         Task { @MainActor in await self.fetchFearAndGreedIndex() }
         Task { @MainActor in await self.fetchHalvingInfo() }
         Task { @MainActor in await self.fetchRecommendedFees() }
+        Task { @MainActor in await self.loadPersistedBitcoinPrice() }
         Task { @MainActor in await self.fetchBitcoinPrice() }
         Task { @MainActor in await self.fetchWalletBalance() }
     }
@@ -224,10 +225,25 @@ final class HomeViewModel: HomeViewModelProtocol {
 
     // MARK: - Bitcoin price fetch
 
+    /// Loads the last persisted `PricesResponse` from SwiftData so the widget
+    /// shows a value immediately, before the network fetch completes.
+    @MainActor
+    private func loadPersistedBitcoinPrice() async {
+        if let prices = try? await SwiftDataStorable.shared.fetch(
+            PricesResponse.self,
+            id: "bitcoin_prices"
+        ) {
+            uiState.bitcoinPrice = prices
+            Log.print.info("Bitcoin prices loaded from cache")
+        }
+    }
+
     @MainActor
     private func fetchBitcoinPrice() async {
         do {
-            uiState.bitcoinPrice = try await mempoolSpaceAPI.fetchPrices()
+            let prices = try await mempoolSpaceAPI.fetchPrices()
+            uiState.bitcoinPrice = prices
+            try await SwiftDataStorable.shared.save(prices, id: "bitcoin_prices")
         } catch {
             Log.print.error("Bitcoin price fetch failed: \(error.localizedDescription)")
         }

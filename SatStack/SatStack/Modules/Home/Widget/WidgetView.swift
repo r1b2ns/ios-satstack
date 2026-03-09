@@ -33,7 +33,11 @@ struct WidgetView: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             buildCard()
-            buildCornerButton()
+            buildCornerIcon()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onCornerAction?()
         }
     }
 
@@ -102,17 +106,15 @@ struct WidgetView: View {
         }
     }
 
-    // MARK: - Corner button
+    // MARK: - Corner icon (decorative — tap is handled by the whole card)
 
     @ViewBuilder
-    private func buildCornerButton() -> some View {
-        if let icon = cornerIcon, let action = onCornerAction {
-            Button(action: action) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(cornerIconColor)
-                    .padding(10)
-            }
+    private func buildCornerIcon() -> some View {
+        if let icon = cornerIcon {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(cornerIconColor)
+                .padding(10)
         }
     }
 }

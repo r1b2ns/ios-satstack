@@ -6,29 +6,71 @@ import SwiftUI
 
 enum FiatCurrency: String, CaseIterable, Identifiable {
     case usd = "USD"
-    case brl = "BRL"
+    case eur = "EUR"
+    case gbp = "GBP"
+    case cad = "CAD"
+    case chf = "CHF"
+    case aud = "AUD"
+    case jpy = "JPY"
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         case .usd: return "US Dollar"
-        case .brl: return "Brazilian Real"
+        case .eur: return "Euro"
+        case .gbp: return "British Pound"
+        case .cad: return "Canadian Dollar"
+        case .chf: return "Swiss Franc"
+        case .aud: return "Australian Dollar"
+        case .jpy: return "Japanese Yen"
         }
     }
 
     var symbol: String {
         switch self {
         case .usd: return "$"
-        case .brl: return "R$"
+        case .eur: return "€"
+        case .gbp: return "£"
+        case .cad: return "CA$"
+        case .chf: return "Fr"
+        case .aud: return "A$"
+        case .jpy: return "¥"
         }
     }
 
     var flag: String {
         switch self {
         case .usd: return "🇺🇸"
-        case .brl: return "🇧🇷"
+        case .eur: return "🇪🇺"
+        case .gbp: return "🇬🇧"
+        case .cad: return "🇨🇦"
+        case .chf: return "🇨🇭"
+        case .aud: return "🇦🇺"
+        case .jpy: return "🇯🇵"
         }
+    }
+
+    /// Extracts the BTC price for this currency from a `PricesResponse`.
+    func price(from prices: PricesResponse) -> Double {
+        switch self {
+        case .usd: return prices.usd
+        case .eur: return prices.eur
+        case .gbp: return prices.gbp
+        case .cad: return prices.cad
+        case .chf: return prices.chf
+        case .aud: return prices.aud
+        case .jpy: return prices.jpy
+        }
+    }
+
+    /// Formats a price value using this currency's locale-aware number formatter.
+    func formattedPrice(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = rawValue
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: value)) ?? "\(symbol)\(Int(value))"
     }
 }
 

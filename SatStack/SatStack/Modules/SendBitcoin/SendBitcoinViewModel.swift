@@ -131,6 +131,8 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
 
     private let walletService: WalletServiceProtocol
     private let api: MempoolSpaceAPIProtocol
+    private let monitorAPI: MempoolMonitorAPIProtocol
+    private let liveActivityManager: LiveActivityManager
 
     /// Average transaction size in virtual bytes for a typical
     /// single-input, two-output (P2WPKH) transaction.
@@ -139,11 +141,15 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
     init(
         wallet: Wallet,
         walletService: WalletServiceProtocol = BDKWalletService(),
-        api: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared
+        api: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared,
+        monitorAPI: MempoolMonitorAPIProtocol = MempoolMonitorAPI.shared,
+        liveActivityManager: LiveActivityManager = LiveActivityManager()
     ) {
         self.wallet = wallet
         self.walletService = walletService
         self.api = api
+        self.monitorAPI = monitorAPI
+        self.liveActivityManager = liveActivityManager
     }
 
     // MARK: - Fee loading
@@ -272,10 +278,31 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
             )
             Log.print.info("[SendBitcoin] Transaction broadcast successfully: \(txid)")
             uiState.broadcastTxId = txid
+            await startMonitoring(txId: txid)
         } catch {
             Log.print.error("[SendBitcoin] Broadcast failed: \(error.localizedDescription)")
             uiState.errorMessage = error.localizedDescription
             uiState.isBroadcastError = true
+        }
+    }
+
+    // MARK: - Monitoring
+
+    /// Starts a Live Activity and registers the transaction with the Mempool Monitor server.
+    /// Does not persist anything to SwiftData — monitoring only.
+    private func startMonitoring(txId: String) async {
+        let activityToken = await liveActivityManager.start(txId: txId)
+        let deviceToken = await APNsTokenManager.shared.deviceToken ?? ""
+        do {
+            let response = try await monitorAPI.watchTransaction(
+                txId: txId,
+                deviceToken: deviceToken,
+                activityToken: activityToken.isEmpty ? nil : activityToken
+            )
+            await liveActivityManager.update(with: response)
+            Log.print.info("[SendBitcoin] Monitoring started for txId: \(txId)")
+        } catch {
+            Log.print.error("[SendBitcoin] Failed to start monitoring: \(error.localizedDescription)")
         }
     }
 
