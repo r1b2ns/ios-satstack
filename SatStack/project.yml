@@ -300,7 +300,7 @@ targets:
 # O scheme do widget é configurado para lançar o SatStack como executable,
 # o que instala o app (que já embute o widget) e permite debug/preview da extension.
 schemes:
-  SatStack:
+  SatStack Development:
     build:
       targets:
         SatStack:      all
@@ -314,10 +314,26 @@ schemes:
       targets:
         - SatStackTests
     profile:
-      config: Release
+      config: Debug
       executable: SatStack
     analyze:
       config: Debug
+    archive:
+      config: Debug
+
+  SatStack Production:
+    build:
+      targets:
+        SatStack:      all
+        SatStackWidget: all
+    run:
+      config: Release
+      executable: SatStack
+    profile:
+      config: Release
+      executable: SatStack
+    analyze:
+      config: Release
     archive:
       config: Release
 
