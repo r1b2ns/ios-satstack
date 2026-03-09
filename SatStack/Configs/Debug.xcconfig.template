@@ -8,6 +8,7 @@ PRODUCT_BUNDLE_IDENTIFIER        = <your.bundle.identifier>
 PRODUCT_BUNDLE_IDENTIFIER_WIDGET = <your.bundle.identifier>.widget
 PRODUCT_BUNDLE_IDENTIFIER_TESTS  = <your.bundle.identifier>.tests
 DEVELOPMENT_TEAM                 = <YOUR_TEAM_ID>
+CODE_SIGN_STYLE                  = Automatic
 
 // ── Mempool Monitor server ────────────────────────────────────────────────
 // Scheme kept separate because "://" starts a comment in xcconfig.
