@@ -227,6 +227,7 @@ targets:
         CFBundleIdentifier:           "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleInfoDictionaryVersion: "6.0"
         CFBundleName:                 "$(PRODUCT_NAME)"
+        CFBundleDisplayName:          SatStack
         CFBundlePackageType:          "XPC!"
         CFBundleShortVersionString:   "$(MARKETING_VERSION)"
         CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
