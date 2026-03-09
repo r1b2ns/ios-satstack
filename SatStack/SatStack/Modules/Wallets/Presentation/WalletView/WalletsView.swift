@@ -1,5 +1,6 @@
 import SwiftUI
 import TipKit
+import UserNotifications
 
 // MARK: - FullScanTip
 
@@ -57,12 +58,17 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
     /// Height of the visible header strip when cards are stacked.
     private let headerHeight: CGFloat = 68
 
+    @State private var showNotificationPermission = false
+
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             buildContent()
                 .navigationTitle(navigationTitle)
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar { buildToolbar() }
+                .sheet(isPresented: $showNotificationPermission) {
+                    buildNotificationPermissionSheet()
+                }
                 .sheet(isPresented: $viewModel.uiState.isPresentingAddSheet) {
                     buildAddSheet()
                 }
@@ -300,6 +306,33 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         )
     }
 
+    // MARK: - Permission sheet
+
+    private func buildNotificationPermissionSheet() -> some View {
+        PermissionRequestView(
+            permissionType: .pushNotifications,
+            onAllow: {
+                Task {
+                    let granted = try? await UNUserNotificationCenter.current()
+                        .requestAuthorization(options: [.alert, .badge, .sound])
+                    if granted == true {
+                        await MainActor.run {
+                            UIApplication.shared.registerForRemoteNotifications()
+                        }
+                    }
+                    await MainActor.run {
+                        showNotificationPermission = false
+                        viewModel.showAddWallet()
+                    }
+                }
+            },
+            onSkip: {
+                showNotificationPermission = false
+                viewModel.showAddWallet()
+            }
+        )
+    }
+
     // MARK: - Sheets
 
     private func buildAddSheet() -> some View {
@@ -338,7 +371,16 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         } else {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    viewModel.showAddWallet()
+                    Task {
+                        let settings = await UNUserNotificationCenter.current().notificationSettings()
+                        await MainActor.run {
+                            if settings.authorizationStatus == .notDetermined {
+                                showNotificationPermission = true
+                            } else {
+                                viewModel.showAddWallet()
+                            }
+                        }
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 // MARK: - Factory
 
@@ -33,6 +34,9 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.openURL) private var openURL
 
+    @State private var showNotificationPermission = false
+    @State private var showNotificationDeniedAlert = false
+
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
     }
@@ -47,6 +51,21 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
                         .presentationDetents([.medium])
                         .presentationDragIndicator(.automatic)
                 }
+                .sheet(isPresented: $showNotificationPermission) {
+                    buildNotificationPermissionSheet()
+                }
+                .alert("Push Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
+                    Button("Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    Button("OK") {
+                        coordinator.presentRegisterTransaction()
+                    }
+                } message: {
+                    Text("You won't be notified when your transaction is confirmed. Enable notifications in Settings to stay updated.")
+                }
                 .task { await viewModel.loadTransactions() }
                 .onChange(of: coordinator.showRegisterTransaction) { _, isPresented in
                     if !isPresented {
@@ -55,6 +74,33 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
                 }
                 .navigationDestinations()
         }
+    }
+
+    // MARK: - Permission sheet
+
+    private func buildNotificationPermissionSheet() -> some View {
+        PermissionRequestView(
+            permissionType: .pushNotifications,
+            onAllow: {
+                Task {
+                    let granted = try? await UNUserNotificationCenter.current()
+                        .requestAuthorization(options: [.alert, .badge, .sound])
+                    if granted == true {
+                        await MainActor.run {
+                            UIApplication.shared.registerForRemoteNotifications()
+                        }
+                    }
+                    await MainActor.run {
+                        showNotificationPermission = false
+                        coordinator.presentRegisterTransaction()
+                    }
+                }
+            },
+            onSkip: {
+                showNotificationPermission = false
+                coordinator.presentRegisterTransaction()
+            }
+        )
     }
 
     // MARK: - Subviews
@@ -193,7 +239,19 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
     private func buildToolbar() -> some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Button {
-                coordinator.presentRegisterTransaction()
+                Task {
+                    let settings = await UNUserNotificationCenter.current().notificationSettings()
+                    await MainActor.run {
+                        switch settings.authorizationStatus {
+                        case .notDetermined:
+                            showNotificationPermission = true
+                        case .denied:
+                            showNotificationDeniedAlert = true
+                        default:
+                            coordinator.presentRegisterTransaction()
+                        }
+                    }
+                }
             } label: {
                 Image(systemName: "plus")
             }

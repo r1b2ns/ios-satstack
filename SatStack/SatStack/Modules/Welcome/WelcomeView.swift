@@ -29,6 +29,7 @@ struct WelcomeView: View {
             Spacer()
 
             buildDisclaimer()
+            Spacer().frame(height: 12)
             buildContinueButton()
         }
         .padding(.horizontal, 24)

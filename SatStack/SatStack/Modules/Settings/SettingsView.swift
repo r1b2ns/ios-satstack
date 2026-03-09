@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 // MARK: - Factory
@@ -31,20 +32,82 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: SettingsCoordinator
     @Environment(\.appTheme) private var theme
+    @Environment(\.requestReview) private var requestReview
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
     }
 
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        return "v\(version) (\(build))"
+    }
+
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             List {
-                buildAPNsTokenIndicator()
-                buildNetworkRow()
+                Section("Notifications") {
+                    buildAPNsTokenIndicator()
+                }
+                Section("Network") {
+                    buildNetworkRow()
+                }
+                Section("Preferences") {
+                    buildFiatCurrencyRow()
+                }
+                Section("About") {
+                    buildProjectOnGitHubRow()
+                    buildOpenSourceRow()
+                }
+                Section {
+                    buildBuyMeACoffeeRow()
+                    buildRateAppRow()
+                } header: {
+                    Text("Support")
+                } footer: {
+                    Text(appVersion)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 12)
+                }
             }
             .navigationTitle("Settings")
             .navigationDestinations()
         }
+    }
+
+    // MARK: - APNs indicator
+
+    private func buildAPNsTokenIndicator() -> some View {
+        Button {
+            guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
+            UIApplication.shared.open(url)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: viewModel.uiState.hasAPNsToken
+                      ? "bell.badge.fill"
+                      : "bell.slash.fill")
+                    .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.contentSecondary)
+                    .font(.title3)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Push Notifications")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text(viewModel.uiState.hasAPNsToken ? "Registered" : "Not registered")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
     }
 
     // MARK: - Network
@@ -78,33 +141,157 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
         .foregroundStyle(.foreground)
     }
 
-    // MARK: - APNs indicator
+    // MARK: - Fiat Currency
 
-    private func buildAPNsTokenIndicator() -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: viewModel.uiState.hasAPNsToken
-                  ? "bell.badge.fill"
-                  : "bell.slash.fill")
-                .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.contentSecondary)
-                .font(.title3)
-                .frame(width: 28)
+    private func buildFiatCurrencyRow() -> some View {
+        Button {
+            coordinator.navigateToFiatCurrency()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "dollarsign.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Push Notifications")
-                    .font(theme.typography.subheadline)
-                    .fontWeight(.medium)
-                Text(viewModel.uiState.hasAPNsToken ? "Registered" : "Not registered")
-                    .font(theme.typography.caption)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Fiat Price Preferred")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text("\(viewModel.uiState.preferredCurrency.flag) \(viewModel.uiState.preferredCurrency.displayName)")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
                     .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
             }
-
-            Spacer()
-
-            Image(systemName: viewModel.uiState.hasAPNsToken
-                  ? "checkmark.circle.fill"
-                  : "xmark.circle.fill")
-                .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.destructive)
         }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - Project on GitHub
+
+    private func buildProjectOnGitHubRow() -> some View {
+        Link(destination: URL(string: "https://github.com/r1b2ns/ios-satstack")!) {
+            HStack(spacing: 12) {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Project on GitHub")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text("View the source code")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.primary)
+    }
+
+    // MARK: - Open Source Software
+
+    private func buildOpenSourceRow() -> some View {
+        Button {
+            coordinator.navigateToOpenSourceSoftware()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "shippingbox.fill")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Open Source Software")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text("Acknowledgements")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - Buy Me a Coffee
+
+    private func buildBuyMeACoffeeRow() -> some View {
+        Button {
+            coordinator.navigateToBuyMeACoffee()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "cup.and.saucer.fill")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Buy Me a Coffee")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text("Support the developer")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - Rate App
+
+    private func buildRateAppRow() -> some View {
+        Button {
+            requestReview()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "star.fill")
+                    .font(.title3)
+                    .foregroundStyle(theme.colors.accent)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Rate the App")
+                        .font(theme.typography.subheadline)
+                        .fontWeight(.medium)
+                    Text("Leave a review on the App Store")
+                        .font(theme.typography.caption)
+                        .foregroundStyle(theme.colors.contentSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
     }
 }
 
@@ -123,6 +310,12 @@ private extension View {
                 ThemeSettingsView()
             case .network:
                 NetworkStatusView()
+            case .openSourceSoftware:
+                OpenSourceView()
+            case .buyMeACoffee:
+                BuyMeACoffeeView()
+            case .fiatCurrency:
+                FiatCurrencyView()
             }
         }
     }
