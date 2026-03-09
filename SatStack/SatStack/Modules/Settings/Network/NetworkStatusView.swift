@@ -9,7 +9,6 @@ import SwiftUI
 struct NetworkStatusView: View {
 
     @StateObject private var viewModel = NetworkStatusViewModel()
-    @Environment(\.appTheme) private var theme
 
     var body: some View {
         List {
@@ -85,12 +84,12 @@ struct NetworkStatusView: View {
     private func buildEndpointLabels(_ endpoint: NetworkEndpoint) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(endpoint.name)
-                .font(theme.typography.subheadline)
+                .font(.subheadline)
                 .fontWeight(.medium)
 
             Text(endpoint.url)
-                .font(theme.typography.caption)
-                .foregroundStyle(theme.colors.contentSecondary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
         }

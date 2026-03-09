@@ -6,7 +6,6 @@ import SwiftUI
 enum SettingsRoute: Hashable {
     case notifications
     case about
-    case theme
     case network
     case openSourceSoftware
     case buyMeACoffee
@@ -19,14 +18,6 @@ enum SettingsRoute: Hashable {
 ///
 /// Exposed via `environmentObject` so any view in the module
 /// can trigger transitions without direct coupling.
-///
-/// ```swift
-/// @EnvironmentObject var coordinator: SettingsCoordinator
-///
-/// Button("Theme") {
-///     coordinator.navigateToTheme()
-/// }
-/// ```
 final class SettingsCoordinator: MainCoordinatorProtocol {
 
     @Published var path = NavigationPath()
@@ -39,10 +30,6 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToAbout() {
         path.append(SettingsRoute.about)
-    }
-
-    func navigateToTheme() {
-        path.append(SettingsRoute.theme)
     }
 
     func navigateToNetwork() {

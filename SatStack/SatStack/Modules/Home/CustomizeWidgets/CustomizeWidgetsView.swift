@@ -17,7 +17,6 @@ struct CustomizeWidgetsView: View {
     let onMove: (IndexSet, Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appTheme) private var theme
 
     var body: some View {
         NavigationStack {
@@ -41,8 +40,8 @@ struct CustomizeWidgetsView: View {
     private func buildOKButton() -> some View {
         Button("OK") { dismiss() }
             .buttonStyle(.appPrimary)
-            .padding(.horizontal, theme.shape.spacingL)
-            .padding(.bottom, theme.shape.spacingS)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
     }
 
     // MARK: - Sections
@@ -74,7 +73,7 @@ struct CustomizeWidgetsView: View {
     // MARK: - Rows
 
     private func buildActiveRow(_ config: WidgetConfiguration) -> some View {
-        HStack(spacing: theme.shape.spacingM) {
+        HStack(spacing: 12) {
             Image(systemName: config.item.systemImage)
                 .frame(width: 28)
                 .foregroundStyle(config.item.tintColor)
@@ -83,7 +82,7 @@ struct CustomizeWidgetsView: View {
     }
 
     private func buildAvailableRow(_ item: WidgetItem) -> some View {
-        HStack(spacing: theme.shape.spacingM) {
+        HStack(spacing: 12) {
             Image(systemName: item.systemImage)
                 .frame(width: 28)
                 .foregroundStyle(item.tintColor)
@@ -94,7 +93,7 @@ struct CustomizeWidgetsView: View {
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
             }
             .buttonStyle(.plain)
         }

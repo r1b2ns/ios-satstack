@@ -7,8 +7,6 @@ import SwiftUI
 /// - For `.custom`: wraps the provided SwiftUI view inside the same card container.
 struct WidgetView: View {
 
-    @Environment(\.appTheme) private var theme
-
     let type: WidgetType
     let size: WidgetSize
 
@@ -41,7 +39,7 @@ struct WidgetView: View {
                     buildCompactIconLayout(image: image, title: title, subtitle: subtitle, tintColor: tintColor)
                 }
             }
-            .padding(theme.shape.spacingL)
+            .padding(16)
             .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
         }
     }
@@ -59,7 +57,7 @@ struct WidgetView: View {
     }
 
     private func buildExpandedIconLayout(image: Image, title: String, subtitle: String, tintColor: Color) -> some View {
-        HStack(alignment: .center, spacing: theme.shape.spacingL) {
+        HStack(alignment: .center, spacing: 16) {
             image
                 .font(.system(size: 40))
                 .foregroundStyle(tintColor)
@@ -68,7 +66,7 @@ struct WidgetView: View {
     }
 
     private func buildExpandedTextStack(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: theme.shape.spacingXS) {
+        VStack(alignment: .leading, spacing: 4) {
             AppText(title, style: .headline)
             AppText(subtitle, style: .subheadline, color: .secondary)
         }

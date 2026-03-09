@@ -1,5 +1,10 @@
-# ─── Configurações locais (bundle ID e outros valores privados) ──────────────
-Configs/Local.xcconfig
+# ─── Configurações locais (valores privados — não versionar) ─────────────────
+# Debug.xcconfig e Release.xcconfig contêm bundle IDs, team ID e outros segredos.
+# Crie-os a partir dos templates:
+#    cp Configs/Debug.xcconfig.template Configs/Debug.xcconfig
+#    cp Configs/Release.xcconfig.template Configs/Release.xcconfig
+Configs/Debug.xcconfig
+Configs/Release.xcconfig
 
 # ─── Xcode project e plists gerados pelo XcodeGen ────────────────────────────
 SatStack.xcodeproj/

@@ -14,20 +14,19 @@ import SwiftUI
 /// ```
 struct AppPrimaryButtonStyle: ButtonStyle {
 
-    @Environment(\.appTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(theme.typography.headline)
+            .font(.headline)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, theme.shape.spacingL - 2) // 14 pt
+            .padding(.vertical, 14)
             .background(
-                theme.colors.accent
+                Color.accentColor
                     .opacity(opacity(configuration: configuration)),
-                in: RoundedRectangle(cornerRadius: theme.shape.cornerRadiusButton)
+                in: RoundedRectangle(cornerRadius: 14)
             )
-            .foregroundStyle(theme.colors.accentForeground)
+            .foregroundStyle(Color.white)
     }
 
     private func opacity(configuration: Configuration) -> Double {
@@ -50,24 +49,23 @@ struct AppPrimaryButtonStyle: ButtonStyle {
 /// ```
 struct AppSecondaryButtonStyle: ButtonStyle {
 
-    @Environment(\.appTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(theme.typography.body)
-            .foregroundStyle(theme.colors.accent)
-            .padding(.horizontal, theme.shape.spacingM)
-            .padding(.vertical, theme.shape.spacingS)
+            .font(.body)
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
-                theme.colors.accent
+                Color.accentColor
                     .opacity(backgroundOpacity(configuration: configuration)),
-                in: RoundedRectangle(cornerRadius: theme.shape.cornerRadiusSmall)
+                in: RoundedRectangle(cornerRadius: 10)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: theme.shape.cornerRadiusSmall)
+                RoundedRectangle(cornerRadius: 10)
                     .strokeBorder(
-                        theme.colors.accent.opacity(isEnabled ? 0.5 : 0.2),
+                        Color.accentColor.opacity(isEnabled ? 0.5 : 0.2),
                         lineWidth: 1
                     )
             )

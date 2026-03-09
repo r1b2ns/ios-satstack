@@ -18,8 +18,6 @@ import SwiftUI
 /// ```
 struct AppCard<Content: View>: View {
 
-    @Environment(\.appTheme) private var theme
-
     @ViewBuilder private let content: () -> Content
 
     init(@ViewBuilder content: @escaping () -> Content) {
@@ -29,8 +27,8 @@ struct AppCard<Content: View>: View {
     var body: some View {
         content()
             .background(
-                theme.colors.card,
-                in: RoundedRectangle(cornerRadius: theme.shape.cornerRadiusCard)
+                Color(.secondarySystemBackground),
+                in: RoundedRectangle(cornerRadius: 16)
             )
     }
 }

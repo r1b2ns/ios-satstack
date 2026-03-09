@@ -1,0 +1,25 @@
+// Debug.xcconfig.template
+// ⚠️  This file IS version-controlled. It contains only placeholder values.
+// Create the real file from this template:
+//    cp Configs/Debug.xcconfig.template Configs/Debug.xcconfig
+
+// ── Bundle identity & signing ─────────────────────────────────────────────
+PRODUCT_BUNDLE_IDENTIFIER        = <your.bundle.identifier>
+PRODUCT_BUNDLE_IDENTIFIER_WIDGET = <your.bundle.identifier>.widget
+PRODUCT_BUNDLE_IDENTIFIER_TESTS  = <your.bundle.identifier>.tests
+DEVELOPMENT_TEAM                 = <YOUR_TEAM_ID>
+
+// ── Mempool Monitor server ────────────────────────────────────────────────
+// Scheme kept separate because "://" starts a comment in xcconfig.
+MEMPOOL_MONITOR_SCHEME = https
+// Host only (no scheme) — e.g. 192.168.15.33:3000 or localhost:3000
+MEMPOOL_MONITOR_HOST   = <host:port>
+
+// ── Bitcoin donation address ──────────────────────────────────────────────
+BITCOIN_ADDRESS = <your_bitcoin_address>
+
+// ── Bitcoin Network ──────────────────────────────────────────────────────
+// Keep signet for Debug builds (test network).
+BDK_NETWORK       = signet
+BDK_MEMPOOL_BASE  = mempool.space/signet
+BDK_ELECTRUM_HOST = mempool.space:60602

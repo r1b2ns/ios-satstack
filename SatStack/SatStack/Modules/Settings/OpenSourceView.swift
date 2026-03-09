@@ -14,8 +14,6 @@ private struct OpenSourcePackage: Identifiable {
 
 struct OpenSourceView: View {
 
-    @Environment(\.appTheme) private var theme
-
     private let packages: [OpenSourcePackage] = [
         .init(
             name: "bdk-swift",
@@ -47,7 +45,7 @@ struct OpenSourceView: View {
                 Text("SatStack is built on top of the following open source projects. Tap any item to view its repository on GitHub.")
                     .textCase(nil)
                     .font(.footnote)
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .padding(.bottom, 4)
             }
         }
@@ -60,26 +58,26 @@ struct OpenSourceView: View {
             HStack(spacing: 12) {
                 Image(systemName: "shippingbox.fill")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(package.name)
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text(package.description)
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Text("License: \(package.license)")
                         .font(.caption2)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "arrow.up.right")
                     .font(.caption)
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .foregroundStyle(.primary)

@@ -3,11 +3,9 @@ import SwiftUI
 
 struct BuyMeACoffeeView: View {
 
-    @Environment(\.appTheme) private var theme
     @State private var showCopiedFeedback = false
 
-    // Replace with your actual Bitcoin address
-    private let bitcoinAddress = "bc1q8dq4xq94sxtp79yfr02qpqtev4w6dgpnh8f3w8"
+    private let bitcoinAddress = BDKNetworkConfig.bitcoinAddress
 
     var body: some View {
         ScrollView {
@@ -29,15 +27,14 @@ struct BuyMeACoffeeView: View {
         VStack(spacing: 12) {
             Image(systemName: "cup.and.saucer.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(theme.colors.accent)
+                .foregroundStyle(Color.accentColor)
 
             Text("Support the Project")
-                .font(theme.typography.title)
-                .fontWeight(.bold)
+                .font(.title.bold())
 
             Text("If you find this app useful, consider sending a small tip in Bitcoin. Every satoshi helps keep the project alive!")
-                .font(theme.typography.subheadline)
-                .foregroundStyle(theme.colors.contentSecondary)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
     }
@@ -60,8 +57,8 @@ struct BuyMeACoffeeView: View {
     private func buildAddressSection() -> some View {
         VStack(spacing: 12) {
             Text("Bitcoin Address")
-                .font(theme.typography.caption)
-                .foregroundStyle(theme.colors.contentSecondary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
             Text(bitcoinAddress)
@@ -82,20 +79,18 @@ struct BuyMeACoffeeView: View {
                         showCopiedFeedback ? "Copied!" : "Copy Address",
                         systemImage: showCopiedFeedback ? "checkmark" : "doc.on.doc"
                     )
-                    .font(theme.typography.subheadline)
+                    .font(.subheadline)
                     .fontWeight(.medium)
                     .animation(.easeInOut, value: showCopiedFeedback)
                 }
                 .buttonStyle(.bordered)
-                .tint(theme.colors.accent)
 
                 ShareLink(item: bitcoinAddress) {
                     Label("Share", systemImage: "square.and.arrow.up")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                 }
                 .buttonStyle(.bordered)
-                .tint(theme.colors.accent)
             }
         }
     }

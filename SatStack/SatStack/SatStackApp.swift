@@ -1,16 +1,10 @@
 import SwiftData
 import SwiftUI
 import TipKit
-import UIKit
 
 @main
 struct SatStackApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
-    /// Drives the app-wide visual theme. Injected into the environment
-    /// so every view can read `@Environment(\.appTheme)` or
-    /// `@EnvironmentObject var themeManager: ThemeManager`.
-    @StateObject private var themeManager = ThemeManager()
 
     /// Controls the welcome screen shown on first launch.
     @State private var showWelcome = !UserDefaults.standard.bool(forKey: "hasSeenWelcome")
@@ -51,7 +45,7 @@ struct SatStackApp: App {
                             Image(systemName: "creditcard")
                         }
                     }
-                
+
                 TransactionListViewFactory.build()
                     .tabItem {
                         Label {
@@ -71,15 +65,11 @@ struct SatStackApp: App {
                     }
             }
             .modelContainer(modelContainer)
-            .environmentObject(themeManager)
-            .environment(\.appTheme, themeManager.definition)
-            .applyThemeAppearance(accent: themeManager.definition.colors.accent)
             .fullScreenCover(isPresented: $showWelcome) {
                 WelcomeView {
                     UserDefaults.standard.set(true, forKey: "hasSeenWelcome")
                     showWelcome = false
                 }
-                .environment(\.appTheme, themeManager.definition)
             }
         }
     }

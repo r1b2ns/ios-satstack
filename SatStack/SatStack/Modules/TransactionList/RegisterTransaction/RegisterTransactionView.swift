@@ -2,7 +2,6 @@ import SwiftUI
 
 struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appTheme) private var theme
     @ObservedObject var viewModel: ViewModel
 
     init(viewModel: ViewModel) {
@@ -11,14 +10,14 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: theme.shape.spacingXL) {
+            VStack(spacing: 24) {
                 buildTxidField()
                 buildPasteButton()
                 buildWatchButton()
                 buildStatusMessage()
                 Spacer()
             }
-            .padding(theme.shape.spacingL)
+            .padding(16)
             .navigationTitle("Watch Transaction")
             .onAppear { viewModel.checkClipboard() }
             .onChange(of: viewModel.uiState.shouldDismiss) { _, shouldDismiss in
@@ -37,12 +36,12 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
     // MARK: - Subviews
 
     private func buildTxidField() -> some View {
-        VStack(alignment: .leading, spacing: theme.shape.spacingS) {
+        VStack(alignment: .leading, spacing: 8) {
             AppText("Transaction ID", style: .subheadline, color: .secondary)
 
             TextField("Paste TXID here…", text: $viewModel.uiState.txid, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
-                .font(theme.typography.monospaced)
+                .font(.system(.footnote, design: .monospaced))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .lineLimit(3...6)
@@ -71,7 +70,7 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
         } label: {
             HStack {
                 if viewModel.uiState.isLoading {
-                    ProgressView().tint(theme.colors.accentForeground)
+                    ProgressView().tint(.white)
                 }
                 Text(viewModel.uiState.isLoading ? "Sending…" : "Watch Transaction")
             }
@@ -86,16 +85,16 @@ struct RegisterTransactionView<ViewModel: RegisterTransactionViewModelProtocol>:
     @ViewBuilder
     private func buildStatusMessage() -> some View {
         if viewModel.uiState.statusIsSuccess, !viewModel.uiState.statusMessage.isEmpty {
-            HStack(spacing: theme.shape.spacingS) {
+            HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
-                AppText(viewModel.uiState.statusMessage, style: .subheadline, color: .custom(theme.colors.success))
+                AppText(viewModel.uiState.statusMessage, style: .subheadline, color: .custom(.green))
             }
-            .foregroundStyle(theme.colors.success)
-            .padding(theme.shape.spacingM)
+            .foregroundStyle(Color.green)
+            .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                theme.colors.success.opacity(0.1),
-                in: RoundedRectangle(cornerRadius: theme.shape.cornerRadiusSmall)
+                Color.green.opacity(0.1),
+                in: RoundedRectangle(cornerRadius: 10)
             )
         }
     }

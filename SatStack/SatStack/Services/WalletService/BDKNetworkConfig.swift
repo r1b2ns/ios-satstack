@@ -65,4 +65,9 @@ enum BDKNetworkConfig {
     static func transactionURL(txid: String) -> URL? {
         URL(string: "\(mempoolExplorerURL)/tx/\(txid)")
     }
+
+    // MARK: - Donation
+
+    /// Bitcoin donation address injected from xcconfig via Info.plist.
+    static let bitcoinAddress: String = infoPlistValue(for: "BitcoinAddress") ?? ""
 }

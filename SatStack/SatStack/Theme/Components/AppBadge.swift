@@ -10,8 +10,6 @@ import SwiftUI
 /// ```
 struct AppBadge: View {
 
-    @Environment(\.appTheme) private var theme
-
     /// The label displayed inside the badge.
     let text: String
 
@@ -20,10 +18,10 @@ struct AppBadge: View {
 
     var body: some View {
         Text(text)
-            .font(theme.typography.caption2)
+            .font(.caption2)
             .fontWeight(.semibold)
-            .padding(.horizontal, theme.shape.spacingS)
-            .padding(.vertical, theme.shape.spacingXS)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(tint.opacity(0.15), in: Capsule())
             .foregroundStyle(tint)
     }

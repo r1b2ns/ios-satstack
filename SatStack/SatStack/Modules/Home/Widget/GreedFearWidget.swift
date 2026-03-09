@@ -7,8 +7,6 @@ import SwiftUI
 /// positioned at the corresponding percentage.
 struct GreedFearWidget: View {
 
-    @Environment(\.appTheme) private var theme
-
     /// Numeric score from 0 (Extreme Fear) to 100 (Extreme Greed).
     let score: Int
 
@@ -16,11 +14,11 @@ struct GreedFearWidget: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: theme.shape.spacingM) {
+        VStack(alignment: .leading, spacing: 12) {
             buildHeader()
             buildColorBand()
         }
-        .padding(theme.shape.spacingL)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct FiatCurrencyView: View {
 
-    @Environment(\.appTheme) private var theme
     @State private var selectedCurrency = UserDefaults.standard.preferredFiatCurrency
 
     var body: some View {
@@ -25,18 +24,18 @@ struct FiatCurrencyView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(currency.rawValue)
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text(currency.displayName)
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 if selectedCurrency == currency {
                     Image(systemName: "checkmark")
-                        .foregroundStyle(theme.colors.accent)
+                        .foregroundStyle(Color.accentColor)
                         .fontWeight(.semibold)
                 }
             }

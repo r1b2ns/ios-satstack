@@ -144,6 +144,9 @@ targets:
         BDKMempoolBase: "$(BDK_MEMPOOL_BASE)"
         BDKElectrumHost: "$(BDK_ELECTRUM_HOST)"
 
+        # ── Bitcoin donation address ──────────────────────────────────────────
+        BitcoinAddress: "$(BITCOIN_ADDRESS)"
+
     # Entitlements — XcodeGen define CODE_SIGN_ENTITLEMENTS automaticamente.
     # "properties" faz o XcodeGen gerar/sobrescrever o arquivo (source of truth aqui).
     entitlements:

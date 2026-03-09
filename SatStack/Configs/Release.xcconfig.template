@@ -1,0 +1,25 @@
+// Release.xcconfig.template
+// ⚠️  This file IS version-controlled. It contains only placeholder values.
+// Create the real file from this template:
+//    cp Configs/Release.xcconfig.template Configs/Release.xcconfig
+
+// ── Bundle identity & signing ─────────────────────────────────────────────
+PRODUCT_BUNDLE_IDENTIFIER        = <your.bundle.identifier>
+PRODUCT_BUNDLE_IDENTIFIER_WIDGET = <your.bundle.identifier>.widget
+PRODUCT_BUNDLE_IDENTIFIER_TESTS  = <your.bundle.identifier>.tests
+DEVELOPMENT_TEAM                 = <YOUR_TEAM_ID>
+
+// ── Mempool Monitor server ────────────────────────────────────────────────
+// Scheme kept separate because "://" starts a comment in xcconfig.
+MEMPOOL_MONITOR_SCHEME = https
+// Host only (no scheme) — e.g. api.satstack.space
+MEMPOOL_MONITOR_HOST   = <host>
+
+// ── Bitcoin donation address ──────────────────────────────────────────────
+BITCOIN_ADDRESS = <your_bitcoin_address>
+
+// ── Bitcoin Network ──────────────────────────────────────────────────────
+// Mainnet for Release builds.
+BDK_NETWORK       = bitcoin
+BDK_MEMPOOL_BASE  = mempool.space
+BDK_ELECTRUM_HOST = electrum.blockstream.info:50002

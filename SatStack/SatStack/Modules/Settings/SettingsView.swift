@@ -31,7 +31,6 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: SettingsCoordinator
-    @Environment(\.appTheme) private var theme
     @Environment(\.requestReview) private var requestReview
 
     init(viewModel: ViewModel) {
@@ -87,23 +86,23 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                 Image(systemName: viewModel.uiState.hasAPNsToken
                       ? "bell.badge.fill"
                       : "bell.slash.fill")
-                    .foregroundStyle(viewModel.uiState.hasAPNsToken ? theme.colors.success : theme.colors.contentSecondary)
+                    .foregroundStyle(viewModel.uiState.hasAPNsToken ? Color.green : Color.secondary)
                     .font(.title3)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Push Notifications")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text(viewModel.uiState.hasAPNsToken ? "Registered" : "Not registered")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -119,22 +118,22 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             HStack(spacing: 12) {
                 Image(systemName: "network")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Network")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text(BDKNetworkConfig.networkName.capitalized)
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -150,22 +149,22 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             HStack(spacing: 12) {
                 Image(systemName: "dollarsign.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Fiat Price Preferred")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text("\(viewModel.uiState.preferredCurrency.flag) \(viewModel.uiState.preferredCurrency.displayName)")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -179,22 +178,22 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             HStack(spacing: 12) {
                 Image(systemName: "chevron.left.forwardslash.chevron.right")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Project on GitHub")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text("View the source code")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "arrow.up.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -210,22 +209,22 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             HStack(spacing: 12) {
                 Image(systemName: "shippingbox.fill")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Open Source Software")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text("Acknowledgements")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -241,22 +240,22 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             HStack(spacing: 12) {
                 Image(systemName: "cup.and.saucer.fill")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Buy Me a Coffee")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text("Support the developer")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -272,22 +271,22 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
             HStack(spacing: 12) {
                 Image(systemName: "star.fill")
                     .font(.title3)
-                    .foregroundStyle(theme.colors.accent)
+                    .foregroundStyle(Color.accentColor)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rate the App")
-                        .font(theme.typography.subheadline)
+                        .font(.subheadline)
                         .fontWeight(.medium)
                     Text("Leave a review on the App Store")
-                        .font(theme.typography.caption)
-                        .foregroundStyle(theme.colors.contentSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "arrow.up.right")
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
             }
         }
@@ -306,8 +305,6 @@ private extension View {
                 Text("Notifications")
             case .about:
                 Text("About")
-            case .theme:
-                ThemeSettingsView()
             case .network:
                 NetworkStatusView()
             case .openSourceSoftware:

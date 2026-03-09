@@ -52,8 +52,6 @@ enum AppTextColor {
 /// ```
 struct AppText: View {
 
-    @Environment(\.appTheme) private var theme
-
     private let text: String
     private let style: AppTextStyle
     private let color: AppTextColor
@@ -74,24 +72,24 @@ struct AppText: View {
 
     private var resolvedFont: Font {
         switch style {
-        case .largeTitle:  return theme.typography.largeTitle
-        case .title:       return theme.typography.title
-        case .headline:    return theme.typography.headline
-        case .subheadline: return theme.typography.subheadline
-        case .body:        return theme.typography.body
-        case .caption:     return theme.typography.caption
-        case .caption2:    return theme.typography.caption2
-        case .monospaced:  return theme.typography.monospaced
-        case .scoreLarge:  return theme.typography.scoreLarge
+        case .largeTitle:  return .largeTitle
+        case .title:       return .title
+        case .headline:    return .headline
+        case .subheadline: return .subheadline
+        case .body:        return .body
+        case .caption:     return .caption
+        case .caption2:    return .caption2
+        case .monospaced:  return .system(.footnote, design: .monospaced)
+        case .scoreLarge:  return .system(size: 48, weight: .bold, design: .rounded)
         }
     }
 
     private var resolvedColor: Color {
         switch color {
-        case .primary:          return theme.colors.contentPrimary
-        case .secondary:        return theme.colors.contentSecondary
-        case .tertiary:         return theme.colors.contentTertiary
-        case .accent:           return theme.colors.accent
+        case .primary:          return .primary
+        case .secondary:        return .secondary
+        case .tertiary:         return Color(UIColor.tertiaryLabel)
+        case .accent:           return .accentColor
         case .custom(let c):    return c
         }
     }

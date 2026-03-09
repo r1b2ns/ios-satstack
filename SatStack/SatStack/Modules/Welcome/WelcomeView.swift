@@ -7,7 +7,6 @@ import SwiftUI
 /// icons, and a full-width "Continue" button at the bottom.
 struct WelcomeView: View {
 
-    @Environment(\.appTheme) private var theme
     @Environment(\.openURL) private var openURL
 
     /// Called when the user taps "Continue".
@@ -47,7 +46,7 @@ struct WelcomeView: View {
             Text("SatStack")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .foregroundStyle(theme.colors.accent)
+                .foregroundStyle(Color.accentColor)
         }
         .multilineTextAlignment(.center)
     }
@@ -58,28 +57,28 @@ struct WelcomeView: View {
         VStack(spacing: 28) {
             buildFeatureRow(
                 icon: "chart.line.uptrend.xyaxis",
-                iconColor: theme.colors.widgetFees,
+                iconColor: .green,
                 title: "Real-Time Dashboard",
                 description: "Live Bitcoin price, network fees, block height and market sentiment at a glance."
             )
 
             buildFeatureRow(
                 icon: "key.fill",
-                iconColor: theme.colors.accent,
+                iconColor: .accentColor,
                 title: "Self-Custody Wallets",
                 description: "Create or import wallets. Your keys, your coins — always under your control."
             )
 
             buildFeatureRow(
                 icon: "bell.badge.fill",
-                iconColor: theme.colors.widgetHalving,
+                iconColor: .purple,
                 title: "Transaction Monitoring",
                 description: "Watch transactions and get real-time updates with Live Activities on your Lock Screen."
             )
 
             buildFeatureRow(
                 icon: "lock.open.fill",
-                iconColor: theme.colors.warning,
+                iconColor: .orange,
                 title: "Open Source",
                 description: "Fully transparent codebase you can audit, contribute to, and trust, no hidden tracking."
             )
@@ -100,12 +99,12 @@ struct WelcomeView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(theme.typography.body)
+                    .font(.body)
                     .fontWeight(.semibold)
 
                 Text(description)
-                    .font(theme.typography.subheadline)
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -118,14 +117,14 @@ struct WelcomeView: View {
     private func buildDisclaimer() -> some View {
         VStack(spacing: 4) {
             Text("Independent project powered by")
-                .font(theme.typography.caption)
-                .foregroundStyle(theme.colors.contentSecondary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Button {
                 openURL(bdkURL)
             } label: {
                 Text("Bitcoin Dev Kit")
-                    .font(theme.typography.caption)
+                    .font(.caption)
                     .fontWeight(.medium)
             }
         }
@@ -137,12 +136,12 @@ struct WelcomeView: View {
     private func buildContinueButton() -> some View {
         Button(action: onContinue) {
             Text("Continue")
-                .font(theme.typography.headline)
-                .foregroundStyle(theme.colors.accentForeground)
+                .font(.headline)
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(theme.colors.accent)
-                .clipShape(RoundedRectangle(cornerRadius: theme.shape.cornerRadiusButton))
+                .background(Color.accentColor)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         }
     }
 }

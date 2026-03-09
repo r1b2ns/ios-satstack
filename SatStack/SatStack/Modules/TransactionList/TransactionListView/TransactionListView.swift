@@ -31,7 +31,6 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: TransactionListCoordinator
-    @Environment(\.appTheme) private var theme
     @Environment(\.openURL) private var openURL
 
     @State private var showNotificationPermission = false
@@ -208,9 +207,9 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
     private func buildStatusBadge(_ status: TransactionStatus) -> some View {
         let color: Color = {
             switch status {
-            case .pending:   return theme.colors.warning
-            case .confirmed: return theme.colors.success
-            case .failed:    return theme.colors.destructive
+            case .pending:   return .orange
+            case .confirmed: return .green
+            case .failed:    return .red
             case .notFound:  return .gray
             }
         }()

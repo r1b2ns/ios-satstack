@@ -109,8 +109,6 @@ private struct PermissionFeature {
 /// ```
 struct PermissionRequestView: View {
 
-    @Environment(\.appTheme) private var theme
-
     let permissionType: PermissionType
 
     /// Called when the user taps the primary "Allow" button.
@@ -191,12 +189,12 @@ struct PermissionRequestView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(feature.title)
-                    .font(theme.typography.body)
+                    .font(.body)
                     .fontWeight(.semibold)
 
                 Text(feature.description)
-                    .font(theme.typography.subheadline)
-                    .foregroundStyle(theme.colors.contentSecondary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -209,20 +207,20 @@ struct PermissionRequestView: View {
     private func buildAllowButton() -> some View {
         Button(action: onAllow) {
             Text(permissionType.allowButtonTitle)
-                .font(theme.typography.headline)
-                .foregroundStyle(theme.colors.accentForeground)
+                .font(.headline)
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(theme.colors.accent)
-                .clipShape(RoundedRectangle(cornerRadius: theme.shape.cornerRadiusButton))
+                .background(Color.accentColor)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         }
     }
 
     private func buildSkipButton() -> some View {
         Button(action: onSkip) {
             Text("Not Now")
-                .font(theme.typography.subheadline)
-                .foregroundStyle(theme.colors.contentSecondary)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
         }
