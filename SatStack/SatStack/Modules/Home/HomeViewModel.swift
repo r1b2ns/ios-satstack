@@ -139,17 +139,15 @@ final class HomeViewModel: HomeViewModelProtocol {
         case .walletBalance:
             if let sats = uiState.totalWalletBalanceSats {
                 return .custom(view: AnyView(
-                    HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Image(systemName: item.systemImage)
-                            .font(.system(size: 40))
+                            .font(.largeTitle)
                             .foregroundStyle(item.tintColor)
-                        VStack(alignment: .leading, spacing: 4) {
-                            AppText(item.displayName, style: .headline)
-                            BalanceDisplayFormatView(sats: sats)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
+                        AppText(item.displayName, style: .headline)
+                            .lineLimit(1)
+                        BalanceDisplayFormatView(sats: sats)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
