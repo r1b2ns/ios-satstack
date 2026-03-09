@@ -53,6 +53,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                     buildNetworkRow()
                 }
                 Section("Preferences") {
+                    buildBalanceFormatRow()
                     buildFiatCurrencyRow()
                 }
                 Section("About") {
@@ -126,6 +127,37 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                     Text(BDKNetworkConfig.networkName.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - Balance Format
+
+    private func buildBalanceFormatRow() -> some View {
+        Button {
+            coordinator.navigateToBalanceFormat()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bitcoinsign.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Balance Format")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text(viewModel.uiState.preferredBalanceFormat.displayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -313,6 +345,8 @@ private extension View {
                 BuyMeACoffeeView()
             case .fiatCurrency:
                 FiatCurrencyView()
+            case .balanceFormat:
+                BalanceFormatView()
             }
         }
     }

@@ -37,6 +37,10 @@ struct HomeUiState {
     /// `nil` until the first successful fetch from SwiftData.
     var totalWalletBalanceBTC: Double? = nil
 
+    /// Total wallet balance in satoshis, computed by summing all persisted wallets.
+    /// `nil` until the first successful fetch from SwiftData.
+    var totalWalletBalanceSats: UInt64? = nil
+
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
         let activeItems = Set(activeWidgets.map(\.item))
@@ -133,14 +137,23 @@ final class HomeViewModel: HomeViewModelProtocol {
             return item.mockType
 
         case .walletBalance:
-            if let balance = uiState.totalWalletBalanceBTC {
-                let formatted = String(format: "₿ %.8f", balance)
-                return .icon(
-                    image: Image(systemName: item.systemImage),
-                    title: item.displayName,
-                    subtitle: formatted,
-                    tintColor: item.tintColor
-                )
+            if let sats = uiState.totalWalletBalanceSats {
+                return .custom(view: AnyView(
+                    HStack(alignment: .center, spacing: 16) {
+                        Image(systemName: item.systemImage)
+                            .font(.system(size: 40))
+                            .foregroundStyle(item.tintColor)
+                        VStack(alignment: .leading, spacing: 4) {
+                            AppText(item.displayName, style: .headline)
+                            BalanceDisplayFormatView(sats: sats)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, minHeight: 90, alignment: .leading)
+                ))
             }
             return item.mockType
         }
@@ -257,7 +270,8 @@ final class HomeViewModel: HomeViewModelProtocol {
         do {
             let wallets: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
             let total = wallets.reduce(0.0) { $0 + $1.balanceBTC }
-            uiState.totalWalletBalanceBTC = total
+            uiState.totalWalletBalanceBTC  = total
+            uiState.totalWalletBalanceSats = wallets.reduce(0) { $0 + UInt64($1.balanceBTC * 100_000_000) }
         } catch {
             Log.print.error("Wallet balance fetch failed: \(error.localizedDescription)")
         }

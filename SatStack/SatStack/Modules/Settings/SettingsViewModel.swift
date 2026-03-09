@@ -74,6 +74,44 @@ enum FiatCurrency: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - BalanceDisplayFormat
+
+/// The unit in which wallet balances are displayed throughout the app.
+enum BalanceDisplayFormat: String, CaseIterable, Identifiable {
+
+    /// Traditional BTC notation: ₿ 0.12345678
+    case bitcoin = "bitcoin"
+
+    /// Satoshi count with "sats" suffix: 12,345,678 sats
+    case sats = "sats"
+
+    /// BIP-177 format — satoshi as primary unit, styled with ₿: 12,345,678 ₿
+    case bip177 = "bip177"
+
+    /// Fiat equivalent using the user's preferred currency.
+    case fiat = "fiat"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .bitcoin: return "Bitcoin (BTC)"
+        case .sats:    return "Satoshis (sats)"
+        case .bip177:  return "BIP-177"
+        case .fiat:    return "Fiat Currency"
+        }
+    }
+
+    var example: String {
+        switch self {
+        case .bitcoin: return "₿ 0.12345678"
+        case .sats:    return "12,345,678 sats"
+        case .bip177:  return "12,345,678 ₿"
+        case .fiat:    return "According to preferred currency"
+        }
+    }
+}
+
 // MARK: - UserDefaults + FiatCurrency
 
 extension UserDefaults {
@@ -90,6 +128,22 @@ extension UserDefaults {
     }
 }
 
+// MARK: - UserDefaults + BalanceDisplayFormat
+
+extension UserDefaults {
+    private static let preferredBalanceFormatKey = "preferredBalanceFormat"
+
+    var preferredBalanceFormat: BalanceDisplayFormat {
+        get {
+            let raw = string(forKey: Self.preferredBalanceFormatKey) ?? BalanceDisplayFormat.bitcoin.rawValue
+            return BalanceDisplayFormat(rawValue: raw) ?? .bitcoin
+        }
+        set {
+            set(newValue.rawValue, forKey: Self.preferredBalanceFormatKey)
+        }
+    }
+}
+
 // MARK: - Protocol
 
 protocol SettingsViewModelProtocol: ObservableObject {
@@ -101,6 +155,7 @@ protocol SettingsViewModelProtocol: ObservableObject {
 struct SettingsUiState {
     var hasAPNsToken: Bool = false
     var preferredCurrency: FiatCurrency = UserDefaults.standard.preferredFiatCurrency
+    var preferredBalanceFormat: BalanceDisplayFormat = UserDefaults.standard.preferredBalanceFormat
 }
 
 // MARK: - ViewModel
@@ -132,6 +187,7 @@ final class SettingsViewModel: SettingsViewModelProtocol {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.uiState.preferredCurrency = UserDefaults.standard.preferredFiatCurrency
+                self?.uiState.preferredBalanceFormat = UserDefaults.standard.preferredBalanceFormat
             }
             .store(in: &cancellables)
     }

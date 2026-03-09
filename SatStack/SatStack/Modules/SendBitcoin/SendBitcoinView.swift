@@ -207,9 +207,12 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
     @ViewBuilder
     private func buildAmountFooter() -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Available: \(viewModel.formattedBalance) BTC")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text("Available:")
+                BalanceDisplayFormatView(sats: UInt64(viewModel.wallet.balanceBTC * 100_000_000))
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
 
             if viewModel.isAmountExceedsBalance {
                 Label("Amount exceeds available balance", systemImage: "exclamationmark.triangle.fill")

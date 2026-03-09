@@ -138,6 +138,10 @@ struct WalletsUiState {
     /// `nil` until the first successful fetch from SwiftData.
     var totalWalletBalanceBTC: Double? = nil
 
+    /// Total wallet balance in satoshis, computed by summing all per-wallet balances.
+    /// `nil` until the first successful fetch from SwiftData.
+    var totalWalletBalanceSats: UInt64? = nil
+
     /// Non-nil when a sync error should be shown to the user.
     var syncErrorMessage: String? = nil
 
@@ -405,8 +409,9 @@ private extension WalletsViewModel {
                 uiState.selectedWalletBalanceSats = balanceSats
             }
 
-            uiState.totalWalletBalanceBTC = uiState.walletBalances.values
+            uiState.totalWalletBalanceBTC  = uiState.walletBalances.values
                 .reduce(0.0) { $0 + Double($1) / 100_000_000.0 }
+            uiState.totalWalletBalanceSats = uiState.walletBalances.values.reduce(0, +)
 
         case .selectedWalletSynced(let walletId, let balanceSats, let transactions):
             guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
@@ -421,8 +426,9 @@ private extension WalletsViewModel {
             }
             Task { await self.persistTransactions(transactions, for: walletId) }
 
-            uiState.totalWalletBalanceBTC = uiState.walletBalances.values
+            uiState.totalWalletBalanceBTC  = uiState.walletBalances.values
                 .reduce(0.0) { $0 + Double($1) / 100_000_000.0 }
+            uiState.totalWalletBalanceSats = uiState.walletBalances.values.reduce(0, +)
 
         case .transactionsUpdated(let walletId, let transactions):
             guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
@@ -462,7 +468,8 @@ private extension WalletsViewModel {
         do {
             let wallets: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
             let total = wallets.reduce(0.0) { $0 + $1.balanceBTC }
-            uiState.totalWalletBalanceBTC = total
+            uiState.totalWalletBalanceBTC  = total
+            uiState.totalWalletBalanceSats = wallets.reduce(0) { $0 + UInt64($1.balanceBTC * 100_000_000) }
         } catch {
             Log.print.error("Wallet balance fetch failed: \(error.localizedDescription)")
         }

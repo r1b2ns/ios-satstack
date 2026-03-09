@@ -10,6 +10,7 @@ enum SettingsRoute: Hashable {
     case openSourceSoftware
     case buyMeACoffee
     case fiatCurrency
+    case balanceFormat
 }
 
 // MARK: - Coordinator
@@ -46,5 +47,9 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToFiatCurrency() {
         path.append(SettingsRoute.fiatCurrency)
+    }
+
+    func navigateToBalanceFormat() {
+        path.append(SettingsRoute.balanceFormat)
     }
 }

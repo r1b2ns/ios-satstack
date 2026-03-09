@@ -183,8 +183,8 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             Text("Total Balance")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if let total = viewModel.uiState.totalWalletBalanceBTC {
-                Text(String(format: "₿ %.8f", total))
+            if let total = viewModel.uiState.totalWalletBalanceSats {
+                BalanceDisplayFormatView(sats: total)
                     .font(.title2)
                     .fontWeight(.bold)
                     .monospacedDigit()

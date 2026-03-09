@@ -159,7 +159,7 @@ struct WalletCardView: View {
 
     /// Balance is always displayed — never hidden behind a spinner.
     private func buildBalanceRow() -> some View {
-        Text("\u{20BF} \(formattedBalance)")
+        BalanceDisplayFormatView(sats: effectiveSats)
             .font(.title2)
             .fontWeight(.bold)
             .foregroundStyle(.white)
@@ -169,11 +169,11 @@ struct WalletCardView: View {
 
     // MARK: - Helpers
 
-    private var formattedBalance: String {
-        if let sats = balanceSats {
-            return String(format: "%.8f", Double(sats) / 100_000_000.0)
-        }
-        return String(format: "%.8f", wallet.balanceBTC)
+    /// The balance to display, in satoshis.
+    /// Falls back to the last persisted `wallet.balanceBTC` when no live balance is available.
+    private var effectiveSats: UInt64 {
+        if let sats = balanceSats { return sats }
+        return UInt64(wallet.balanceBTC * 100_000_000)
     }
 }
 
