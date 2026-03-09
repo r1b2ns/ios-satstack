@@ -87,11 +87,13 @@ struct NetworkStatusView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
 
+            #if DEBUG
             Text(endpoint.url)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            #endif
         }
     }
 

@@ -30,6 +30,10 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: HomeCoordinator
+    @EnvironmentObject private var tabSelection: AppTabSelection
+
+    /// The widget whose info sheet is currently being presented. `nil` = no sheet.
+    @State private var infoItem: WidgetItem? = nil
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
@@ -42,6 +46,12 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
                 .toolbar { buildToolbar() }
                 .sheet(isPresented: $coordinator.showCustomizeWidgets) {
                     buildCustomizeSheet()
+                }
+                .sheet(item: $infoItem) { item in
+                    SheetInformationView(
+                        title: item.displayName,
+                        text: AttributedString(item.infoText)
+                    )
                 }
                 .navigationDestinations()
         }
@@ -103,11 +113,15 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
 
     @ViewBuilder
     private func buildWidgetRow(_ row: [WidgetConfiguration]) -> some View {
+        let isCompactRow = row.allSatisfy { $0.size == .compact }
         HStack(spacing: 12) {
             ForEach(row) { config in
                 WidgetView(
                     type: viewModel.widgetType(for: config.item),
-                    size: config.size
+                    size: config.size,
+                    cornerIcon: config.item.cornerIcon,
+                    cornerIconColor: config.item.cornerIconColor,
+                    onCornerAction: cornerAction(for: config.item)
                 )
             }
             // Keeps a lone compact widget at half-width instead of stretching full row
@@ -115,7 +129,21 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
                 Color.clear
             }
         }
+        // Fix compact rows to a uniform height so all compact cards are the same size
+        .frame(height: isCompactRow ? 120 : nil)
     }
+
+    // MARK: - Corner actions
+
+    private func cornerAction(for item: WidgetItem) -> (() -> Void) {
+        if item == .walletBalance {
+            return { tabSelection.selectedTab = AppTabSelection.wallets }
+        } else {
+            return { infoItem = item }
+        }
+    }
+
+    // MARK: - Empty state
 
     private func buildEmptyState() -> some View {
         ContentUnavailableView(

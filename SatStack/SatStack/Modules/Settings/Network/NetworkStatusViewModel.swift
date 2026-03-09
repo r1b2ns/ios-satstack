@@ -94,7 +94,7 @@ final class NetworkStatusViewModel: NetworkStatusViewModelProtocol {
             let scheme = Bundle.main.infoDictionary?["MempoolMonitorScheme"] as? String ?? "http"
             endpoints.append(
                 NetworkEndpoint(
-                    name: "Mempool Monitor",
+                    name: "Push Notification Server",
                     url: "\(scheme)://\(host)"
                 )
             )

@@ -5,10 +5,12 @@ import SwiftUI
 /// Bottom sheet that lets the user choose how to add a wallet.
 ///
 /// Navigation:
-/// - Initial list  → **Create**, **Import**, **SatsCard**
+/// - Initial list  → **Create**, **Import**, **SatsCard** (Bitcoin section)
+///                 → **Lightning Wallet** (Lightning section)
 /// - Create        → `SeedPhraseView` — wallet saved after user confirms
 /// - Import        → `ImportWalletView` — BIP-39 phrase entry
 /// - SatsCard      → `SatsCardView` — NFC-based SatsCard flow
+/// - Lightning     → `LightningWalletView` — Lightning wallet placeholder
 struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
@@ -16,12 +18,15 @@ struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
     @State private var showSeedPhrase = false
     @State private var showImport = false
     @State private var showSatsCard = false
+    @State private var showLightning = false
     @State private var isCreating = false
     @State private var creationResult: CreationResult?
-    @State private var sheetDetent: PresentationDetent = .height(280)
+    @State private var sheetDetent: PresentationDetent = .height(380)
 
     /// True whenever a child screen is pushed — used to expand the sheet.
-    private var isNavigated: Bool { showSeedPhrase || showImport || showSatsCard }
+    private var isNavigated: Bool {
+        showSeedPhrase || showImport || showSatsCard || showLightning
+    }
 
     var body: some View {
         NavigationStack {
@@ -41,11 +46,14 @@ struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
                 .navigationDestination(isPresented: $showSatsCard) {
                     SatsCardView()
                 }
+                .navigationDestination(isPresented: $showLightning) {
+                    LightningWalletView()
+                }
                 .onChange(of: isNavigated) { _, navigated in
-                    sheetDetent = navigated ? .large : .height(280)
+                    sheetDetent = navigated ? .large : .height(380)
                 }
         }
-        .presentationDetents([.height(280), .large], selection: $sheetDetent)
+        .presentationDetents([.height(380), .large], selection: $sheetDetent)
         .presentationDragIndicator(.visible)
     }
 
@@ -53,23 +61,29 @@ struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
 
     private func buildOptionList() -> some View {
         List {
-            ForEach(WalletOption.allCases, id: \.self) { option in
-                buildOptionRow(option)
+            Section {
+                ForEach(BitcoinOption.allCases, id: \.self) { option in
+                    buildBitcoinRow(option)
+                }
+            }
+
+            Section("Lightning") {
+                buildLightningRow()
             }
         }
         .listStyle(.insetGrouped)
     }
 
-    private func buildOptionRow(_ option: WalletOption) -> some View {
+    private func buildBitcoinRow(_ option: BitcoinOption) -> some View {
         Button {
             handleSelection(option)
         } label: {
             HStack(spacing: 14) {
-                buildLeadingIcon(option)
+                buildLeadingIcon(systemName: option.icon, color: option.iconColor)
                 Text(option.title)
                     .foregroundStyle(.primary)
                 Spacer()
-                buildTrailingIndicator(option)
+                buildTrailingIndicator(isLoading: isCreating && option == .create)
             }
             .contentShape(Rectangle())
         }
@@ -77,16 +91,32 @@ struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
         .disabled(isCreating)
     }
 
-    private func buildLeadingIcon(_ option: WalletOption) -> some View {
-        Image(systemName: option.icon)
+    private func buildLightningRow() -> some View {
+        Button {
+            showLightning = true
+        } label: {
+            HStack(spacing: 14) {
+                buildLeadingIcon(systemName: "bolt.fill", color: .yellow)
+                Text("Lightning Wallet")
+                    .foregroundStyle(.primary)
+                Spacer()
+                buildTrailingIndicator(isLoading: false)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func buildLeadingIcon(systemName: String, color: Color) -> some View {
+        Image(systemName: systemName)
             .font(.title3)
-            .foregroundStyle(option.iconColor)
+            .foregroundStyle(color)
             .frame(width: 32, alignment: .center)
     }
 
-    private func buildTrailingIndicator(_ option: WalletOption) -> some View {
+    private func buildTrailingIndicator(isLoading: Bool) -> some View {
         Group {
-            if isCreating && option == .create {
+            if isLoading {
                 ProgressView()
                     .frame(width: 16, height: 16)
             } else {
@@ -100,7 +130,7 @@ struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
 
     // MARK: - Actions
 
-    private func handleSelection(_ option: WalletOption) {
+    private func handleSelection(_ option: BitcoinOption) {
         switch option {
         case .create:   Task { await createWallet() }
         case .import:   showImport = true
@@ -124,9 +154,9 @@ struct AddWalletSheetView<ViewModel: WalletsViewModelProtocol>: View {
     }
 }
 
-// MARK: - WalletOption
+// MARK: - BitcoinOption
 
-private enum WalletOption: CaseIterable {
+private enum BitcoinOption: CaseIterable {
     case create
     case `import`
     case satsCard

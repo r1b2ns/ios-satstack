@@ -134,6 +134,10 @@ struct WalletsUiState {
     /// Controls whether the send-bitcoin sheet is presented.
     var isPresentingSendSheet: Bool = false
 
+    /// Total wallet balance in BTC, computed by summing all persisted wallets.
+    /// `nil` until the first successful fetch from SwiftData.
+    var totalWalletBalanceBTC: Double? = nil
+
     /// Non-nil when a sync error should be shown to the user.
     var syncErrorMessage: String? = nil
 
@@ -169,6 +173,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         self.walletLifecycleService = walletLifecycleService
         subscribeSyncEvents()
         Task { @MainActor in await self.loadWallets() }
+        Task { @MainActor in await self.fetchWalletBalance() }
     }
 
     // MARK: - Sync event subscription
@@ -400,6 +405,9 @@ private extension WalletsViewModel {
                 uiState.selectedWalletBalanceSats = balanceSats
             }
 
+            uiState.totalWalletBalanceBTC = uiState.walletBalances.values
+                .reduce(0.0) { $0 + Double($1) / 100_000_000.0 }
+
         case .selectedWalletSynced(let walletId, let balanceSats, let transactions):
             guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
             uiState.selectedWalletBalanceSats = balanceSats
@@ -412,6 +420,9 @@ private extension WalletsViewModel {
                 Task { await self.persistWallet(self.uiState.wallets[index]) }
             }
             Task { await self.persistTransactions(transactions, for: walletId) }
+
+            uiState.totalWalletBalanceBTC = uiState.walletBalances.values
+                .reduce(0.0) { $0 + Double($1) / 100_000_000.0 }
 
         case .transactionsUpdated(let walletId, let transactions):
             guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
@@ -442,6 +453,20 @@ private extension WalletsViewModel {
 // MARK: - Private async (persistence + loading)
 
 private extension WalletsViewModel {
+
+    // MARK: - Wallet balance fetch
+
+    /// Loads all persisted wallets from SwiftData and sums their `balanceBTC`.
+    @MainActor
+    func fetchWalletBalance() async {
+        do {
+            let wallets: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
+            let total = wallets.reduce(0.0) { $0 + $1.balanceBTC }
+            uiState.totalWalletBalanceBTC = total
+        } catch {
+            Log.print.error("Wallet balance fetch failed: \(error.localizedDescription)")
+        }
+    }
 
     /// Loads persisted wallets from SwiftData on startup, seeds the balance
     /// dictionary from the last persisted `balanceBTC`, then triggers

@@ -148,30 +148,56 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         let totalHeight = CGFloat(wallets.count - 1) * headerHeight + cardHeight
 
         return ScrollView {
-            ZStack(alignment: .top) {
-                ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
-                    WalletCardView(
-                            wallet: wallet,
-                            balanceSats: viewModel.uiState.walletBalances[wallet.id],
-                            syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
-                        )
-                        .offset(y: CGFloat(index) * headerHeight)
-                        .zIndex(Double(index))
-                        .onTapGesture {
-                            withAnimation(.spring(duration: 0.42)) {
-                                viewModel.selectWallet(wallet.id)
+            VStack(spacing: 0) {
+                buildTotalBalanceHeader()
+
+                ZStack(alignment: .top) {
+                    ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
+                        WalletCardView(
+                                wallet: wallet,
+                                balanceSats: viewModel.uiState.walletBalances[wallet.id],
+                                syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
+                            )
+                            .offset(y: CGFloat(index) * headerHeight)
+                            .zIndex(Double(index))
+                            .onTapGesture {
+                                withAnimation(.spring(duration: 0.42)) {
+                                    viewModel.selectWallet(wallet.id)
+                                }
                             }
-                        }
+                    }
                 }
+                .frame(height: totalHeight)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 32)
             }
-            .frame(height: totalHeight)
-            .padding(.horizontal, 20)
             .padding(.top, 4)
-            .padding(.bottom, 32)
         }
         .refreshable {
             await viewModel.fullScanAllWallets()
         }
+    }
+
+    private func buildTotalBalanceHeader() -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Total Balance")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let total = viewModel.uiState.totalWalletBalanceBTC {
+                Text(String(format: "₿ %.8f", total))
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+            } else {
+                Text("₿ -.--------")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .redacted(reason: .placeholder)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 16)
     }
 
     // MARK: - Detail view (selected card + transactions)

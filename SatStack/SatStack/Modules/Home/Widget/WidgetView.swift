@@ -5,12 +5,42 @@ import SwiftUI
 /// - For `.icon`: draws a card with an SF Symbol, title, and subtitle.
 ///   Layout adapts — compact uses a vertical stack, expanded uses a horizontal layout.
 /// - For `.custom`: wraps the provided SwiftUI view inside the same card container.
+///
+/// An optional `cornerIcon` + `onCornerAction` pair renders a tappable icon in the
+/// top-right corner of the card (e.g. an info button or a navigation chevron).
 struct WidgetView: View {
 
     let type: WidgetType
     let size: WidgetSize
+    let cornerIcon: String?
+    let cornerIconColor: Color
+    let onCornerAction: (() -> Void)?
+
+    init(
+        type: WidgetType,
+        size: WidgetSize,
+        cornerIcon: String? = nil,
+        cornerIconColor: Color = .secondary,
+        onCornerAction: (() -> Void)? = nil
+    ) {
+        self.type = type
+        self.size = size
+        self.cornerIcon = cornerIcon
+        self.cornerIconColor = cornerIconColor
+        self.onCornerAction = onCornerAction
+    }
 
     var body: some View {
+        ZStack(alignment: .topTrailing) {
+            buildCard()
+            buildCornerButton()
+        }
+    }
+
+    // MARK: - Card
+
+    @ViewBuilder
+    private func buildCard() -> some View {
         switch type {
         case .custom(let view):
             buildCustomCard(view: view)
@@ -69,6 +99,20 @@ struct WidgetView: View {
         VStack(alignment: .leading, spacing: 4) {
             AppText(title, style: .headline)
             AppText(subtitle, style: .subheadline, color: .secondary)
+        }
+    }
+
+    // MARK: - Corner button
+
+    @ViewBuilder
+    private func buildCornerButton() -> some View {
+        if let icon = cornerIcon, let action = onCornerAction {
+            Button(action: action) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(cornerIconColor)
+                    .padding(10)
+            }
         }
     }
 }

@@ -6,6 +6,10 @@ import TipKit
 struct SatStackApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    /// Controls which tab is visible. Injected as an environment object so
+    /// any view can switch tabs programmatically (e.g. from a widget action).
+    @StateObject private var tabSelection = AppTabSelection()
+
     /// Controls the welcome screen shown on first launch.
     @State private var showWelcome = !UserDefaults.standard.bool(forKey: "hasSeenWelcome")
 
@@ -27,7 +31,7 @@ struct SatStackApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TabView {
+            TabView(selection: $tabSelection.selectedTab) {
                 HomeViewFactory.build()
                     .tabItem {
                         Label {
@@ -36,6 +40,7 @@ struct SatStackApp: App {
                             Image(systemName: "house")
                         }
                     }
+                    .tag(AppTabSelection.home)
 
                 WalletsViewFactory.build()
                     .tabItem {
@@ -45,6 +50,7 @@ struct SatStackApp: App {
                             Image(systemName: "creditcard")
                         }
                     }
+                    .tag(AppTabSelection.wallets)
 
                 TransactionListViewFactory.build()
                     .tabItem {
@@ -54,6 +60,7 @@ struct SatStackApp: App {
                             Image(systemName: "list.bullet")
                         }
                     }
+                    .tag(AppTabSelection.watching)
 
                 SettingsViewFactory.build()
                     .tabItem {
@@ -63,7 +70,9 @@ struct SatStackApp: App {
                             Image(systemName: "gear")
                         }
                     }
+                    .tag(AppTabSelection.settings)
             }
+            .environmentObject(tabSelection)
             .modelContainer(modelContainer)
             .fullScreenCover(isPresented: $showWelcome) {
                 WelcomeView {

@@ -60,4 +60,41 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
         default:                  return .compact
         }
     }
+
+    // MARK: - Corner action
+
+    /// SF Symbol name for the optional top-right corner icon.
+    var cornerIcon: String? {
+        switch self {
+        case .walletBalance:
+            return "chevron.right"
+        case .greedAndFearsIndex, .nextHalving, .transactionFeeValue, .currentBlockHeight, .fiatPrice:
+            return "info.circle"
+        }
+    }
+
+    /// Foreground color of the corner icon.
+    var cornerIconColor: Color {
+        self == .walletBalance ? Color(.darkGray) : .secondary
+    }
+
+    // MARK: - Info text
+
+    /// Explanatory text shown in the information bottom sheet.
+    var infoText: String {
+        switch self {
+        case .greedAndFearsIndex:
+            return "The Crypto Fear & Greed Index measures overall market sentiment on a scale from 0 (Extreme Fear) to 100 (Extreme Greed). Extreme fear can signal a buying opportunity, while extreme greed may indicate the market is overheated and due for a correction."
+        case .nextHalving:
+            return "Bitcoin halving occurs approximately every four years — every 210,000 blocks — and cuts the block reward miners receive in half. This reduces the rate at which new Bitcoin enters circulation and has historically preceded significant price movements."
+        case .transactionFeeValue:
+            return "Transaction fees are paid to miners to have your transaction included in the next block. The fee rates shown represent current network demand: faster confirmation requires a higher fee, while economy transactions may take longer during busy periods."
+        case .currentBlockHeight:
+            return "The block height is the total number of blocks mined since Bitcoin's genesis block (block 0). A new block is added roughly every 10 minutes, each containing a batch of confirmed transactions. It serves as Bitcoin's internal clock."
+        case .fiatPrice:
+            return "The current Bitcoin price in US Dollars (USD), sourced in real time from public market data. Prices fluctuate continuously on global exchanges based on supply and demand."
+        case .walletBalance:
+            return ""
+        }
+    }
 }
