@@ -146,6 +146,10 @@ targets:
         # ── Camera ────────────────────────────────────────────────────────
         NSCameraUsageDescription: "Used to scan Bitcoin QR codes when sending a transaction."
 
+        # ── Export compliance ─────────────────────────────────────────────
+        # App uses only standard HTTPS/TLS — no non-exempt encryption.
+        ITSAppUsesNonExemptEncryption: false
+
         # ── Live Activities ────────────────────────────────────────────────
         NSSupportsLiveActivities: true
 
