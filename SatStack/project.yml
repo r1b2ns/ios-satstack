@@ -132,6 +132,17 @@ targets:
               NSExceptionAllowsInsecureHTTPLoads: true
               NSIncludesSubdomains: false
 
+        # ── Interface orientations ────────────────────────────────────────
+        # iPhone: portrait only
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        # iPad: all four orientations required for multitasking support
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+
         # ── Live Activities ────────────────────────────────────────────────
         NSSupportsLiveActivities: true
 
