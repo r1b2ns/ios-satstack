@@ -220,15 +220,15 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
         AppText("\(confirmations) conf.", style: .caption, color: .secondary)
     }
 
+    @ViewBuilder
     private func buildValueLabel(_ valueBtc: Double?) -> some View {
-        Group {
-            if let valueBtc {
-                AppText(String(format: "₿ %.8f", valueBtc), style: .body)
-                    .fontWeight(.semibold)
-            } else {
-                AppText("₿ —", style: .body, color: .secondary)
-                    .fontWeight(.semibold)
-            }
+        if let valueBtc {
+            BalanceDisplayFormatView(sats: UInt64(abs(valueBtc) * 100_000_000))
+                .font(.body)
+                .fontWeight(.semibold)
+        } else {
+            AppText("—", style: .body, color: .secondary)
+                .fontWeight(.semibold)
         }
     }
 

@@ -100,10 +100,7 @@ struct WalletsTransactionsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(tx.formattedValue)
-                    .font(.callout)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(tx.isReceived ? Color.green : Color.red)
+                buildTransactionValue(tx)
                 Image(systemName: "chevron.right")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -113,6 +110,17 @@ struct WalletsTransactionsView: View {
             .opacity(tx.isConfirmed ? 1 : 0.5)
         }
         .buttonStyle(.plain)
+    }
+
+    private func buildTransactionValue(_ tx: WalletTransaction) -> some View {
+        let sats = UInt64(abs(tx.valueBTC) * 100_000_000)
+        return HStack(spacing: 2) {
+            Text(tx.isReceived ? "+" : "−")
+            BalanceDisplayFormatView(sats: sats)
+        }
+        .font(.callout)
+        .fontWeight(.semibold)
+        .foregroundStyle(tx.isReceived ? Color.green : Color.red)
     }
 
     private func buildTransactionIcon(isReceived: Bool) -> some View {

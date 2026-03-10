@@ -33,7 +33,7 @@ struct SatStackLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.center) {
                     if let btc = context.state.valueBtc {
-                        Text(btc.btcFormatted)
+                        Text(btc.balanceFormatted)
                             .font(.system(.caption, design: .monospaced).bold())
                             .foregroundStyle(.primary)
                     }
@@ -124,7 +124,7 @@ private struct LockScreenView: View {
                         Image(systemName: "bitcoinsign")
                             .font(.caption2)
                             .foregroundStyle(.orange)
-                        Text(btc.btcFormatted)
+                        Text(btc.balanceFormatted)
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
@@ -183,14 +183,29 @@ private extension TransactionStatus {
 }
 
 private extension Double {
-    /// Formats a BTC value removing unnecessary trailing zeros.
-    /// Ex.: 0.07250000 → "0.0725 BTC" | 1.00000000 → "1.0 BTC"
-    var btcFormatted: String {
-        let s = String(format: "%.8f", self)
-        let trimmed = s
-            .replacingOccurrences(of: "(\\.[0-9]*[1-9])0+$", with: "$1", options: .regularExpression)
-            .replacingOccurrences(of: "\\.0+$",              with: ".0",  options: .regularExpression)
-        return "\(trimmed) BTC"
+    /// Formats a BTC value using the user's preferred balance display format.
+    ///
+    /// Reads `UserDefaults.standard` with the same key as the main app.
+    /// Falls back to BTC format for the `.fiat` case, since price data
+    /// is not available in the widget extension.
+    var balanceFormatted: String {
+        let sats = UInt64(abs(self) * 100_000_000)
+        switch UserDefaults.standard.string(forKey: "preferredBalanceFormat") {
+        case "sats":
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            return "\(formatter.string(from: NSNumber(value: sats)) ?? "\(sats)") sats"
+        case "bip177":
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            return "\(formatter.string(from: NSNumber(value: sats)) ?? "\(sats)") ₿"
+        default: // "bitcoin", "fiat" (no price data in widget), or unset → BTC
+            let s = String(format: "%.8f", abs(self))
+            let trimmed = s
+                .replacingOccurrences(of: "(\\.[0-9]*[1-9])0+$", with: "$1", options: .regularExpression)
+                .replacingOccurrences(of: "\\.0+$",               with: ".0",  options: .regularExpression)
+            return "\(trimmed) BTC"
+        }
     }
 }
 
