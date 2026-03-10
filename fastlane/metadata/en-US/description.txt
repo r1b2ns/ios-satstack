@@ -1,0 +1,19 @@
+SatStack is an open-source Bitcoin wallet and mempool monitor built for self-sovereign users who want full control over their coins and real-time insight into the Bitcoin network.
+
+REAL-TIME DASHBOARD
+Stay on top of the market with a live dashboard showing Bitcoin price, network fee estimates (low, medium, high priority), current block height, and mempool congestion — all updated in real time.
+
+SELF-CUSTODY WALLETS
+Create a new wallet or import an existing one using your seed phrase or descriptor. Your private keys are stored exclusively on your device, encrypted in the Secure Enclave. No custodian, no cloud backup — your keys, your coins.
+
+TRANSACTION MONITORING WITH LIVE ACTIVITIES
+Register any Bitcoin transaction and track its status directly from your Lock Screen and Dynamic Island. SatStack uses iOS Live Activities to show confirmation count, fee paid, and current status without unlocking your phone.
+
+SEND BITCOIN
+Compose and broadcast transactions with full fee control. Scan a recipient's QR code or paste an address, set your preferred fee rate, review the details, and sign with your local key — all in a few taps.
+
+OPEN SOURCE & TRANSPARENT
+SatStack is fully open source. Every line of code is publicly auditable on GitHub. No hidden tracking, no analytics, no ads — just Bitcoin.
+
+POWERED BY BITCOIN DEV KIT
+The wallet engine is built on Bitcoin Dev Kit (BDK), a battle-tested Rust library for building Bitcoin wallets. Signet is used for development builds; mainnet for production.

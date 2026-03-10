@@ -1,0 +1,19 @@
+SatStack é uma carteira Bitcoin e monitor de mempool de código aberto, desenvolvido para quem quer soberania total sobre suas moedas e visibilidade em tempo real sobre a rede Bitcoin.
+
+PAINEL EM TEMPO REAL
+Fique por dentro do mercado com um painel ao vivo exibindo o preço do Bitcoin, estimativas de taxa de rede (prioridade baixa, média e alta), altura do bloco atual e congestionamento do mempool — tudo atualizado em tempo real.
+
+CARTEIRA SELF-CUSTODY
+Crie uma nova carteira ou importe uma existente usando sua seed phrase ou descriptor. Suas chaves privadas ficam armazenadas exclusivamente no seu dispositivo, criptografadas no Secure Enclave. Sem custodiante, sem backup em nuvem — suas chaves, suas moedas.
+
+MONITORAMENTO DE TRANSAÇÕES COM LIVE ACTIVITIES
+Cadastre qualquer transação Bitcoin e acompanhe seu status diretamente na Tela de Bloqueio e na Dynamic Island. O SatStack usa as Live Activities do iOS para exibir o número de confirmações, a taxa paga e o status atual — sem precisar desbloquear o celular.
+
+ENVIE BITCOIN
+Componha e transmita transações com controle total de taxa. Escaneie o QR code do destinatário ou cole um endereço, defina a taxa preferida, revise os detalhes e assine com sua chave local — tudo em poucos toques.
+
+CÓDIGO ABERTO E TRANSPARENTE
+O SatStack é totalmente open source. Cada linha de código pode ser auditada publicamente no GitHub. Sem rastreamento oculto, sem analytics, sem anúncios — só Bitcoin.
+
+DESENVOLVIDO COM O BITCOIN DEV KIT
+O motor da carteira é construído sobre o Bitcoin Dev Kit (BDK), uma biblioteca Rust amplamente testada para criação de carteiras Bitcoin. Signet é utilizado em builds de desenvolvimento; mainnet em produção.

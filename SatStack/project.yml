@@ -191,7 +191,7 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"
-        MARKETING_VERSION: "1.0"
+        # MARKETING_VERSION → definido em Configs/Debug|Release.xcconfig
         # PRODUCT_BUNDLE_IDENTIFIER → definido em Configs/Debug|Release.xcconfig
         PRODUCT_NAME: "$(TARGET_NAME)"
         SWIFT_EMIT_LOC_STRINGS: YES
@@ -250,7 +250,7 @@ targets:
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/../../Frameworks"
-        MARKETING_VERSION: "1.0"
+        # MARKETING_VERSION → definido em Configs/Debug|Release.xcconfig
         # Bundle ID vem da chave PRODUCT_BUNDLE_IDENTIFIER_WIDGET do Debug|Release.xcconfig
         PRODUCT_BUNDLE_IDENTIFIER: "$(PRODUCT_BUNDLE_IDENTIFIER_WIDGET)"
         PRODUCT_NAME: "$(TARGET_NAME)"
@@ -295,7 +295,7 @@ targets:
         TEST_HOST:            "$(BUILT_PRODUCTS_DIR)/SatStack.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SatStack"
         # CODE_SIGN_STYLE and DEVELOPMENT_TEAM are set per-configuration in xcconfig files.
         CURRENT_PROJECT_VERSION: "1"
-        MARKETING_VERSION:    "1.0"
+        # MARKETING_VERSION → definido em Configs/Debug|Release.xcconfig
         # Bundle ID vem da chave PRODUCT_BUNDLE_IDENTIFIER_TESTS do Debug|Release.xcconfig
         PRODUCT_BUNDLE_IDENTIFIER: "$(PRODUCT_BUNDLE_IDENTIFIER_TESTS)"
         PRODUCT_NAME:         "$(TARGET_NAME)"
