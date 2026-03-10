@@ -1,15 +1,8 @@
 # Appfile — static app identity shared across all lanes.
-# Sensitive credentials (Apple ID, ITC team ID) are read from
-# environment variables so they are never hard-coded in version control.
+# Authentication is handled via App Store Connect API key (set in fastlane/.env),
+# so no Apple ID password is required.
 
 app_identifier "space.underground.satstack"
 
-# Export APPLE_ID=you@example.com before running any lane that contacts App Store Connect.
-apple_id ENV["APPLE_ID"]
-
 # Developer Portal team (from DEVELOPMENT_TEAM in Release.xcconfig).
 team_id "VVAVW2S9CF"
-
-# App Store Connect numeric team ID (different from the developer portal team ID).
-# Export ITC_TEAM_ID=<numeric_id> if your account belongs to more than one team.
-itc_team_id ENV["ITC_TEAM_ID"]

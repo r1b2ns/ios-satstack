@@ -3,6 +3,9 @@
 // Create the real file from this template:
 //    cp Configs/Release.xcconfig.template Configs/Release.xcconfig
 
+// ── Version ───────────────────────────────────────────────────────────────
+MARKETING_VERSION = 1.0
+
 // ── Bundle identity & signing ─────────────────────────────────────────────
 PRODUCT_BUNDLE_IDENTIFIER        = <your.bundle.identifier>
 PRODUCT_BUNDLE_IDENTIFIER_WIDGET = <your.bundle.identifier>.widget
