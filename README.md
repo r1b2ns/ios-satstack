@@ -9,20 +9,22 @@ Updates are delivered via **APNs (Apple Push Notification service)**, with no ne
 ## Screenshots
 
 <p align="center">
-  <img src="snapshots/01.png" width="18%" alt="Home — widget grid" />
-  <img src="snapshots/02.png" width="18%" alt="Transactions list" />
-  <img src="snapshots/03.png" width="18%" alt="Watch Transaction" />
-  <img src="snapshots/04.png" width="18%" alt="Live Activity on Lock Screen" />
-  <img src="snapshots/05.png" width="18%" alt="Wallets" />
+  <img src="snapshots/iPhone_6.9_01.png" width="15%" alt="Home" />
+  <img src="snapshots/iPhone_6.9_02.png" width="15%" alt="Wallets" />
+  <img src="snapshots/iPhone_6.9_03.png" width="15%" alt="Wallet Detail" />
+  <img src="snapshots/iPhone_6.9_04.png" width="15%" alt="Send Bitcoin" />
+  <img src="snapshots/iPhone_6.9_05.png" width="15%" alt="Settings" />
+  <img src="snapshots/iPhone_6.9_06.png" width="15%" alt="Live Activity" />
 </p>
 
-| Screenshot | Description |
+| # | Description |
 |---|---|
-| 1 | **Home** — widget grid with Greed & Fear Index (expanded) and compact widgets |
-| 2 | **Transactions** — list of monitored transactions grouped by status |
-| 3 | **Watch Transaction** — add a new transaction by pasting a TXID |
-| 4 | **Live Activity** — real-time transaction status on the Lock Screen |
-| 5 | **Wallets** — manage your Bitcoin wallets |
+| 1 | **Home** — real-time dashboard with Greed & Fear Index, block height, fee estimates, wallet balance, next halving and BTC price |
+| 2 | **Wallets** — list of wallets with aggregated total balance |
+| 3 | **Wallet Detail** — imported wallet with balance, latest transactions, Receive and Send actions |
+| 4 | **Send Bitcoin** — compose a transaction with recipient address, amount and fee rate (slow / medium / fast) |
+| 5 | **Settings** — push notifications, network (mainnet/signet), balance format and preferences |
+| 6 | **Live Activity** — real-time transaction tracking on the Lock Screen and Dynamic Island |
 
 ---
 
