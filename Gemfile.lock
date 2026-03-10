@@ -69,7 +69,7 @@ GEM
     faraday-retry (1.0.4)
     faraday_middleware (1.2.1)
       faraday (~> 1.0)
-    fastimage (2.4.0)
+    fastimage (2.4.1)
     fastlane (2.230.0)
       CFPropertyList (>= 2.3, < 4.0.0)
       abbrev (~> 0.1.2)

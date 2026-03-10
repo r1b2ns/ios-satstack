@@ -1,1 +1,1 @@
-Bitcoin Wallet & Mempool Monitor
+Bitcoin Wallet & Mempool
