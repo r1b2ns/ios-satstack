@@ -1,3 +1,11 @@
 # ─── Instruções locais para o Claude Code ────────────────────────────────────
 CLAUDE.md
 settings.local.json
+
+# ─── Fastlane ────────────────────────────────────────────────────────────────
+build/
+vendor/bundle/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/

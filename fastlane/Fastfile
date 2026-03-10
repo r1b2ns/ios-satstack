@@ -1,0 +1,110 @@
+# Fastfile — SatStack iOS
+#
+# Usage (from repo root):
+#   bundle exec fastlane test
+#   bundle exec fastlane beta
+#   bundle exec fastlane release
+#
+# Required environment variables for beta / release lanes:
+#   APPLE_ID       — Apple ID email used to sign in to App Store Connect
+#   ITC_TEAM_ID    — App Store Connect numeric team ID (if multi-team account)
+#   APP_STORE_CONNECT_API_KEY_ID      \
+#   APP_STORE_CONNECT_API_ISSUER_ID    > recommended: use an API key instead of password
+#   APP_STORE_CONNECT_API_KEY_CONTENT /
+
+default_platform(:ios)
+
+# ─── Project constants ────────────────────────────────────────────────────────
+
+PROJECT     = "SatStack/SatStack.xcodeproj"
+SCHEME_DEV  = "SatStack Development"
+SCHEME_PROD = "SatStack Production"
+BUNDLE_ID   = "space.underground.satstack"
+OUTPUT_DIR  = "build"
+
+# ─── Platform ────────────────────────────────────────────────────────────────
+
+platform :ios do
+
+  # ── before_all ─────────────────────────────────────────────────────────────
+
+  before_all do
+    # Regenerate the Xcode project from project.yml so the workspace is always
+    # up-to-date before building, regardless of untracked source-file changes.
+    sh("cd .. && xcodegen generate --spec SatStack/project.yml")
+  end
+
+  # ── test ───────────────────────────────────────────────────────────────────
+
+  desc "Run unit tests on the simulator"
+  lane :test do
+    run_tests(
+      project:             PROJECT,
+      scheme:              SCHEME_DEV,
+      device:              "iPhone 16 Pro",
+      clean:               true,
+      result_bundle:       true,
+      output_directory:    "#{OUTPUT_DIR}/test_output",
+      output_files:        "report.junit"
+    )
+  end
+
+  # ── beta ───────────────────────────────────────────────────────────────────
+
+  desc "Build and upload a new beta to TestFlight"
+  lane :beta do
+    increment_build_number(xcodeproj: PROJECT)
+
+    build_app(
+      project:          PROJECT,
+      scheme:           SCHEME_PROD,
+      configuration:    "Release",
+      output_directory: OUTPUT_DIR,
+      output_name:      "SatStack.ipa",
+      export_method:    "app-store",
+      clean:            true
+    )
+
+    upload_to_testflight(
+      app_identifier:                    BUNDLE_ID,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  # ── release ────────────────────────────────────────────────────────────────
+
+  desc "Build and submit a new version to the App Store"
+  lane :release do
+    increment_build_number(xcodeproj: PROJECT)
+
+    build_app(
+      project:          PROJECT,
+      scheme:           SCHEME_PROD,
+      configuration:    "Release",
+      output_directory: OUTPUT_DIR,
+      output_name:      "SatStack.ipa",
+      export_method:    "app-store",
+      clean:            true
+    )
+
+    upload_to_app_store(
+      app_identifier:    BUNDLE_ID,
+      submit_for_review: false,
+      automatic_release: false,
+      force:             true,  # skip HTML report preview
+      skip_screenshots:  true,
+      skip_metadata:     true
+    )
+  end
+
+  # ── after_all / error ──────────────────────────────────────────────────────
+
+  after_all do |lane|
+    UI.success("Lane '#{lane}' completed successfully.")
+  end
+
+  error do |lane, exception|
+    UI.error("Lane '#{lane}' failed: #{exception.message}")
+  end
+
+end
