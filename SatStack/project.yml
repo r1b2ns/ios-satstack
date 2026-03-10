@@ -197,6 +197,10 @@ targets:
         SWIFT_EMIT_LOC_STRINGS: YES
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Debug:
+          # Use the "beta" ribbon icon for Development (Debug) builds
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
 
     # ─── Widget extension embutido no app ────────────────────────────────────
     dependencies:
