@@ -16,11 +16,17 @@ struct Wallet: Identifiable, Codable {
     var balanceBTC: Double
 
     /// BIP-39 mnemonic phrase (space-separated words). Nil for watch-only wallets.
-    let mnemonicPhrase: String?
+    ///
+    /// **Not encoded/decoded.** Loaded exclusively from the iOS Keychain after SwiftData
+    /// deserialization — never written to SwiftData storage.
+    var mnemonicPhrase: String? = nil
 
     /// Original import descriptor (xpub or Bitcoin address) for watch-only wallets.
     /// Used for duplicate detection. Nil for seed-based wallets.
-    let descriptor: String?
+    ///
+    /// **Not encoded/decoded.** Loaded exclusively from the iOS Keychain after SwiftData
+    /// deserialization — never written to SwiftData storage.
+    var descriptor: String? = nil
 
     init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil, descriptor: String? = nil) {
         self.id = id
@@ -37,5 +43,14 @@ struct Wallet: Identifiable, Codable {
         guard mnemonicPhrase == nil, let descriptor else { return false }
         let addressPrefixes = ["bc1", "tb1", "1", "3"]
         return addressPrefixes.contains(where: { descriptor.hasPrefix($0) })
+    }
+
+    // MARK: - Codable (sensitive fields excluded)
+
+    /// Encodes/decodes only the non-sensitive fields persisted in SwiftData.
+    /// `mnemonicPhrase` and `descriptor` are intentionally omitted — they live
+    /// exclusively in the iOS Keychain, keyed by the wallet's UUID.
+    private enum CodingKeys: String, CodingKey {
+        case id, name, theme, balanceBTC
     }
 }

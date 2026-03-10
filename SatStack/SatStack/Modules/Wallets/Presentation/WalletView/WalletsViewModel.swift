@@ -166,15 +166,28 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     /// Sync operations are delegated to the `syncManager`.
     private let walletLifecycleService: any WalletServiceProtocol
 
+    /// Persistent storage backend for non-sensitive wallet data and cached transactions.
+    private let swiftDataStorage: any PersistentStorable
+
+    /// Secure key-value storage for sensitive fields (`mnemonicPhrase`, `descriptor`).
+    private let keychainStorage: KeyStorable
+
     /// Combine subscriptions for sync event observation.
     private var cancellables = Set<AnyCancellable>()
 
+    @MainActor
     init(
         syncManager: any WalletSyncManagerProtocol = WalletSyncManager(),
-        walletLifecycleService: any WalletServiceProtocol = BDKWalletService()
+        walletLifecycleService: any WalletServiceProtocol = BDKWalletService(),
+        swiftDataStorage: (any PersistentStorable)? = nil,
+        keychainStorage: KeyStorable = KeychainStorable.shared
     ) {
         self.syncManager = syncManager
         self.walletLifecycleService = walletLifecycleService
+        // Resolve inside the @MainActor init body so SwiftDataStorable.shared
+        // (which is @MainActor-isolated) is accessed in the correct context.
+        self.swiftDataStorage = swiftDataStorage ?? SwiftDataStorable.shared
+        self.keychainStorage = keychainStorage
         subscribeSyncEvents()
         Task { @MainActor in await self.loadWallets() }
         Task { @MainActor in await self.fetchWalletBalance() }
@@ -466,7 +479,7 @@ private extension WalletsViewModel {
     @MainActor
     func fetchWalletBalance() async {
         do {
-            let wallets: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
+            let wallets: [Wallet] = try await swiftDataStorage.fetchAll(Wallet.self)
             let total = wallets.reduce(0.0) { $0 + $1.balanceBTC }
             uiState.totalWalletBalanceBTC  = total
             uiState.totalWalletBalanceSats = wallets.reduce(0) { $0 + UInt64($1.balanceBTC * 100_000_000) }
@@ -482,7 +495,16 @@ private extension WalletsViewModel {
     func loadWallets() async {
         uiState.isLoadingWallets = true
         do {
-            let stored: [Wallet] = try await SwiftDataStorable.shared.fetchAll(Wallet.self)
+            var stored: [Wallet] = try await swiftDataStorage.fetchAll(Wallet.self)
+
+            // Re-hydrate sensitive fields from the Keychain.
+            // They are intentionally excluded from SwiftData via Wallet.CodingKeys.
+            for index in stored.indices {
+                let id = stored[index].id
+                stored[index].mnemonicPhrase = keychainStorage.string(forKey: mnemonicKey(for: id))
+                stored[index].descriptor     = keychainStorage.string(forKey: descriptorKey(for: id))
+            }
+
             uiState.wallets = stored
 
             // Seed per-wallet balances from the last persisted value so the UI
@@ -505,7 +527,17 @@ private extension WalletsViewModel {
 
     func persistWallet(_ wallet: Wallet) async {
         do {
-            try await SwiftDataStorable.shared.save(wallet, id: wallet.id.uuidString)
+            // SwiftData stores only non-sensitive fields (CodingKeys excludes mnemonic/descriptor).
+            try await swiftDataStorage.save(wallet, id: wallet.id.uuidString)
+
+            // Sensitive fields are stored exclusively in the iOS Keychain.
+            if let phrase = wallet.mnemonicPhrase {
+                keychainStorage.set(phrase, forKey: mnemonicKey(for: wallet.id))
+            }
+            if let descriptor = wallet.descriptor {
+                keychainStorage.set(descriptor, forKey: descriptorKey(for: wallet.id))
+            }
+
             Log.print.info("Wallet saved: '\(wallet.name)'")
         } catch {
             Log.print.error("Failed to persist wallet: \(error.localizedDescription)")
@@ -514,12 +546,25 @@ private extension WalletsViewModel {
 
     func removePersistedWallet(id: UUID) async {
         do {
-            try await SwiftDataStorable.shared.delete(Wallet.self, id: id.uuidString)
+            try await swiftDataStorage.delete(Wallet.self, id: id.uuidString)
+
+            // Remove sensitive fields from the Keychain along with the wallet record.
+            keychainStorage.removeObject(forKey: mnemonicKey(for: id))
+            keychainStorage.removeObject(forKey: descriptorKey(for: id))
+
             Log.print.info("Wallet deleted: \(id)")
         } catch {
             Log.print.error("Failed to delete wallet: \(error.localizedDescription)")
         }
     }
+
+    // MARK: - Keychain key helpers
+
+    /// Keychain key for the mnemonic phrase of a given wallet.
+    private func mnemonicKey(for id: UUID) -> String { "wallet.mnemonic.\(id.uuidString)" }
+
+    /// Keychain key for the descriptor (xpub / address) of a given wallet.
+    private func descriptorKey(for id: UUID) -> String { "wallet.descriptor.\(id.uuidString)" }
 
     // MARK: - Transaction persistence
 
@@ -528,7 +573,7 @@ private extension WalletsViewModel {
     func persistTransactions(_ transactions: [WalletTransaction], for walletId: UUID) async {
         let list = WalletTransactionList(walletId: walletId, transactions: transactions)
         do {
-            try await SwiftDataStorable.shared.save(list, id: "txs_\(walletId.uuidString)")
+            try await swiftDataStorage.save(list, id: "txs_\(walletId.uuidString)")
             let walletName = uiState.wallets.first(where: { $0.id == walletId })?.name ?? walletId.uuidString
             Log.print.info("Transactions cached for wallet: '\(walletName)'")
         } catch {
@@ -539,7 +584,7 @@ private extension WalletsViewModel {
     /// Loads previously cached transactions for a wallet from SwiftData.
     func loadCachedTransactions(for walletId: UUID) async -> [WalletTransaction] {
         do {
-            let list: WalletTransactionList? = try await SwiftDataStorable.shared.fetch(
+            let list: WalletTransactionList? = try await swiftDataStorage.fetch(
                 WalletTransactionList.self,
                 id: "txs_\(walletId.uuidString)"
             )
@@ -553,7 +598,7 @@ private extension WalletsViewModel {
     /// Removes cached transactions for a deleted wallet.
     func removePersistedTransactions(for walletId: UUID) async {
         do {
-            try await SwiftDataStorable.shared.delete(
+            try await swiftDataStorage.delete(
                 WalletTransactionList.self,
                 id: "txs_\(walletId.uuidString)"
             )
