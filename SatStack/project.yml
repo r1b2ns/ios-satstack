@@ -156,6 +156,7 @@ targets:
         # ── Configurações de servidor (lidas em runtime via Bundle.main) ───
         MempoolMonitorScheme: "$(MEMPOOL_MONITOR_SCHEME)"
         MempoolMonitorHost: "$(MEMPOOL_MONITOR_HOST)"
+        MempoolMonitorHostApiKey: "$(MEMPOOL_MONITOR_HOST_API_KEY)"
 
         # ── BDK network configuration (read from Debug/Release xcconfig) ─────
         BDKNetwork: "$(BDK_NETWORK)"

@@ -21,6 +21,7 @@ struct WatchTransactionRequest: Requestable {
     // MARK: - Input
 
     let baseURL:       URL
+    let apiKey:        String
     let txId:          String
     let deviceToken:   String
     let activityToken: String?  // nil → omitted from JSON by the encoder
@@ -29,6 +30,11 @@ struct WatchTransactionRequest: Requestable {
 
     var path:   String     { "/tx/watch" }
     var method: HTTPMethod { .post }
+
+    /// Sends `X-API-Key` when the key is non-empty; omits the header otherwise.
+    var headers: [String: String] {
+        apiKey.isEmpty ? [:] : ["X-API-Key": apiKey]
+    }
 
     var body: (any Encodable)? {
         Payload(txId: txId, deviceToken: deviceToken, activityToken: activityToken)

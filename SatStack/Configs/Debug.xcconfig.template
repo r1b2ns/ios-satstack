@@ -15,9 +15,11 @@ CODE_SIGN_STYLE                  = Automatic
 
 // ── Mempool Monitor server ────────────────────────────────────────────────
 // Scheme kept separate because "://" starts a comment in xcconfig.
-MEMPOOL_MONITOR_SCHEME = https
+MEMPOOL_MONITOR_SCHEME       = https
 // Host only (no scheme) — e.g. 192.168.15.33:3000 or localhost:3000
-MEMPOOL_MONITOR_HOST   = <host:port>
+MEMPOOL_MONITOR_HOST         = <host:port>
+// API key sent as X-API-Key header on every request. Leave empty for open servers.
+MEMPOOL_MONITOR_HOST_API_KEY =
 
 // ── Bitcoin donation address ──────────────────────────────────────────────
 BITCOIN_ADDRESS = <your_bitcoin_address>

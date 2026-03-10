@@ -2,11 +2,10 @@ import Foundation
 
 /// Access layer for the Mempool Monitor server API.
 ///
-/// The host is read at runtime from the `MempoolMonitorHost` key in `Info.plist`,
-/// which is populated by the `MEMPOOL_MONITOR_HOST` variable in `Local.xcconfig`.
+/// The host and API key are read at runtime from `Info.plist` keys injected
+/// by `MEMPOOL_MONITOR_HOST` and `MEMPOOL_MONITOR_HOST_API_KEY` in the xcconfig.
 ///
-/// Encapsulates all available endpoints and uses `NetworkManager` internally,
-/// exposing high-level domain-oriented methods.
+/// Every outgoing request carries an `X-API-Key` header when the key is non-empty.
 ///
 /// ```swift
 /// try await MempoolMonitorAPI.shared.watchTransaction(
@@ -24,15 +23,18 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
     // MARK: - Dependencies
 
     let baseURL: URL
+    let apiKey: String
     private let network: any NetworkProtocol
 
     // MARK: - Init
 
     init(
-        baseURL: URL = MempoolMonitorAPI.resolvedBaseURL(),
+        baseURL: URL    = MempoolMonitorAPI.resolvedBaseURL(),
+        apiKey: String  = MempoolMonitorAPI.resolvedAPIKey(),
         network: any NetworkProtocol = NetworkManager.shared
     ) {
         self.baseURL = baseURL
+        self.apiKey  = apiKey
         self.network = network
     }
 
@@ -43,8 +45,14 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
     /// Falls back to `http://localhost:3000` if the keys are absent.
     private static func resolvedBaseURL() -> URL {
         let scheme = Bundle.main.infoDictionary?["MempoolMonitorScheme"] as? String ?? "http"
-        let host = Bundle.main.infoDictionary?["MempoolMonitorHost"] as? String ?? "localhost:3000"
+        let host   = Bundle.main.infoDictionary?["MempoolMonitorHost"]   as? String ?? "localhost:3000"
         return URL(string: "\(scheme)://\(host)")!
+    }
+
+    /// Reads `MempoolMonitorHostApiKey` from Info.plist (injected by xcconfig).
+    /// Returns an empty string when the key is absent or blank.
+    private static func resolvedAPIKey() -> String {
+        Bundle.main.infoDictionary?["MempoolMonitorHostApiKey"] as? String ?? ""
     }
 
     // MARK: - Endpoints
@@ -65,6 +73,7 @@ final class MempoolMonitorAPI: MempoolMonitorAPIProtocol {
         try await network.perform(
             WatchTransactionRequest(
                 baseURL:       baseURL,
+                apiKey:        apiKey,
                 txId:          txId,
                 deviceToken:   deviceToken,
                 activityToken: activityToken
