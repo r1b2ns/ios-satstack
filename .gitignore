@@ -14,3 +14,5 @@ fastlane/test_output/
 # Real credentials file — template is tracked, this one is not
 fastlane/.env
 *.p8
+*.p12
+*.cer

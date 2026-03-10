@@ -17,12 +17,14 @@ default_platform(:ios)
 
 # ─── Project constants ────────────────────────────────────────────────────────
 
-PROJECT        = "SatStack/SatStack.xcodeproj"
-SCHEME_DEV     = "SatStack Development"
-SCHEME_PROD    = "SatStack Production"
-BUNDLE_ID      = ENV["BUNDLE_ID"]
-BUNDLE_ID_DEV  = ENV["BUNDLE_ID_DEV"]
-OUTPUT_DIR     = "build"
+PROJECT              = "SatStack/SatStack.xcodeproj"
+SCHEME_DEV           = "SatStack Development"
+SCHEME_PROD          = "SatStack Production"
+BUNDLE_ID            = ENV["BUNDLE_ID"]
+BUNDLE_ID_DEV        = ENV["BUNDLE_ID_DEV"]
+BUNDLE_ID_WIDGET     = "#{ENV['BUNDLE_ID']}.widgetLiveActivity"
+BUNDLE_ID_DEV_WIDGET = "#{ENV['BUNDLE_ID_DEV']}.widgetLiveActivity"
+OUTPUT_DIR           = "build"
 
 # ─── Platform ────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,11 @@ platform :ios do
   # ── before_all ─────────────────────────────────────────────────────────────
 
   before_all do
+    # Ensure Ruby and sub-processes use UTF-8 so Xcode log parsing never
+    # raises "invalid byte sequence in US-ASCII".
+    ENV["LANG"]   = "en_US.UTF-8"
+    ENV["LC_ALL"] = "en_US.UTF-8"
+
     # Regenerate the Xcode project from project.yml so the workspace is always
     # up-to-date before building, regardless of untracked source-file changes.
     sh("cd .. && xcodegen generate --spec SatStack/project.yml")
@@ -69,6 +76,8 @@ platform :ios do
   lane :beta_dev do
     increment_build_number(xcodeproj: PROJECT)
 
+    match(type: "appstore", app_identifier: [BUNDLE_ID_DEV, BUNDLE_ID_DEV_WIDGET], readonly: false)
+
     build_app(
       project:          PROJECT,
       scheme:           SCHEME_DEV,
@@ -76,6 +85,11 @@ platform :ios do
       output_directory: OUTPUT_DIR,
       output_name:      "SatStack-Dev.ipa",
       export_method:    "app-store",
+      xcargs:           "CODE_SIGN_STYLE=Manual",
+      export_options: {
+        signingStyle:         "manual",
+        provisioningProfiles: lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]
+      },
       clean:            true
     )
 
@@ -91,6 +105,8 @@ platform :ios do
   lane :beta do
     increment_build_number(xcodeproj: PROJECT)
 
+    match(type: "appstore", app_identifier: [BUNDLE_ID, BUNDLE_ID_WIDGET], readonly: false)
+
     build_app(
       project:          PROJECT,
       scheme:           SCHEME_PROD,
@@ -98,6 +114,11 @@ platform :ios do
       output_directory: OUTPUT_DIR,
       output_name:      "SatStack.ipa",
       export_method:    "app-store",
+      xcargs:           "CODE_SIGN_STYLE=Manual",
+      export_options: {
+        signingStyle:         "manual",
+        provisioningProfiles: lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]
+      },
       clean:            true
     )
 
@@ -141,6 +162,8 @@ platform :ios do
   lane :release do
     increment_build_number(xcodeproj: PROJECT)
 
+    match(type: "appstore", app_identifier: [BUNDLE_ID, BUNDLE_ID_WIDGET], readonly: false)
+
     build_app(
       project:          PROJECT,
       scheme:           SCHEME_PROD,
@@ -148,6 +171,11 @@ platform :ios do
       output_directory: OUTPUT_DIR,
       output_name:      "SatStack.ipa",
       export_method:    "app-store",
+      xcargs:           "CODE_SIGN_STYLE=Manual",
+      export_options: {
+        signingStyle:         "manual",
+        provisioningProfiles: lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]
+      },
       clean:            true
     )
 

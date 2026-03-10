@@ -258,7 +258,8 @@ targets:
         # Bundle ID vem da chave PRODUCT_BUNDLE_IDENTIFIER_WIDGET do Debug|Release.xcconfig
         PRODUCT_BUNDLE_IDENTIFIER: "$(PRODUCT_BUNDLE_IDENTIFIER_WIDGET)"
         PRODUCT_NAME: "$(TARGET_NAME)"
-        PROVISIONING_PROFILE_SPECIFIER: ""
+        # Profile defined per-configuration in Debug|Release.xcconfig via PROVISIONING_PROFILE_SPECIFIER_WIDGET
+        PROVISIONING_PROFILE_SPECIFIER: "$(PROVISIONING_PROFILE_SPECIFIER_WIDGET)"
         # Não instala a extension como artefato independente
         SKIP_INSTALL: YES
         SWIFT_VERSION: "5.0"
