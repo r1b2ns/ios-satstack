@@ -9,6 +9,12 @@ struct WatchTransactionResponse: Codable, Equatable {
     let txId: String
     let valueBtc: Double?
     let feeSats: Int?
+    /// Estimated minutes until first confirmation, provided by the server (nil when confirmed).
+    let estimatedMinutes: Int?
+    /// Sender address (first input) as returned by the server.
+    let senderAddress: String?
+    /// Position of the transaction in the mempool block queue.
+    let blockPosition: BlockPosition?
 }
 
 // MARK: - Request

@@ -154,7 +154,10 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
                             status: tx.status.confirmed ? .confirmed : .pending,
                             txId: tx.txid,
                             valueBtc: totalSats > 0 ? Double(totalSats) / 100_000_000 : nil,
-                            feeSats: tx.fee
+                            feeSats: tx.fee,
+                            estimatedMinutes: nil,
+                            senderAddress: nil,
+                            blockPosition: nil
                         )
                         promise(.success(RefreshResult(txId: txId, response: response)))
                     } catch {
@@ -164,7 +167,10 @@ final class TransactionListViewModel: TransactionListViewModelProtocol {
                                 status: .notFound,
                                 txId: txId,
                                 valueBtc: nil,
-                                feeSats: nil
+                                feeSats: nil,
+                                estimatedMinutes: nil,
+                                senderAddress: nil,
+                                blockPosition: nil
                             )
                             promise(.success(RefreshResult(txId: txId, response: notFound)))
                         } else {

@@ -71,7 +71,10 @@ final class LiveActivityManager {
             status: response.status,
             txId: response.txId,
             valueBtc: response.valueBtc,
-            feeSats: response.feeSats
+            feeSats: response.feeSats,
+            estimatedMinutes: response.estimatedMinutes,
+            senderAddress: response.senderAddress,
+            blockPosition: response.blockPosition
         )
 
         await activity.update(.init(state: updatedState, staleDate: nil))
