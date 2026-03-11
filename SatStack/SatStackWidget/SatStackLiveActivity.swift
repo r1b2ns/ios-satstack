@@ -139,55 +139,91 @@ private struct LockScreenView: View {
     // MARK: - Content
 
     func buildContent() -> some View {
-        // No Spacers here — the two rows each use .frame(maxWidth: .infinity)
-        // so they split the available width equally (each ~½ of total).
-        // Mixing Spacers with maxWidth-infinity rows causes all four to compete
-        // for the same space, leaving each row with only ¼ of the width.
-        HStack(alignment: .top, spacing: 0) {
-            buildBlockRow(side: .unconfirmed)
-
-            // Divider: opacity raised to 0.35 so it remains visible on black.
-            Rectangle()
-                .fill(Color.white.opacity(0.35))
-                .frame(width: 1)
-                .frame(height: 34 + 3 + 10) // block + spacing + indicator
-
-            buildBlockRow(side: .confirmed)
+        VStack(alignment: .leading, spacing: 8) {
+            buildProgressLabels()
+            buildProgressBar()
         }
+        .padding(.horizontal, 16)
         .padding(.vertical, 14)
     }
 
-    /// Renders 3 blocks for the given side with a position indicator chevron.
-    ///
-    /// **Left (unconfirmed):** chevron appears below the block matching the
-    /// transaction's `blockPosition` in the mempool queue:
-    /// - `nextBlock`   → index 2 (closest to the divider)
-    /// - `secondBlock` → index 1 (middle)
-    /// - `other` / nil → index 0 (farthest from confirmation)
-    ///
-    /// **Right (confirmed):** when `status == .confirmed`, chevron appears below
-    /// the block at `confirmations - 1` (clamped to 0…2).
-    func buildBlockRow(side: BlockSide) -> some View {
-        // Each row fills exactly half the content width; blocks are centered.
-        HStack(spacing: 8) {
-            ForEach(0..<3, id: \.self) { index in
-                VStack(spacing: 3) {
-                    BlockView(side: side)
+    func buildProgressLabels() -> some View {
+        HStack {
+            Text("Unconfirmed")
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.5))
+            Spacer()
+            Text("Confirmed")
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.5))
+        }
+    }
 
-                    // Force both the chevron and the invisible placeholder to the
-                    // same fixed height so both rows are always equally tall.
-                    if showChevron(on: side, at: index) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(side == .confirmed ? Color.purple : Color.gray)
-                            .frame(height: 10)
-                    } else {
-                        Color.clear.frame(height: 10)
-                    }
-                }
+    func buildProgressBar() -> some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                buildGradientTrack()
+                buildMidpointDivider(in: proxy)
+                buildIndicator(in: proxy)
             }
         }
-        .frame(maxWidth: .infinity) // content is auto-centered within the half-width frame
+        .frame(height: 16)
+    }
+
+    private func buildGradientTrack() -> some View {
+        Capsule()
+            .fill(LinearGradient(
+                colors: [.green, .teal, .indigo, .purple],
+                startPoint: .leading,
+                endPoint: .trailing
+            ))
+            .frame(height: 8)
+            .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private func buildMidpointDivider(in proxy: GeometryProxy) -> some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.45))
+            .frame(width: 2, height: 16)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .offset(x: proxy.size.width / 2 - 1)
+    }
+
+    private func buildIndicator(in proxy: GeometryProxy) -> some View {
+        let position = indicatorProgress * proxy.size.width
+        return Circle()
+            .fill(.white)
+            .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1)
+            .frame(width: 16, height: 16)
+            .offset(x: position - 8)
+    }
+
+    // MARK: - Progress
+
+    /// Maps the transaction state to a 0.0–1.0 position along the gradient bar.
+    ///
+    /// The bar is split at 0.5 (midpoint divider):
+    ///   - Left  (0.0–0.5): unconfirmed zone — indicator never crosses 0.5 while pending
+    ///   - Right (0.5–1.0): confirmed zone   — indicator enters only after confirmation
+    ///
+    /// Each half contains 3 equal slots (mirroring the old block grid):
+    ///   - Unconfirmed: other (1/12) → secondBlock (3/12) → nextBlock (5/12)
+    ///   - Confirmed:   1 conf (7/12) → 2 conf (9/12) → 3+ conf (11/12)
+    private var indicatorProgress: Double {
+        switch context.state.status {
+        case .pending:
+            switch context.state.blockPosition {
+            case .nextBlock:   return 5.0 / 12.0   // ~0.417 — right edge of left half
+            case .secondBlock: return 3.0 / 12.0   // 0.25   — centre of left half
+            case .other, nil:  return 1.0 / 12.0   // ~0.083 — far left
+            }
+        case .confirmed:
+            guard context.state.confirmations > 0 else { return 7.0 / 12.0 }
+            let slot = min(context.state.confirmations - 1, 2)
+            return (7.0 + Double(slot) * 2.0) / 12.0  // 7/12, 9/12, 11/12
+        case .failed, .notFound:
+            return 1.0 / 12.0
+        }
     }
 
     // MARK: - Footer
@@ -217,33 +253,6 @@ private struct LockScreenView: View {
 
     // MARK: - Helpers
 
-    /// Determines whether the position indicator chevron should appear
-    /// for a specific block slot.
-    private func showChevron(on side: BlockSide, at index: Int) -> Bool {
-        let status        = context.state.status
-        let confirmations = context.state.confirmations
-        let position      = context.state.blockPosition
-
-        switch side {
-
-        // Left (gray) — shows where the tx sits in the mempool queue.
-        // The rightmost block (index 2) is closest to the divider, i.e.
-        // closest to being mined (nextBlock), so the mapping is inverted.
-        case .unconfirmed:
-            guard status == .pending else { return false }
-            switch position {
-            case .nextBlock:   return index == 2
-            case .secondBlock: return index == 1
-            case .other, nil:  return index == 0
-            }
-
-        // Right (purple) — shows which confirmed block the tx landed in.
-        case .confirmed:
-            guard status == .confirmed, confirmations > 0 else { return false }
-            return index == min(confirmations - 1, 2)
-        }
-    }
-
     private var footerText: String {
         switch context.state.status {
         case .pending:
@@ -258,33 +267,6 @@ private struct LockScreenView: View {
         case .notFound:
             return "Transaction not found"
         }
-    }
-}
-
-// MARK: - Block Side
-
-private enum BlockSide {
-    case unconfirmed, confirmed
-}
-
-// MARK: - Block View
-
-private struct BlockView: View {
-    let side: BlockSide
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 5)
-            .fill(side == .unconfirmed ? Color.gray.opacity(0.5) : Color.purple)
-            .frame(width: 34, height: 34)
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .strokeBorder(
-                        side == .unconfirmed
-                            ? Color.white.opacity(0.15)
-                            : Color.purple.opacity(0.7),
-                        lineWidth: 1
-                    )
-            )
     }
 }
 
