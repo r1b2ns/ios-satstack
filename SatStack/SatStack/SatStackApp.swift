@@ -35,9 +35,9 @@ struct SatStackApp: App {
                 HomeViewFactory.build()
                     .tabItem {
                         Label {
-                            Text("Today")
+                            Text("Home")
                         } icon: {
-                            Image(systemName: "newspaper")
+                            Image(systemName: "house.fill")
                         }
                     }
                     .tag(AppTabSelection.home)

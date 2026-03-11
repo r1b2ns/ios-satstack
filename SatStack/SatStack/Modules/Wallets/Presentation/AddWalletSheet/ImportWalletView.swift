@@ -14,6 +14,7 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
     @State private var isImporting = false
     @State private var errorMessage: String?
     @State private var clipboardHasContent = false
+    @FocusState private var isInputFocused: Bool
 
     private var trimmedInput: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isImportEnabled: Bool { !trimmedInput.isEmpty && !isImporting }
@@ -29,6 +30,7 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
             }
             .padding(24)
         }
+        .onTapGesture { isInputFocused = false }
         .navigationTitle("Import Wallet")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { checkClipboard() }
@@ -54,6 +56,7 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
             )
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
+            .focused($isInputFocused)
     }
 
     private func buildErrorLabel(_ message: String) -> some View {
@@ -64,6 +67,7 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
 
     private func buildPasteButton() -> some View {
         Button {
+            isInputFocused = false
             guard let clipboard = UIPasteboard.general.string, !clipboard.isEmpty else { return }
             input = clipboard
         } label: {
@@ -79,6 +83,7 @@ struct ImportWalletView<ViewModel: WalletsViewModelProtocol>: View {
 
     private func buildImportButton() -> some View {
         Button {
+            isInputFocused = false
             Task { await importWallet() }
         } label: {
             HStack(spacing: 8) {

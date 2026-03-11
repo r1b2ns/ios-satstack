@@ -63,6 +63,7 @@ struct ReceiveAddressSheet: View {
                     .font(.system(.callout, design: .monospaced))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.primary)
+                    .truncationMode(.middle)
                     .lineLimit(3)
                 
                 Text(showCopiedFeedback ? "Copied!" : "Tap to copy")
