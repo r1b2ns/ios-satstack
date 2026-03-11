@@ -4,6 +4,7 @@
 #   bundle exec fastlane test
 #   bundle exec fastlane beta_dev
 #   bundle exec fastlane beta
+#   bundle exec fastlane beta_all      # uploads both dev and prod betas in one run
 #   bundle exec fastlane screenshots
 #   bundle exec fastlane metadata
 #   bundle exec fastlane release
@@ -126,6 +127,14 @@ platform :ios do
       app_identifier:                    BUNDLE_ID,
       skip_waiting_for_build_processing: true
     )
+  end
+
+  # ── beta_all ────────────────────────────────────────────────────────────────
+
+  desc "Build and upload both Dev and Production betas to TestFlight in a single run.\n\n    Usage:\n      bundle exec fastlane beta_all"
+  lane :beta_all do
+    beta_dev
+    beta
   end
 
   # ── screenshots ─────────────────────────────────────────────────────────────
