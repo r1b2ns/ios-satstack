@@ -18,9 +18,12 @@ enum WalletSyncState: Equatable {
     /// Waiting in the sequential sync queue — another wallet is syncing first.
     case queued
 
-    /// A full scan or incremental sync is currently running.
-    /// `progress` is `nil` for indeterminate (full scan) or `0.0–1.0` for incremental sync.
+    /// An incremental sync is currently running.
+    /// `progress` is `nil` for indeterminate or `0.0–1.0` for determinate progress.
     case syncing(progress: Double?)
+
+    /// A full BIP-84 scan is running; `count` is the number of scripts inspected so far.
+    case fullScanning(count: UInt64)
 
     /// The last sync completed successfully.
     case synced
@@ -30,14 +33,16 @@ enum WalletSyncState: Equatable {
 
     /// Convenience check for any syncing variant.
     var isSyncing: Bool {
-        if case .syncing = self { return true }
-        return false
+        switch self {
+        case .syncing, .fullScanning: return true
+        default: return false
+        }
     }
 
-    /// True when the wallet is either queued or actively syncing.
+    /// True when the wallet is either queued or actively syncing/scanning.
     var isBusy: Bool {
         switch self {
-        case .queued, .syncing: return true
+        case .queued, .syncing, .fullScanning: return true
         default: return false
         }
     }
@@ -461,8 +466,9 @@ private extension WalletsViewModel {
             break
 
         case .syncFailed(let walletId, let error):
+            guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
+            uiState.syncErrorMessage = error
             if uiState.selectedWalletId == walletId {
-                uiState.syncErrorMessage = error
                 uiState.isLoadingTransactions = false
             }
         }

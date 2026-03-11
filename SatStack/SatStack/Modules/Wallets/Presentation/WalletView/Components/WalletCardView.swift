@@ -66,6 +66,8 @@ struct WalletCardView: View {
             buildQueuedBadge()
         case .syncing(let progress):
             buildSyncProgressBadge(progress: progress)
+        case .fullScanning(let count):
+            buildFullScanBadge(count: count)
         case .failed:
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.circle")
@@ -96,6 +98,24 @@ struct WalletCardView: View {
                 .tracking(1.5)
         }
         .foregroundStyle(.white.opacity(0.7))
+    }
+
+    /// Badge shown during a full BIP-84 scan, displaying the running script count
+    /// alongside an indeterminate progress spinner.
+    private func buildFullScanBadge(count: UInt64) -> some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .tint(.white.opacity(0.9))
+                .controlSize(.mini)
+
+            Text("SYNCING(\(count))")
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white.opacity(0.7))
+                .tracking(1.5)
+                .monospacedDigit()
+        }
     }
 
     /// Circular progress indicator with percentage text for determinate syncs,

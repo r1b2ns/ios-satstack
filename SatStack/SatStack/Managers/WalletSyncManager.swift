@@ -128,6 +128,20 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
         self.cooldownInterval = cooldownInterval
     }
 
+    // MARK: - Helpers
+
+    /// Decodes a raw `onProgress` value into the appropriate `WalletSyncState`.
+    ///
+    /// `performFullScan` encodes the running script count as a **negative** Double.
+    /// Any negative value is interpreted as a full-scan count; non-negative values
+    /// are treated as a normal 0.0–1.0 incremental-sync fraction.
+    private func syncState(fromProgress progress: Double?) -> WalletSyncState {
+        if let p = progress, p < 0 {
+            return .fullScanning(count: UInt64(-p))
+        }
+        return .syncing(progress: progress)
+    }
+
     // MARK: - syncAllWallets
 
     @MainActor
@@ -191,7 +205,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
                 let walletId = wallet.id
                 let result = try await service.fullScanWallet(wallet) { [weak self] progress in
                     Task { @MainActor in
-                        self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: .syncing(progress: progress)))
+                        self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: self?.syncState(fromProgress: progress) ?? .syncing(progress: nil)))
                     }
                 }
 
@@ -219,9 +233,9 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
             guard let self else { return }
             let service = self.walletServiceFactory()
             do {
-                let balance = try await service.fetchWalletBalance(for: wallet) { progress in
+                let balance = try await service.fetchWalletBalance(for: wallet) { [self] progress in
                     Task { @MainActor in
-                        self.eventSubject.send(.syncStateChanged(walletId: wallet.id, state: .syncing(progress: progress)))
+                        self.eventSubject.send(.syncStateChanged(walletId: wallet.id, state: self.syncState(fromProgress: progress)))
                     }
                 }
                 await MainActor.run {
@@ -297,7 +311,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
             let walletId = wallet.id
             let result = try await detailSyncService.fullScanWallet(wallet) { [weak self] progress in
                 Task { @MainActor in
-                    self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: .syncing(progress: progress)))
+                    self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: self?.syncState(fromProgress: progress) ?? .syncing(progress: nil)))
                 }
             }
 

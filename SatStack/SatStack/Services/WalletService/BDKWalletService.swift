@@ -292,7 +292,10 @@ private extension BDKWalletService {
     ) throws {
         let inspector = WalletFullScanScriptInspector { count in
             Log.print.info("[FullScan] Wallet \(walletId.uuidString): \(count) scripts inspected")
-            onProgress(nil)
+            // Encode the running script count as a negative value so the caller can
+            // distinguish a full-scan update from an incremental-sync progress fraction
+            // (0.0–1.0) without changing the (Double?) -> Void callback signature.
+            onProgress(-Double(count))
         }
 
         let request = try bdkWallet.startFullScan()
