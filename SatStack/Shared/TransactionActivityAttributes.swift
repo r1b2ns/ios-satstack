@@ -16,6 +16,12 @@ struct TransactionActivityAttributes: ActivityAttributes {
         var valueBtc: Double?
         /// Fee paid in satoshis
         var feeSats: Int?
+        /// Estimated time until first confirmation, in minutes (nil when already confirmed)
+        var estimatedMinutes: Int?
+        /// Sender address (first input address), truncated for display
+        var senderAddress: String?
+        /// Position of the transaction in the mempool queue
+        var blockPosition: BlockPosition?
     }
 
     // MARK: - Static Data (set at creation, immutable)
@@ -38,4 +44,17 @@ enum TransactionStatus: String, Codable, Hashable {
         case .notFound:  return "Not Found"
         }
     }
+}
+
+// MARK: - BlockPosition
+
+/// Where the transaction sits in the mempool queue.
+///
+/// - `nextBlock`  — likely to be mined in the very next block
+/// - `secondBlock`— likely to be mined two blocks from now
+/// - `other`      — further back in the queue (or untracked depth)
+enum BlockPosition: String, Codable, Hashable {
+    case nextBlock   = "nextBlock"
+    case secondBlock = "secondBlock"
+    case other       = "other"
 }
