@@ -109,7 +109,7 @@ targets:
         CFBundleIdentifier:           "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleInfoDictionaryVersion: "6.0"
         CFBundleName:                 "$(PRODUCT_NAME)"
-        CFBundleDisplayName:          SatStack
+        CFBundleDisplayName:          "$(APP_DISPLAY_NAME)"
         CFBundlePackageType:          APPL
         CFBundleShortVersionString:   "$(MARKETING_VERSION)"
         CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
@@ -201,7 +201,7 @@ targets:
       configs:
         Debug:
           # Use the "beta" ribbon icon for Development (Debug) builds
-          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
     # ─── Widget extension embutido no app ────────────────────────────────────
     dependencies:
@@ -234,7 +234,7 @@ targets:
         CFBundleIdentifier:           "$(PRODUCT_BUNDLE_IDENTIFIER)"
         CFBundleInfoDictionaryVersion: "6.0"
         CFBundleName:                 "$(PRODUCT_NAME)"
-        CFBundleDisplayName:          SatStack
+        CFBundleDisplayName:          "$(APP_DISPLAY_NAME)"
         CFBundlePackageType:          "XPC!"
         CFBundleShortVersionString:   "$(MARKETING_VERSION)"
         CFBundleVersion:              "$(CURRENT_PROJECT_VERSION)"
