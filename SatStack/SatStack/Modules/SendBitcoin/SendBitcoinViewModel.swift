@@ -260,9 +260,15 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
     @MainActor
     func broadcastTransaction() async {
         let text = uiState.amountText.replacingOccurrences(of: ",", with: ".")
-        guard let amountBTC = Double(text),
+        guard let rawValue = Double(text),
               let selectedFee = uiState.selectedFee,
               let rate = feeRate(for: selectedFee) else { return }
+
+        let amountBTC: Double
+        switch UserDefaults.standard.preferredBalanceFormat {
+        case .bitcoin, .fiat: amountBTC = rawValue
+        case .sats, .bip177:  amountBTC = rawValue / 100_000_000.0
+        }
 
         let amountSats = UInt64(amountBTC * 100_000_000)
 
@@ -309,11 +315,14 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
     // MARK: - Private
 
     /// The entered amount parsed as a BTC `Double`, or `nil` if invalid.
+    /// Converts from the user's preferred balance format (sats/BIP-177 → BTC).
     private var parsedAmountBTC: Double? {
-        let text = uiState.amountText
-            .replacingOccurrences(of: ",", with: ".")
-        guard !text.isEmpty else { return nil }
-        return Double(text)
+        let text = uiState.amountText.replacingOccurrences(of: ",", with: ".")
+        guard !text.isEmpty, let value = Double(text) else { return nil }
+        switch UserDefaults.standard.preferredBalanceFormat {
+        case .bitcoin, .fiat: return value
+        case .sats, .bip177:  return value / 100_000_000.0
+        }
     }
 
     /// Strips `bitcoin:` URI scheme and query parameters from a raw string,

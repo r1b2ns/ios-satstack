@@ -44,9 +44,7 @@ struct BalanceDisplayFormatView: View {
             return "\(formatter.string(from: NSNumber(value: sats)) ?? "\(sats)") sats"
 
         case .bip177:
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            return "\(formatter.string(from: NSNumber(value: sats)) ?? "\(sats)") ₿"
+            return "\(sats.formattedBip177()) ₿"
 
         case .fiat:
             guard let prices else { return "—" }

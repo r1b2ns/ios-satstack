@@ -52,6 +52,11 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
     @EnvironmentObject private var coordinator: SendBitcoinCoordinator
     @Environment(\.dismiss) private var dismiss
 
+    private enum Field: Hashable { case address, amount }
+    @FocusState private var focusedField: Field?
+
+    @State private var amountFormat: BalanceDisplayFormat = UserDefaults.standard.preferredBalanceFormat
+
     var body: some View {
         NavigationStack(path: $coordinator.path) {
             buildContent()
@@ -107,6 +112,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
             buildFeeSection()
             buildSummarySection()
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - Recipient section
@@ -128,6 +134,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .lineLimit(1)
+                .focused($focusedField, equals: .address)
 
             if !viewModel.uiState.address.isEmpty {
                 buildClearButton()
@@ -194,13 +201,43 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
 
     private func buildAmountField() -> some View {
         HStack {
-            TextField("0.00000000", text: $viewModel.uiState.amountText)
+            TextField(amountPlaceholder, text: $viewModel.uiState.amountText)
                 .font(.system(.body, design: .monospaced))
-                .keyboardType(.decimalPad)
+                .keyboardType(amountKeyboardType)
+                .focused($focusedField, equals: .amount)
 
-            Text("BTC")
+            Text(amountUnitLabel)
                 .foregroundStyle(.secondary)
                 .font(.subheadline)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            let newFormat = UserDefaults.standard.preferredBalanceFormat
+            if amountFormat != newFormat {
+                amountFormat = newFormat
+                viewModel.uiState.amountText = ""
+            }
+        }
+    }
+
+    private var amountPlaceholder: String {
+        switch amountFormat {
+        case .bitcoin, .fiat: return "0.00000000"
+        case .sats, .bip177:  return "0"
+        }
+    }
+
+    private var amountUnitLabel: String {
+        switch amountFormat {
+        case .bitcoin, .fiat: return "BTC"
+        case .sats:           return "sats"
+        case .bip177:         return "₿"
+        }
+    }
+
+    private var amountKeyboardType: UIKeyboardType {
+        switch amountFormat {
+        case .bitcoin, .fiat: return .decimalPad
+        case .sats, .bip177:  return .numberPad
         }
     }
 
@@ -269,6 +306,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
         let estimatedSats = viewModel.estimatedFeeSats(for: option)
 
         return Button {
+            focusedField = nil
             withAnimation(.easeInOut(duration: 0.2)) {
                 viewModel.uiState.selectedFee = option
             }
@@ -425,8 +463,11 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
 
     private var parsedAmountBTC: Double? {
         let text = viewModel.uiState.amountText.replacingOccurrences(of: ",", with: ".")
-        guard !text.isEmpty else { return nil }
-        return Double(text)
+        guard !text.isEmpty, let value = Double(text) else { return nil }
+        switch amountFormat {
+        case .bitcoin, .fiat: return value
+        case .sats, .bip177:  return value / 100_000_000.0
+        }
     }
 
     // MARK: - Review button (bottom, styled like Receive/Send)

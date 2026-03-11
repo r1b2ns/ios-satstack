@@ -55,6 +55,9 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
                 }
                 .navigationDestinations()
         }
+        .onAppear {
+            Task { await viewModel.refresh() }
+        }
     }
 
     // MARK: - Content

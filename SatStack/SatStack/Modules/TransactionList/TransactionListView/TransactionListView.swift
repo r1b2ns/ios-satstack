@@ -65,7 +65,7 @@ struct TransactionListView<ViewModel: TransactionListViewModelProtocol>: View {
                 } message: {
                     Text("You won't be notified when your transaction is confirmed. Enable notifications in Settings to stay updated.")
                 }
-                .task { await viewModel.loadTransactions() }
+                .onAppear { Task { await viewModel.loadTransactions() } }
                 .onChange(of: coordinator.showRegisterTransaction) { _, isPresented in
                     if !isPresented {
                         Task { await viewModel.loadTransactions() }
