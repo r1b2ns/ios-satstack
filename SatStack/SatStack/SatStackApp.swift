@@ -74,11 +74,12 @@ struct SatStackApp: App {
             }
             .environmentObject(tabSelection)
             .modelContainer(modelContainer)
-            .fullScreenCover(isPresented: $showWelcome) {
+            .sheet(isPresented: $showWelcome) {
                 WelcomeView {
                     UserDefaults.standard.set(true, forKey: "hasSeenWelcome")
                     showWelcome = false
                 }
+                .presentationDetents([.large])
             }
         }
     }
