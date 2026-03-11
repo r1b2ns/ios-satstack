@@ -16,3 +16,5 @@ fastlane/.env
 *.p8
 *.p12
 *.cer
+SatStack/SatStack/SatStackDEV.entitlements
+SatStack/SatStack/SatStackPRD.entitlements
