@@ -289,7 +289,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     @MainActor
     func createWallet() async throws -> WalletCreationResult {
         var result = try await walletLifecycleService.createNewWallet()
-        result.wallet.name = "My Wallet \(uiState.wallets.count + 1)"
+        result.wallet.name = String(localized: "My Wallet \(uiState.wallets.count + 1)")
         return result
     }
 
@@ -303,19 +303,19 @@ final class WalletsViewModel: WalletsViewModelProtocol {
 
         if xpubPrefixes.contains(where: { trimmed.hasPrefix($0) }) {
             guard !uiState.wallets.contains(where: { $0.descriptor == trimmed }) else {
-                throw WalletServiceError.invalidImportSource("This xpub is already imported.")
+                throw WalletServiceError.invalidImportSource(String(localized: "This xpub is already imported."))
             }
             source = .xpub(trimmed)
         } else if addressPrefixes.contains(where: { trimmed.hasPrefix($0) }) {
             guard !uiState.wallets.contains(where: { $0.descriptor == trimmed }) else {
-                throw WalletServiceError.invalidImportSource("This address is already imported.")
+                throw WalletServiceError.invalidImportSource(String(localized: "This address is already imported."))
             }
             source = .address(trimmed)
         } else {
             let words = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
             let phrase = words.joined(separator: " ")
             guard !uiState.wallets.contains(where: { $0.mnemonicPhrase == phrase }) else {
-                throw WalletServiceError.invalidImportSource("This seed phrase is already imported.")
+                throw WalletServiceError.invalidImportSource(String(localized: "This seed phrase is already imported."))
             }
             source = .seedPhrase(words)
         }

@@ -17,13 +17,13 @@ enum FiatCurrency: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .usd: return "US Dollar"
-        case .eur: return "Euro"
-        case .gbp: return "British Pound"
-        case .cad: return "Canadian Dollar"
-        case .chf: return "Swiss Franc"
-        case .aud: return "Australian Dollar"
-        case .jpy: return "Japanese Yen"
+        case .usd: return String(localized: "US Dollar")
+        case .eur: return String(localized: "Euro")
+        case .gbp: return String(localized: "British Pound")
+        case .cad: return String(localized: "Canadian Dollar")
+        case .chf: return String(localized: "Swiss Franc")
+        case .aud: return String(localized: "Australian Dollar")
+        case .jpy: return String(localized: "Japanese Yen")
         }
     }
 
@@ -95,10 +95,10 @@ enum BalanceDisplayFormat: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .bitcoin: return "Bitcoin (BTC)"
-        case .sats:    return "Satoshis (sats)"
-        case .bip177:  return "BIP-177"
-        case .fiat:    return "Fiat Currency"
+        case .bitcoin: return String(localized: "Bitcoin (BTC)")
+        case .sats:    return String(localized: "Satoshis (sats)")
+        case .bip177:  return String(localized: "BIP-177")
+        case .fiat:    return String(localized: "Fiat Currency")
         }
     }
 
@@ -107,7 +107,7 @@ enum BalanceDisplayFormat: String, CaseIterable, Identifiable {
         case .bitcoin: return "₿ 0.12345678"
         case .sats:    return "12,345,678 sats"
         case .bip177:  return "12,345,678 ₿"
-        case .fiat:    return "According to preferred currency"
+        case .fiat:    return String(localized: "According to preferred currency")
         }
     }
 }
