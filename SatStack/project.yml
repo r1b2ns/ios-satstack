@@ -166,15 +166,6 @@ targets:
         # ── Bitcoin donation address ──────────────────────────────────────────
         BitcoinAddress: "$(BITCOIN_ADDRESS)"
 
-    # Entitlements — XcodeGen define CODE_SIGN_ENTITLEMENTS automaticamente.
-    # "properties" faz o XcodeGen gerar/sobrescrever o arquivo (source of truth aqui).
-    entitlements:
-      path: SatStack/SatStack.entitlements
-      properties:
-        # Push Notifications — obrigatório para APNs funcionar no device.
-        # Use "development" para builds Debug/Ad-hoc e "production" para App Store.
-        aps-environment: development
-
     # ─── xcconfig local (não versionado) ────────────────────────────────────
     # Contém PRODUCT_BUNDLE_IDENTIFIER e outras chaves privadas.
     # Crie o arquivo a partir do template: cp Configs/Local.xcconfig.template Configs/Local.xcconfig
@@ -202,6 +193,11 @@ targets:
         Debug:
           # Use the "beta" ribbon icon for Development (Debug) builds
           ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+          # APNs sandbox entitlements for Debug / Ad-hoc builds
+          CODE_SIGN_ENTITLEMENTS: SatStack/SatStackDEV.entitlements
+        Release:
+          # APNs production entitlements for App Store / TestFlight builds
+          CODE_SIGN_ENTITLEMENTS: SatStack/SatStackPRD.entitlements
 
     # ─── Widget extension embutido no app ────────────────────────────────────
     dependencies:

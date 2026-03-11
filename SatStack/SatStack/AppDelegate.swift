@@ -1,16 +1,16 @@
 import UIKit
 import UserNotifications
-#if DEBUG
+//#if DEBUG
 import netfox
-#endif
+//#endif
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
 
-        #if DEBUG
+//        #if DEBUG
         NFX.sharedInstance().start()
-        #endif
+//        #endif
 
         // Set up the notification center
         UNUserNotificationCenter.current().delegate = self
