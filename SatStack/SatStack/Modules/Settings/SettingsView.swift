@@ -51,6 +51,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                 }
                 Section("Network") {
                     buildNetworkRow()
+                    buildSyncPreferenceRow()
                 }
                 Section("Preferences") {
                     buildBalanceFormatRow()
@@ -127,6 +128,37 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                     Text(BDKNetworkConfig.networkName.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - Sync Preferred
+
+    private func buildSyncPreferenceRow() -> some View {
+        Button {
+            coordinator.navigateToSyncPreference()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.title3)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sync Preferred")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text(viewModel.uiState.preferredSyncPreference.displayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -347,6 +379,8 @@ private extension View {
                 FiatCurrencyView()
             case .balanceFormat:
                 BalanceFormatView()
+            case .syncPreference:
+                SyncPreferenceView()
             }
         }
     }

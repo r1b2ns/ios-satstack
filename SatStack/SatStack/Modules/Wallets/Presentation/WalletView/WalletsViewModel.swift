@@ -509,6 +509,7 @@ private extension WalletsViewModel {
                 let id = stored[index].id
                 stored[index].mnemonicPhrase = keychainStorage.string(forKey: mnemonicKey(for: id))
                 stored[index].descriptor     = keychainStorage.string(forKey: descriptorKey(for: id))
+                stored[index].xpub           = keychainStorage.string(forKey: xpubKey(for: id))
             }
 
             uiState.wallets = stored
@@ -543,6 +544,9 @@ private extension WalletsViewModel {
             if let descriptor = wallet.descriptor {
                 keychainStorage.set(descriptor, forKey: descriptorKey(for: wallet.id))
             }
+            if let xpub = wallet.xpub {
+                keychainStorage.set(xpub, forKey: xpubKey(for: wallet.id))
+            }
 
             Log.print.info("Wallet saved: '\(wallet.name)'")
         } catch {
@@ -557,6 +561,7 @@ private extension WalletsViewModel {
             // Remove sensitive fields from the Keychain along with the wallet record.
             keychainStorage.removeObject(forKey: mnemonicKey(for: id))
             keychainStorage.removeObject(forKey: descriptorKey(for: id))
+            keychainStorage.removeObject(forKey: xpubKey(for: id))
 
             Log.print.info("Wallet deleted: \(id)")
         } catch {
@@ -571,6 +576,9 @@ private extension WalletsViewModel {
 
     /// Keychain key for the descriptor (xpub / address) of a given wallet.
     private func descriptorKey(for id: UUID) -> String { "wallet.descriptor.\(id.uuidString)" }
+
+    /// Keychain key for the account-level xpub of a given wallet.
+    private func xpubKey(for id: UUID) -> String { "wallet.xpub.\(id.uuidString)" }
 
     // MARK: - Transaction persistence
 

@@ -73,7 +73,8 @@ struct BDKWalletService: WalletServiceProtocol {
         _ = try bdkWallet.persist(persister: persister)
         Log.print.info("[BDK] New wallet created and persisted: \(walletId.uuidString)")
 
-        let wallet = Wallet(id: walletId, name: "My Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
+        var wallet = Wallet(id: walletId, name: "My Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
+        wallet.xpub = Self.extractAccountXpub(from: secretKey)
         let backup = WalletBackup(walletId: walletId, kind: .seedPhrase(words))
         return WalletCreationResult(wallet: wallet, backup: backup)
     }
@@ -102,7 +103,9 @@ struct BDKWalletService: WalletServiceProtocol {
             _ = try bdkWallet.persist(persister: persister)
             Log.print.info("[BDK] Imported wallet created and persisted: \(walletId.uuidString)")
 
-            return Wallet(id: walletId, name: "Imported Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
+            var wallet = Wallet(id: walletId, name: "Imported Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
+            wallet.xpub = Self.extractAccountXpub(from: secretKey)
+            return wallet
 
         case .address(let address):
             let validPrefixes = ["bc1", "tb1", "1", "3"]
@@ -121,7 +124,9 @@ struct BDKWalletService: WalletServiceProtocol {
             guard validPrefixes.contains(where: { key.hasPrefix($0) }) else {
                 throw WalletServiceError.invalidImportSource("'\(key.prefix(8))…' is not a recognised extended public key prefix.")
             }
-            return Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: key)
+            var wallet = Wallet(id: UUID(), name: "Watch-only", theme: .watchOnly, balanceBTC: 0.0, descriptor: key)
+            wallet.xpub = key
+            return wallet
 
         case .privateKey:
             throw WalletServiceError.invalidImportSource("Private key import is not yet supported.")
@@ -592,6 +597,32 @@ private extension BDKWalletService {
 
         Log.print.info("[Mempool API] Address \(address): balance = \(totalSats) sats, \(transactions.count) txs")
         return (totalSats, transactions)
+    }
+
+    // MARK: - xpub extraction
+
+    /// Derives the BIP-84 account-level extended public key (`m/84h/0h/0h`) from a
+    /// `DescriptorSecretKey` and returns it as a bare xpub string (without the
+    /// `[fingerprint/path]` origin prefix).
+    ///
+    /// Used to populate `Wallet.xpub` so that `WalletMempoolService` can call the
+    /// mempool.space `/api/xpub/{xpub}` endpoint for fast, on-demand balance lookup.
+    static func extractAccountXpub(from secretKey: DescriptorSecretKey) -> String? {
+        do {
+            let path = try DerivationPath(path: "m/84h/0h/0h")
+            let accountKey = try secretKey.derive(path: path)
+            let publicKey = accountKey.asPublic()
+            let description = publicKey.description
+            // Description format: "[fingerprint/84h/0h/0h]xpub..."
+            // Strip the key-origin prefix so only the bare xpub remains.
+            if let bracketIndex = description.firstIndex(of: "]") {
+                return String(description[description.index(after: bracketIndex)...])
+            }
+            return description
+        } catch {
+            Log.print.warning("[BDK] Failed to extract account xpub: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     // MARK: - Full-scan state (UserDefaults)

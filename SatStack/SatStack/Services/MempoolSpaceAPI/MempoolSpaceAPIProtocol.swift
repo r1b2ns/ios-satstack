@@ -47,4 +47,14 @@ protocol MempoolSpaceAPIProtocol {
     ///
     /// - Parameter address: A Bitcoin address (bc1…, tb1…, 1…, 3…).
     func fetchAddressTransactions(address: String) async throws -> [AddressTransactionResponse]
+
+    /// Fetches on-chain and mempool statistics for an extended public key.
+    ///
+    /// - Parameter xpub: An extended public key (xpub, ypub, zpub, etc.).
+    func fetchXpubInfo(xpub: String) async throws -> XpubInfoResponse
+
+    /// Fetches the transaction history for all addresses derived from an extended public key.
+    ///
+    /// - Parameter xpub: An extended public key (xpub, ypub, zpub, etc.).
+    func fetchXpubTransactions(xpub: String) async throws -> [AddressTransactionResponse]
 }

@@ -75,4 +75,18 @@ final class MempoolSpaceAPI: MempoolSpaceAPIProtocol {
     func fetchAddressTransactions(address: String) async throws -> [AddressTransactionResponse] {
         try await network.perform(GetAddressTransactionsRequest(address: address))
     }
+
+    /// Fetches on-chain and mempool statistics for an extended public key.
+    ///
+    /// - Parameter xpub: An extended public key (xpub, ypub, zpub, etc.).
+    func fetchXpubInfo(xpub: String) async throws -> XpubInfoResponse {
+        try await network.perform(GetXpubInfoRequest(xpub: xpub))
+    }
+
+    /// Fetches the transaction history for all addresses derived from an extended public key.
+    ///
+    /// - Parameter xpub: An extended public key (xpub, ypub, zpub, etc.).
+    func fetchXpubTransactions(xpub: String) async throws -> [AddressTransactionResponse] {
+        try await network.perform(GetXpubTransactionsRequest(xpub: xpub))
+    }
 }

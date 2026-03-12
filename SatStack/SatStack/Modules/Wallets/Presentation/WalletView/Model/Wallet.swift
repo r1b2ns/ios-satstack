@@ -28,6 +28,17 @@ struct Wallet: Identifiable, Codable {
     /// deserialization — never written to SwiftData storage.
     var descriptor: String? = nil
 
+    /// BIP-84 account-level extended public key (xpub) used by `WalletMempoolService`
+    /// to sync balance and transactions via the mempool.space xpub API.
+    ///
+    /// - Seed wallets: derived at `m/84h/0h/0h` and stored in the Keychain.
+    /// - xpub wallets: equal to `descriptor` (the import key itself).
+    /// - Address wallets: always `nil` (single-address, no xpub).
+    ///
+    /// **Not encoded/decoded.** Loaded exclusively from the iOS Keychain after SwiftData
+    /// deserialization — never written to SwiftData storage.
+    var xpub: String? = nil
+
     init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil, descriptor: String? = nil) {
         self.id = id
         self.name = name

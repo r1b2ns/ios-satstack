@@ -101,9 +101,10 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
     /// connection per operation.
     private let walletServiceFactory: () -> any WalletServiceProtocol
 
-    /// Shared service instance used for detail-view syncs (balance + txs
-    /// in a single pass via `syncWallet`).
-    private let detailSyncService: any WalletServiceProtocol
+    /// Factory that creates the service used for detail-view syncs (balance + txs
+    /// in a single pass via `syncWallet`). Called at sync time so that a change to
+    /// the sync preference is reflected in the next operation without restarting the app.
+    private let detailSyncServiceFactory: () -> any WalletServiceProtocol
 
     // MARK: - Internal state
 
@@ -119,13 +120,24 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
     // MARK: - Init
 
     init(
-        walletServiceFactory: @escaping () -> any WalletServiceProtocol = { BDKWalletService() },
-        detailSyncService: any WalletServiceProtocol = BDKWalletService(),
+        walletServiceFactory: @escaping () -> any WalletServiceProtocol = { WalletSyncManager.makePreferredService() },
+        detailSyncServiceFactory: @escaping () -> any WalletServiceProtocol = { WalletSyncManager.makePreferredService() },
         cooldownInterval: TimeInterval = 60
     ) {
         self.walletServiceFactory = walletServiceFactory
-        self.detailSyncService = detailSyncService
+        self.detailSyncServiceFactory = detailSyncServiceFactory
         self.cooldownInterval = cooldownInterval
+    }
+
+    // MARK: - Preferred service factory
+
+    /// Returns the appropriate `WalletServiceProtocol` implementation based on the
+    /// user's current sync preference stored in `UserDefaults`.
+    static func makePreferredService() -> any WalletServiceProtocol {
+        switch UserDefaults.standard.preferredSyncPreference {
+        case .bdkSync:     return BDKWalletService()
+        case .mempoolSync: return WalletMempoolService()
+        }
     }
 
     // MARK: - Helpers
@@ -279,7 +291,8 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
 
         do {
             let walletId = wallet.id
-            let result = try await detailSyncService.syncWallet(wallet) { [weak self] progress in
+            let service = detailSyncServiceFactory()
+            let result = try await service.syncWallet(wallet) { [weak self] progress in
                 Task { @MainActor in
                     self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: .syncing(progress: progress)))
                 }
@@ -309,7 +322,8 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
 
         do {
             let walletId = wallet.id
-            let result = try await detailSyncService.fullScanWallet(wallet) { [weak self] progress in
+            let service = detailSyncServiceFactory()
+            let result = try await service.fullScanWallet(wallet) { [weak self] progress in
                 Task { @MainActor in
                     self?.eventSubject.send(.syncStateChanged(walletId: walletId, state: self?.syncState(fromProgress: progress) ?? .syncing(progress: nil)))
                 }

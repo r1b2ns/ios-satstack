@@ -144,6 +144,54 @@ extension UserDefaults {
     }
 }
 
+// MARK: - SyncPreference
+
+/// The backend used to synchronise on-chain wallets.
+enum SyncPreference: String, CaseIterable, Identifiable {
+
+    /// On-device sync via Bitcoin Dev Kit (BDK) + Esplora.
+    /// Supports all wallet types (seed, xpub, address).
+    case bdkSync = "bdkSync"
+
+    /// Fast sync via the mempool.space xpub REST API.
+    /// Requires an xpub — not available for address-only wallets.
+    case mempoolSync = "mempoolSync"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .bdkSync:     return String(localized: "BDK Sync")
+        case .mempoolSync: return String(localized: "Mempool Sync")
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .bdkSync:
+            return String(localized: "Full on-device sync via Bitcoin Dev Kit. Supports all wallet types.")
+        case .mempoolSync:
+            return String(localized: "Fast sync via mempool.space xpub API. Requires an xpub or seed wallet.")
+        }
+    }
+}
+
+// MARK: - UserDefaults + SyncPreference
+
+extension UserDefaults {
+    private static let preferredSyncPreferenceKey = "preferredSyncPreference"
+
+    var preferredSyncPreference: SyncPreference {
+        get {
+            let raw = string(forKey: Self.preferredSyncPreferenceKey) ?? SyncPreference.bdkSync.rawValue
+            return SyncPreference(rawValue: raw) ?? .bdkSync
+        }
+        set {
+            set(newValue.rawValue, forKey: Self.preferredSyncPreferenceKey)
+        }
+    }
+}
+
 // MARK: - Protocol
 
 protocol SettingsViewModelProtocol: ObservableObject {
@@ -156,6 +204,7 @@ struct SettingsUiState {
     var hasAPNsToken: Bool = false
     var preferredCurrency: FiatCurrency = UserDefaults.standard.preferredFiatCurrency
     var preferredBalanceFormat: BalanceDisplayFormat = UserDefaults.standard.preferredBalanceFormat
+    var preferredSyncPreference: SyncPreference = UserDefaults.standard.preferredSyncPreference
 }
 
 // MARK: - ViewModel
@@ -188,6 +237,7 @@ final class SettingsViewModel: SettingsViewModelProtocol {
             .sink { [weak self] _ in
                 self?.uiState.preferredCurrency = UserDefaults.standard.preferredFiatCurrency
                 self?.uiState.preferredBalanceFormat = UserDefaults.standard.preferredBalanceFormat
+                self?.uiState.preferredSyncPreference = UserDefaults.standard.preferredSyncPreference
             }
             .store(in: &cancellables)
     }

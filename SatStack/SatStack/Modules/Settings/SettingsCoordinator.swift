@@ -11,6 +11,7 @@ enum SettingsRoute: Hashable {
     case buyMeACoffee
     case fiatCurrency
     case balanceFormat
+    case syncPreference
 }
 
 // MARK: - Coordinator
@@ -51,5 +52,9 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToBalanceFormat() {
         path.append(SettingsRoute.balanceFormat)
+    }
+
+    func navigateToSyncPreference() {
+        path.append(SettingsRoute.syncPreference)
     }
 }
