@@ -241,6 +241,13 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             let currentState = self.uiState.walletSyncStates[wallet.id]
             guard currentState?.isBusy != true else { return }
 
+            // Start the Live Activity for this single-wallet sync.
+            BackgroundSyncManager.shared.beginSync(
+                totalWallets: 1,
+                walletNames: [wallet.id: wallet.name],
+                syncEvents: self.syncManager.syncEvents
+            )
+
             // Delegate the actual sync to the manager.
             await self.syncManager.syncSelectedWallet(wallet)
         }
@@ -341,16 +348,44 @@ extension WalletsViewModel {
         let walletsToSync = uiState.wallets.filter { wallet in
             uiState.walletSyncStates[wallet.id]?.isBusy != true
         }
-        await syncManager.syncAllWallets(walletsToSync)
+        guard !walletsToSync.isEmpty else { return }
+
+        let walletNames = Dictionary(uniqueKeysWithValues: walletsToSync.map { ($0.id, $0.name) })
+        BackgroundSyncManager.shared.beginSync(
+            totalWallets: walletsToSync.count,
+            walletNames: walletNames,
+            syncEvents: syncManager.syncEvents
+        )
+
+        let manager = syncManager
+        Task { @MainActor in
+            await manager.syncAllWallets(walletsToSync)
+        }
     }
 
     /// Forces a full scan on all non-busy wallets. Called on pull-to-refresh.
+    ///
+    /// The sync is launched in a detached `Task` so it is not tied to
+    /// SwiftUI's `.refreshable` cooperative task, which can be cancelled
+    /// when the view re-renders after the first wallet finishes.
     @MainActor
     func fullScanAllWallets() async {
         let walletsToSync = uiState.wallets.filter { wallet in
             uiState.walletSyncStates[wallet.id]?.isBusy != true
         }
-        await syncManager.fullScanAllWallets(walletsToSync)
+        guard !walletsToSync.isEmpty else { return }
+
+        let walletNames = Dictionary(uniqueKeysWithValues: walletsToSync.map { ($0.id, $0.name) })
+        BackgroundSyncManager.shared.beginSync(
+            totalWallets: walletsToSync.count,
+            walletNames: walletNames,
+            syncEvents: syncManager.syncEvents
+        )
+
+        let manager = syncManager
+        Task { @MainActor in
+            await manager.fullScanAllWallets(walletsToSync)
+        }
     }
 
     /// Forces a full re-scan of the currently selected wallet.
@@ -362,6 +397,12 @@ extension WalletsViewModel {
 
         uiState.isPresentingWalletSettings = false
         uiState.isLoadingTransactions = true
+
+        BackgroundSyncManager.shared.beginSync(
+            totalWallets: 1,
+            walletNames: [wallet.id: wallet.name],
+            syncEvents: syncManager.syncEvents
+        )
 
         Task { @MainActor in
             await syncManager.fullScanSelectedWallet(wallet)
