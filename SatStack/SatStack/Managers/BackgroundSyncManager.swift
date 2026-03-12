@@ -153,7 +153,7 @@ final class BackgroundSyncManager {
 
         let finalState = WalletSyncActivityAttributes.ContentState(
             status: status,
-            progress: status == .completed ? 1.0 : nil,
+            progress: status == .completed ? 1.0 : 0.0,
             fullScanScriptCount: nil,
             currentWalletName: nil,
             completedWallets: completedWalletCount,
@@ -208,7 +208,7 @@ final class BackgroundSyncManager {
     private func handleSyncStateChange(walletId: UUID, state: WalletSyncState) {
         var contentState = WalletSyncActivityAttributes.ContentState(
             status: .syncing,
-            progress: nil,
+            progress: 0.0,
             fullScanScriptCount: nil,
             currentWalletName: walletNames[walletId],
             completedWallets: completedWalletCount,
@@ -294,7 +294,7 @@ final class BackgroundSyncManager {
         guard currentActivity != nil else { return }
         let state = WalletSyncActivityAttributes.ContentState(
             status: .syncing,
-            progress: nil,
+            progress: 0.0,
             fullScanScriptCount: nil,
             currentWalletName: nil,
             completedWallets: completedWalletCount,

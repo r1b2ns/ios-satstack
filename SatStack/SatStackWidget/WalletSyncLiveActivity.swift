@@ -293,7 +293,7 @@ private struct SyncLockScreenView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if context.state.isWaitingBackground {
-                Text("Waiting BGTask")
+                Text("Waiting Network")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(.orange.opacity(0.8))
             }
@@ -396,7 +396,7 @@ private extension WalletSyncActivityStatus {
 } contentStates: {
     WalletSyncActivityAttributes.ContentState(
         status: .syncing,
-        progress: 0.45,
+        progress: nil,
         fullScanScriptCount: nil,
         currentWalletName: "Main Wallet",
         completedWallets: 1,
