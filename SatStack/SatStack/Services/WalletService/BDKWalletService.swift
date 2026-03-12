@@ -46,7 +46,7 @@ struct BDKWalletService: WalletServiceProtocol {
     /// The blockchain backend used for wallet synchronisation.
     let backend: BlockchainBackend
 
-    init(backend: BlockchainBackend = .esplora) {
+    init(backend: BlockchainBackend = .electrum) {
         self.backend = backend
     }
 
