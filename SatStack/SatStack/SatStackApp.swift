@@ -74,6 +74,9 @@ struct SatStackApp: App {
             }
             .environmentObject(tabSelection)
             .modelContainer(modelContainer)
+            .onOpenURL { url in
+                handleDeepLink(url)
+            }
             .sheet(isPresented: $showWelcome) {
                 WelcomeView {
                     UserDefaults.standard.set(true, forKey: "hasSeenWelcome")
@@ -81,6 +84,19 @@ struct SatStackApp: App {
                 }
                 .presentationDetents([.large])
             }
+        }
+    }
+
+    // MARK: - Deep Link
+
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "satstack" else { return }
+
+        switch url.host {
+        case "wallets":
+            tabSelection.selectedTab = AppTabSelection.wallets
+        default:
+            Log.print.warning("[DeepLink] Unhandled URL: \(url.absoluteString)")
         }
     }
 }

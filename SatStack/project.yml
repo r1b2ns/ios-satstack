@@ -153,6 +153,16 @@ targets:
         # ── Live Activities ────────────────────────────────────────────────
         NSSupportsLiveActivities: true
 
+        # ── Background tasks ─────────────────────────────────────────────
+        BGTaskSchedulerPermittedIdentifiers:
+          - space.underground.satstack.wallet-sync
+
+        # ── URL scheme for deep linking (Live Activity tap → Wallets tab) ─
+        CFBundleURLTypes:
+          - CFBundleURLName: "$(PRODUCT_BUNDLE_IDENTIFIER)"
+            CFBundleURLSchemes:
+              - satstack
+
         # ── Configurações de servidor (lidas em runtime via Bundle.main) ───
         MempoolMonitorScheme: "$(MEMPOOL_MONITOR_SCHEME)"
         MempoolMonitorHost: "$(MEMPOOL_MONITOR_HOST)"
@@ -261,6 +271,9 @@ targets:
         SKIP_INSTALL: YES
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
 
 # ─────────────────────────────────────────────────────────────────────────────
   SatStackTests:

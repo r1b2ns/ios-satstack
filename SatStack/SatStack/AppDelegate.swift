@@ -12,6 +12,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         NFX.sharedInstance().start()
 //        #endif
 
+        // Register the background processing task for wallet synchronisation.
+        BackgroundSyncManager.shared.registerBackgroundTask()
+
         // Set up the notification center
         UNUserNotificationCenter.current().delegate = self
 

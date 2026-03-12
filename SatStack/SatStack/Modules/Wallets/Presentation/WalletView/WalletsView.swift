@@ -261,12 +261,13 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     private func buildActionBar(isWatchOnly: Bool) -> some View {
         let hasTransactions = !viewModel.uiState.transactions.isEmpty
+        let isSyncing = selectedWalletSyncState.isBusy
         return HStack(spacing: 12) {
-            buildActionButton(title: "Receive", icon: "arrow.down.circle.fill") {
+            buildActionButton(title: "Receive", icon: "arrow.down.circle.fill", disabled: false) {
                 viewModel.showReceiveAddress()
             }
             if !isWatchOnly {
-                buildActionButton(title: "Send", icon: "arrow.up.circle.fill") {
+                buildActionButton(title: "Send", icon: "arrow.up.circle.fill", disabled: isSyncing) {
                     viewModel.showSendSheet()
                 }
             }
@@ -277,9 +278,8 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         .background(hasTransactions ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(.clear))
     }
 
-    private func buildActionButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
-        let isSyncing = selectedWalletSyncState.isBusy
-        return Button(action: action) {
+    private func buildActionButton(title: String, icon: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                 Text(title)
@@ -287,11 +287,11 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(isSyncing ? Color.blue.opacity(0.4) : Color.blue)
+            .background(disabled ? Color.blue.opacity(0.4) : Color.blue)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .disabled(isSyncing)
+        .disabled(disabled)
     }
 
     // MARK: - Transaction list
@@ -306,6 +306,7 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     /// Sync state of the currently selected wallet.
     private var selectedWalletSyncState: WalletSyncState {
+        print(#function)
         guard let id = viewModel.uiState.selectedWalletId else { return .idle }
         return viewModel.uiState.walletSyncStates[id] ?? .idle
     }
