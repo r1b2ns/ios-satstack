@@ -119,13 +119,24 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
     // MARK: - Init
 
     init(
-        walletServiceFactory: @escaping () -> any WalletServiceProtocol = { BDKWalletService() },
-        detailSyncService: any WalletServiceProtocol = BDKWalletService(),
+        walletServiceFactory: @escaping () -> any WalletServiceProtocol = { WalletSyncManager.makeWalletService() },
+        detailSyncService: (any WalletServiceProtocol)? = nil,
         cooldownInterval: TimeInterval = 60
     ) {
         self.walletServiceFactory = walletServiceFactory
-        self.detailSyncService = detailSyncService
+        self.detailSyncService = detailSyncService ?? WalletSyncManager.makeWalletService()
         self.cooldownInterval = cooldownInterval
+    }
+
+    /// Returns the appropriate `WalletServiceProtocol` based on the user's
+    /// preferred sync mode stored in `UserDefaults`.
+    static func makeWalletService() -> any WalletServiceProtocol {
+        switch UserDefaults.standard.preferredSyncMode {
+        case .electrumEsplora:
+            return BDKWalletService()
+        case .kyoto:
+            return KyotoWalletService()
+        }
     }
 
     // MARK: - Helpers

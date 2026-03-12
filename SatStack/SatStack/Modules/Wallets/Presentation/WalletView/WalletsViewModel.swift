@@ -183,7 +183,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     @MainActor
     init(
         syncManager: any WalletSyncManagerProtocol = WalletSyncManager(),
-        walletLifecycleService: any WalletServiceProtocol = BDKWalletService(),
+        walletLifecycleService: any WalletServiceProtocol = WalletSyncManager.makeWalletService(),
         swiftDataStorage: (any PersistentStorable)? = nil,
         keychainStorage: KeyStorable = KeychainStorable.shared
     ) {

@@ -159,7 +159,7 @@ enum SyncMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .electrumEsplora: return "Electrum + Esplora"
+        case .electrumEsplora: return "Electrum"
         case .kyoto:           return "Kyoto"
         }
     }
