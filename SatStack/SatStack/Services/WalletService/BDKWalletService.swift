@@ -258,9 +258,9 @@ struct BDKWalletService: WalletServiceProtocol {
     }
 }
 
-// MARK: - Private sync logic
+// MARK: - Sync Logic
 
-private extension BDKWalletService {
+extension BDKWalletService {
 
     /// Decides whether to run a full scan or an incremental sync, executes it,
     /// and marks the full scan as completed in `UserDefaults` on success.

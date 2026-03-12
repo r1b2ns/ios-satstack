@@ -51,6 +51,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                 }
                 Section("Network") {
                     buildNetworkRow()
+                    buildSyncModeRow()
                 }
                 Section("Preferences") {
                     buildBalanceFormatRow()
@@ -127,6 +128,37 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                     Text(BDKNetworkConfig.networkName.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
+    }
+
+    // MARK: - Sync Mode
+
+    private func buildSyncModeRow() -> some View {
+        Button {
+            coordinator.navigateToSyncMode()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.title3)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sync Mode")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text(viewModel.uiState.preferredSyncMode.displayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -347,6 +379,8 @@ private extension View {
                 FiatCurrencyView()
             case .balanceFormat:
                 BalanceFormatView()
+            case .syncMode:
+                SyncModeView()
             }
         }
     }

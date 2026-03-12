@@ -144,6 +144,57 @@ extension UserDefaults {
     }
 }
 
+// MARK: - SyncMode
+
+/// The blockchain sync backend used for wallet synchronisation.
+enum SyncMode: String, CaseIterable, Identifiable {
+
+    /// Traditional server-based sync using Electrum (TCP) and Esplora (HTTP) backends.
+    case electrumEsplora = "electrumEsplora"
+
+    /// Compact Block Filter (BIP 157/158) light client — connects directly to the Bitcoin P2P network.
+    case kyoto = "kyoto"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .electrumEsplora: return "Electrum + Esplora"
+        case .kyoto:           return "Kyoto"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .electrumEsplora: return String(localized: "Sync via Electrum and Esplora servers")
+        case .kyoto:           return String(localized: "Compact Block Filters — peer-to-peer light client")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .electrumEsplora: return "server.rack"
+        case .kyoto:           return "network"
+        }
+    }
+}
+
+// MARK: - UserDefaults + SyncMode
+
+extension UserDefaults {
+    private static let preferredSyncModeKey = "preferredSyncMode"
+
+    var preferredSyncMode: SyncMode {
+        get {
+            let raw = string(forKey: Self.preferredSyncModeKey) ?? SyncMode.electrumEsplora.rawValue
+            return SyncMode(rawValue: raw) ?? .electrumEsplora
+        }
+        set {
+            set(newValue.rawValue, forKey: Self.preferredSyncModeKey)
+        }
+    }
+}
+
 // MARK: - Protocol
 
 protocol SettingsViewModelProtocol: ObservableObject {
@@ -156,6 +207,7 @@ struct SettingsUiState {
     var hasAPNsToken: Bool = false
     var preferredCurrency: FiatCurrency = UserDefaults.standard.preferredFiatCurrency
     var preferredBalanceFormat: BalanceDisplayFormat = UserDefaults.standard.preferredBalanceFormat
+    var preferredSyncMode: SyncMode = UserDefaults.standard.preferredSyncMode
 }
 
 // MARK: - ViewModel
@@ -188,6 +240,7 @@ final class SettingsViewModel: SettingsViewModelProtocol {
             .sink { [weak self] _ in
                 self?.uiState.preferredCurrency = UserDefaults.standard.preferredFiatCurrency
                 self?.uiState.preferredBalanceFormat = UserDefaults.standard.preferredBalanceFormat
+                self?.uiState.preferredSyncMode = UserDefaults.standard.preferredSyncMode
             }
             .store(in: &cancellables)
     }
