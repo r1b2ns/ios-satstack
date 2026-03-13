@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="AppIconDev_Preview_1024x1024.png" width="128" height="128" style="border-radius: 22%;" alt="SatStack App Icon" />
+</p>
+
 # SatStack
 
 An iOS app for monitoring Bitcoin transactions in the mempool. Enter a transaction ID and the app starts a **Live Activity** that displays real-time status — confirmations, value, and fee — directly on the Lock Screen and Dynamic Island.
