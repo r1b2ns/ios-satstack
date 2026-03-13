@@ -131,8 +131,12 @@ final class HomeViewModel: HomeViewModelProtocol {
             return item.mockType
 
         case .fiatPrice:
-            if let price = uiState.bitcoinPrice {
-                return .custom(view: AnyView(FiatPriceWidget(usdPrice: price.usd)))
+            if let prices = uiState.bitcoinPrice {
+                let currency = UserDefaults.standard.preferredFiatCurrency
+                return .custom(view: AnyView(FiatPriceWidget(
+                    price: currency.price(from: prices),
+                    currency: currency
+                )))
             }
             return item.mockType
 

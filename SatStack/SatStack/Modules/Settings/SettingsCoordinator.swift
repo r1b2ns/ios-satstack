@@ -12,6 +12,7 @@ enum SettingsRoute: Hashable {
     case fiatCurrency
     case balanceFormat
     case syncMode
+    case bitcoinWhitepaper
 }
 
 // MARK: - Coordinator
@@ -56,5 +57,9 @@ final class SettingsCoordinator: MainCoordinatorProtocol {
 
     func navigateToSyncMode() {
         path.append(SettingsRoute.syncMode)
+    }
+
+    func navigateToBitcoinWhitepaper() {
+        path.append(SettingsRoute.bitcoinWhitepaper)
     }
 }

@@ -71,7 +71,7 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
 
     private func buildAmountCard() -> some View {
         buildCard(title: "Amount") {
-            buildRow(label: "BTC", value: formattedAmount, valueStyle: .monospaced)
+            buildBalanceRow(label: "Value", sats: amountSats)
         }
     }
 
@@ -90,17 +90,9 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
                         value: feeRateText(for: option)
                     )
                     buildDivider()
-                    buildRow(
-                        label: "Fee",
-                        value: feeSatsText(for: option),
-                        valueStyle: .monospaced
-                    )
-                    buildRow(
-                        label: "",
-                        value: feeBTCText(for: option),
-                        valueStyle: .monospaced,
-                        secondary: true
-                    )
+                    if let feeSats = viewModel.estimatedFeeSats(for: option) {
+                        buildBalanceRow(label: "Fee", sats: UInt64(feeSats))
+                    }
                 }
             }
         }
@@ -110,10 +102,9 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
 
     private func buildTotalCard() -> some View {
         buildCard(title: "Total") {
-            buildRow(
+            buildBalanceRow(
                 label: "Amount + Fee",
-                value: totalBTCText,
-                valueStyle: .monospaced,
+                sats: totalSats,
                 bold: true
             )
         }
@@ -233,10 +224,23 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
 
     // MARK: - Computed display values
 
-    private var formattedAmount: String {
+    /// The entered amount converted to satoshis based on the user's preferred balance format.
+    private var amountSats: UInt64 {
         let text = viewModel.uiState.amountText.replacingOccurrences(of: ",", with: ".")
-        guard let value = Double(text) else { return "0.00000000 BTC" }
-        return "\(String(format: "%.8f", value)) BTC"
+        guard let rawValue = Double(text) else { return 0 }
+        let amountBTC: Double
+        switch UserDefaults.standard.preferredBalanceFormat {
+        case .bitcoin, .fiat: amountBTC = rawValue
+        case .sats, .bip177:  amountBTC = rawValue / 100_000_000.0
+        }
+        return UInt64(amountBTC * 100_000_000)
+    }
+
+    /// Total cost (amount + estimated fee) in satoshis.
+    private var totalSats: UInt64 {
+        guard let option = viewModel.uiState.selectedFee,
+              let feeSats = viewModel.estimatedFeeSats(for: option) else { return amountSats }
+        return amountSats + UInt64(feeSats)
     }
 
     private func feeRateText(for option: FeeOption) -> String {
@@ -244,23 +248,46 @@ struct ReviewTransactionView<ViewModel: SendBitcoinViewModelProtocol>: View {
         return "\(rate) sat/vB"
     }
 
-    private func feeSatsText(for option: FeeOption) -> String {
-        guard let sats = viewModel.estimatedFeeSats(for: option) else { return "—" }
-        return "≈ \(sats.formatted()) sats"
+    // MARK: - Balance row
+
+    /// Row that renders a satoshi amount in the user's preferred balance format.
+    /// When the preference is `.fiat`, falls back to BTC since transaction
+    /// amounts are denominated in bitcoin.
+    private func buildBalanceRow(
+        label: String,
+        sats: UInt64,
+        bold: Bool = false
+    ) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 80, alignment: .leading)
+
+            Spacer()
+
+            Text(formatSendAmount(sats))
+                .font(.system(.subheadline, design: .monospaced))
+                .fontWeight(bold ? .semibold : .regular)
+                .multilineTextAlignment(.trailing)
+        }
     }
 
-    private func feeBTCText(for option: FeeOption) -> String {
-        guard let sats = viewModel.estimatedFeeSats(for: option) else { return "—" }
-        let btc = Double(sats) / 100_000_000.0
-        return "≈ \(String(format: "%.8f", btc)) BTC"
-    }
-
-    private var totalBTCText: String {
-        let text = viewModel.uiState.amountText.replacingOccurrences(of: ",", with: ".")
-        guard let amount = Double(text),
-              let option = viewModel.uiState.selectedFee,
-              let feeSats = viewModel.estimatedFeeSats(for: option) else { return "—" }
-        let feeBTC = Double(feeSats) / 100_000_000.0
-        return "\(String(format: "%.8f", amount + feeBTC)) BTC"
+    /// Formats satoshis for display in the Send Bitcoin context.
+    /// When the user's preference is `.fiat`, falls back to BTC format
+    /// since transaction amounts are denominated in bitcoin.
+    private func formatSendAmount(_ sats: UInt64) -> String {
+        let format = UserDefaults.standard.preferredBalanceFormat
+        switch format {
+        case .bitcoin, .fiat:
+            let btc = Double(sats) / 100_000_000.0
+            return String(format: "₿ %.8f", btc)
+        case .sats:
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            return "\(formatter.string(from: NSNumber(value: sats)) ?? "\(sats)") sats"
+        case .bip177:
+            return "\(sats.formattedBip177()) ₿"
+        }
     }
 }

@@ -52,12 +52,15 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     @ObservedObject var viewModel: ViewModel
     @EnvironmentObject private var coordinator: WalletsCoordinator
+    
+    private let bdkURL = URL(string: "https://github.com/bitcoindevkit")!
 
     /// Height of a full wallet card.
     private let cardHeight: CGFloat = 200
     /// Height of the visible header strip when cards are stacked.
     private let headerHeight: CGFloat = 68
 
+    @Environment(\.openURL) private var openURL
     @State private var showNotificationPermission = false
 
     var body: some View {
