@@ -92,7 +92,7 @@ enum WidgetItem: String, CaseIterable, Codable, Hashable, Identifiable {
         case .currentBlockHeight:
             return "The block height is the total number of blocks mined since Bitcoin's genesis block (block 0). A new block is added roughly every 10 minutes, each containing a batch of confirmed transactions. It serves as Bitcoin's internal clock."
         case .fiatPrice:
-            return "The current Bitcoin price in US Dollars (USD), sourced in real time from public market data. Prices fluctuate continuously on global exchanges based on supply and demand."
+            return "The current Bitcoin price in your preferred fiat currency, sourced in real time from public market data. Prices fluctuate continuously on global exchanges based on supply and demand."
         case .walletBalance:
             return ""
         }

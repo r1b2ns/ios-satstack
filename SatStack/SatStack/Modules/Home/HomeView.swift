@@ -1,4 +1,27 @@
 import SwiftUI
+import TipKit
+
+// MARK: - Beta Tip
+
+/// Tip displayed at the top of the Home screen warning users
+/// that the wallet feature is in beta and should be used with caution.
+struct BetaWalletTip: Tip {
+    var title: Text {
+        Text("Beta Version")
+    }
+
+    var message: Text? {
+        Text("This wallet is currently in beta. Use it with caution and avoid storing large amounts until the app has been fully tested.")
+    }
+
+    var image: Image? {
+        Image(systemName: "exclamationmark.triangle.fill")
+    }
+
+    var actions: [Action] {
+        Action(id: "see-more", title: "See more")
+    }
+}
 
 // MARK: - Factory
 
@@ -34,6 +57,8 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
 
     /// The widget whose info sheet is currently being presented. `nil` = no sheet.
     @State private var infoItem: WidgetItem? = nil
+
+    private let betaTip = BetaWalletTip()
 
     init(viewModel: ViewModel) {
         self.viewModel = viewModel
@@ -74,6 +99,7 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
     private func buildGrid() -> some View {
         ScrollView {
             VStack(spacing: 12) {
+                buildBetaTip()
                 ForEach(groupedRows, id: \.first?.id) { row in
                     buildWidgetRow(row)
                 }
@@ -83,6 +109,19 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
         .refreshable {
             await viewModel.refresh()
         }
+    }
+
+    // MARK: - Beta tip
+
+    @Environment(\.openURL) private var openURL
+
+    private func buildBetaTip() -> some View {
+        TipView(betaTip) { action in
+            if action.id == "see-more" {
+                openURL(URL(string: "https://github.com/r1b2ns/ios-satstack")!)
+            }
+        }
+        .tipImageSize(CGSize(width: 24, height: 24))
     }
 
     /// Groups active widgets into rows for display.

@@ -26,6 +26,7 @@ struct SatStackApp: App {
             fatalError("Failed to create ModelContainer: \(error)")
         }
 
+        try? Tips.resetDatastore()
         try? Tips.configure()
     }
 

@@ -48,8 +48,9 @@ extension WidgetItem {
             ))
 
         case .fiatPrice:
+            let currency = UserDefaults.standard.preferredFiatCurrency
             return .custom(view: AnyView(
-                FiatPriceWidget(usdPrice: 98_000)
+                FiatPriceWidget(price: 98_000, currency: currency)
                     .redacted(reason: .placeholder)
             ))
         }

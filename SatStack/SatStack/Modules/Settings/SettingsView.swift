@@ -58,6 +58,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                     buildFiatCurrencyRow()
                 }
                 Section("About") {
+                    buildBitcoinWhitepaperRow()
                     buildProjectOnGitHubRow()
                     buildOpenSourceRow()
                 }
@@ -235,6 +236,37 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
         .foregroundStyle(.foreground)
     }
 
+    // MARK: - Bitcoin Whitepaper
+
+    private func buildBitcoinWhitepaperRow() -> some View {
+        Button {
+            coordinator.navigateToBitcoinWhitepaper()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "doc.text.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.orange)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Bitcoin Whitepaper")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text("By Satoshi Nakamoto")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+        }
+        .foregroundStyle(.foreground)
+    }
+
     // MARK: - Project on GitHub
 
     private func buildProjectOnGitHubRow() -> some View {
@@ -381,6 +413,8 @@ private extension View {
                 BalanceFormatView()
             case .syncMode:
                 SyncModeView()
+            case .bitcoinWhitepaper:
+                BitcoinWhitepaperView()
             }
         }
     }

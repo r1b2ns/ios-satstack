@@ -56,6 +56,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
     @FocusState private var focusedField: Field?
 
     @State private var amountFormat: BalanceDisplayFormat = UserDefaults.standard.preferredBalanceFormat
+    @State private var prices: PricesResponse?
 
     var body: some View {
         NavigationStack(path: $coordinator.path) {
@@ -92,6 +93,7 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadFees() }
+    .task { await loadPrices() }
     }
 
     // MARK: - Content
@@ -433,32 +435,70 @@ struct SendBitcoinView<ViewModel: SendBitcoinViewModelProtocol>: View {
            let feeSats = viewModel.estimatedFeeSats(for: selectedFee),
            let amountBTC = parsedAmountBTC,
            amountBTC > 0 {
-            let feeBTC = Double(feeSats) / 100_000_000.0
-            let totalBTC = amountBTC + feeBTC
+            let amountSats = UInt64(amountBTC * 100_000_000)
+            let totalSats = amountSats + UInt64(feeSats)
 
             Section {
-                buildSummaryRow(label: "Amount", value: formatBTC(amountBTC))
-                buildSummaryRow(label: "Fee", value: formatBTC(feeBTC))
-                buildSummaryRow(label: "Total", value: formatBTC(totalBTC), bold: true)
+                buildSummaryBalanceRow(label: "Amount", sats: amountSats)
+                buildSummaryBalanceRow(label: "Fee", sats: UInt64(feeSats))
+                buildTotalFiatRow(sats: totalSats)
+                buildSummaryBalanceRow(label: "Total", sats: totalSats, bold: true)
             } header: {
                 Text("Summary")
             }
         }
     }
 
-    private func buildSummaryRow(label: String, value: String, bold: Bool = false) -> some View {
+    private func buildSummaryBalanceRow(label: String, sats: UInt64, bold: Bool = false) -> some View {
         HStack {
             Text(label)
                 .foregroundStyle(.secondary)
             Spacer()
-            Text(value)
+            Text(formatSendAmount(sats))
                 .font(.system(.body, design: .monospaced))
                 .fontWeight(bold ? .semibold : .regular)
         }
     }
 
-    private func formatBTC(_ value: Double) -> String {
-        "\(String(format: "%.8f", value)) BTC"
+    /// Shows the total transaction value in the user's preferred fiat currency.
+    @ViewBuilder
+    private func buildTotalFiatRow(sats: UInt64) -> some View {
+        let currency = UserDefaults.standard.preferredFiatCurrency
+        if let prices {
+            let btc = Double(sats) / 100_000_000.0
+            let fiatValue = btc * currency.price(from: prices)
+            HStack {
+                Text("Total Fiat")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(currency.formattedPrice(fiatValue))
+                    .font(.system(.body, design: .monospaced))
+            }
+        }
+    }
+
+    /// Formats satoshis for display in the Send Bitcoin context.
+    /// When the user's preference is `.fiat`, falls back to BTC format
+    /// since transaction amounts are denominated in bitcoin.
+    private func formatSendAmount(_ sats: UInt64) -> String {
+        switch amountFormat {
+        case .bitcoin, .fiat:
+            let btc = Double(sats) / 100_000_000.0
+            return String(format: "₿ %.8f", btc)
+        case .sats:
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            return "\(formatter.string(from: NSNumber(value: sats)) ?? "\(sats)") sats"
+        case .bip177:
+            return "\(sats.formattedBip177()) ₿"
+        }
+    }
+
+    private func loadPrices() async {
+        prices = try? await SwiftDataStorable.shared.fetch(
+            PricesResponse.self,
+            id: "bitcoin_prices"
+        )
     }
 
     private var parsedAmountBTC: Double? {

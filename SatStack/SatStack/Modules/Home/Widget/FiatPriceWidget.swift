@@ -2,11 +2,14 @@ import SwiftUI
 
 // MARK: - View
 
-/// Displays the current Bitcoin price in US dollars as a compact card widget.
+/// Displays the current Bitcoin price in the user's preferred fiat currency as a compact card widget.
 struct FiatPriceWidget: View {
 
-    /// Bitcoin price in US dollars.
-    let usdPrice: Double
+    /// Bitcoin price in the selected fiat currency.
+    let price: Double
+
+    /// The fiat currency used for formatting.
+    let currency: FiatCurrency
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -32,21 +35,11 @@ struct FiatPriceWidget: View {
     }
 
     private func buildPrice() -> some View {
-        Text(formattedPrice)
+        Text(currency.formattedPrice(price))
             .font(.title2)
             .fontWeight(.bold)
             .foregroundStyle(.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-    }
-
-    // MARK: - Formatting
-
-    private var formattedPrice: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: usdPrice)) ?? "$\(Int(usdPrice))"
     }
 }
