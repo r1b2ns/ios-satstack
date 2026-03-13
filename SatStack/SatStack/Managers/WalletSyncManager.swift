@@ -125,7 +125,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
     init(
         walletServiceFactory: @escaping () -> any WalletServiceProtocol = { WalletSyncManager.makeWalletService() },
         detailSyncService: (any WalletServiceProtocol)? = nil,
-        cooldownInterval: TimeInterval = 60
+        cooldownInterval: TimeInterval = 300
     ) {
         self.walletServiceFactory = walletServiceFactory
         self.detailSyncService = detailSyncService ?? WalletSyncManager.makeWalletService()
