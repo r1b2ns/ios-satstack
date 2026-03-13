@@ -124,6 +124,8 @@ extension UserDefaults {
         }
         set {
             set(newValue.rawValue, forKey: Self.preferredCurrencyKey)
+            // Sync to App Group so the widget extension can read the preference
+            AppGroupStore.defaults.set(newValue.rawValue, forKey: Self.preferredCurrencyKey)
         }
     }
 }

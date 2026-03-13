@@ -209,6 +209,7 @@ final class HomeViewModel: HomeViewModelProtocol {
             let response = try await api.fetchFearAndGreedIndex()
             if let entry = response.data.first {
                 uiState.fearAndGreedEntry = entry
+                AppGroupStore.saveFearAndGreed(entry)
             }
         } catch {
             Log.print.error("Fear and Greed Index fetch failed: \(error.localizedDescription)")
@@ -221,7 +222,15 @@ final class HomeViewModel: HomeViewModelProtocol {
     private func fetchHalvingInfo() async {
         do {
             let difficulty = try await mempoolSpaceAPI.fetchDifficultyAdjustment()
-            uiState.halvingInfo = HalvingInfo.compute(from: difficulty)
+            let info = HalvingInfo.compute(from: difficulty)
+            uiState.halvingInfo = info
+            AppGroupStore.saveHalving(SharedHalvingInfo(
+                currentBlockHeight: info.currentBlockHeight,
+                nextHalvingHeight: info.nextHalvingHeight,
+                blocksUntil: info.blocksUntil,
+                estimatedDateTimestamp: info.estimatedDate.timeIntervalSince1970,
+                epochProgress: info.epochProgress
+            ))
         } catch {
             Log.print.error("Halving info fetch failed: \(error.localizedDescription)")
         }
@@ -232,7 +241,13 @@ final class HomeViewModel: HomeViewModelProtocol {
     @MainActor
     private func fetchRecommendedFees() async {
         do {
-            uiState.recommendedFees = try await mempoolSpaceAPI.fetchRecommendedFees()
+            let fees = try await mempoolSpaceAPI.fetchRecommendedFees()
+            uiState.recommendedFees = fees
+            AppGroupStore.saveFees(SharedRecommendedFees(
+                fastestFee: fees.fastestFee,
+                hourFee: fees.hourFee,
+                economyFee: fees.economyFee
+            ))
         } catch {
             Log.print.error("Recommended fees fetch failed: \(error.localizedDescription)")
         }
@@ -259,6 +274,17 @@ final class HomeViewModel: HomeViewModelProtocol {
             let prices = try await mempoolSpaceAPI.fetchPrices()
             uiState.bitcoinPrice = prices
             try await SwiftDataStorable.shared.save(prices, id: "bitcoin_prices")
+            let currency = UserDefaults.standard.preferredFiatCurrency
+            AppGroupStore.savePrices(SharedPrices(
+                usd: prices.usd,
+                eur: prices.eur,
+                gbp: prices.gbp,
+                cad: prices.cad,
+                chf: prices.chf,
+                aud: prices.aud,
+                jpy: prices.jpy,
+                preferredCurrencyCode: currency.rawValue
+            ))
         } catch {
             Log.print.error("Bitcoin price fetch failed: \(error.localizedDescription)")
         }

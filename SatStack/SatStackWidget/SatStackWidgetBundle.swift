@@ -6,5 +6,10 @@ struct SatStackWidgetBundle: WidgetBundle {
     var body: some Widget {
         SatStackLiveActivity()
         WalletSyncLiveActivity()
+        SatStackWidgetGreedAndFear()
+        SatStackWidgetTransactionFee()
+        SatStackWidgetBlockHeight()
+        SatStackWidgetNextHalving()
+        SatStackWidgetFiatPrice()
     }
 }
