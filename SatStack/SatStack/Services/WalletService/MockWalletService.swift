@@ -48,7 +48,7 @@ struct MockWalletService: WalletServiceProtocol {
         case .seedPhrase(let words):
             guard words.count == 12 || words.count == 24 else {
                 throw WalletServiceError.invalidImportSource(
-                    "Seed phrase must contain 12 or 24 words, got \(words.count)."
+                    "Seed phrase must contain 12, got \(words.count)."
                 )
             }
             return Wallet(
