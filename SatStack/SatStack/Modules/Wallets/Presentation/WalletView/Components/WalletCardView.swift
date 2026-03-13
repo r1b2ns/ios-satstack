@@ -21,6 +21,7 @@ struct WalletCardView: View {
     let wallet: Wallet
     var balanceSats: UInt64? = nil
     var syncState: WalletSyncState = .idle
+    var isKyotoConnected: Bool = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -169,13 +170,39 @@ struct WalletCardView: View {
 
     private func buildBalanceSection() -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(wallet.name)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(0.8))
+            HStack(spacing: 6) {
+                buildConnectionIndicator()
+                Text(wallet.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
             buildBalanceRow()
         }
     }
+
+    /// Small dot indicating the Kyoto P2P connection status for this wallet.
+    private func buildConnectionIndicator() -> some View {
+        Circle()
+            .fill(isKyotoConnected ? Color.green : Color.white.opacity(0.4))
+            .frame(width: 8, height: 8)
+            .opacity(isKyotoConnected ? connectionPulse : 1)
+            .animation(
+                isKyotoConnected
+                    ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                    : .default,
+                value: isKyotoConnected
+            )
+            .onAppear {
+                if isKyotoConnected { connectionPulse = 0.5 }
+            }
+            .onChange(of: isKyotoConnected) { connected in
+                connectionPulse = connected ? 0.5 : 1
+            }
+    }
+
+    /// Opacity value used for the pulse animation on the connection dot.
+    @State private var connectionPulse: Double = 1
 
     /// Balance is always displayed — never hidden behind a spinner.
     private func buildBalanceRow() -> some View {

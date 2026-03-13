@@ -156,7 +156,8 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                         WalletCardView(
                                 wallet: wallet,
                                 balanceSats: viewModel.uiState.walletBalances[wallet.id],
-                                syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle
+                                syncState: viewModel.uiState.walletSyncStates[wallet.id] ?? .idle,
+                                isKyotoConnected: viewModel.uiState.kyotoConnectionStatuses[wallet.id] ?? false
                             )
                             .offset(y: CGFloat(index) * headerHeight)
                             .zIndex(Double(index))

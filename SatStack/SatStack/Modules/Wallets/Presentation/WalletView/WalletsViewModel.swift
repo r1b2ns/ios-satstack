@@ -155,6 +155,10 @@ struct WalletsUiState {
         get { syncErrorMessage != nil }
         set { if !newValue { syncErrorMessage = nil } }
     }
+
+    /// Per-wallet Kyoto P2P connection status. `true` when the CBF client
+    /// reported a successful connection for the given wallet.
+    var kyotoConnectionStatuses: [UUID: Bool] = [:]
 }
 
 // MARK: - WalletsViewModel
@@ -194,6 +198,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         self.swiftDataStorage = swiftDataStorage ?? SwiftDataStorable.shared
         self.keychainStorage = keychainStorage
         subscribeSyncEvents()
+        subscribeKyotoConnectionEvents()
         Task { @MainActor in await self.loadWallets() }
         Task { @MainActor in await self.fetchWalletBalance() }
     }
@@ -206,6 +211,35 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             .sink { [weak self] event in
                 Task { @MainActor in
                     self?.handleSyncEvent(event)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Kyoto connection event subscription
+
+    private func subscribeKyotoConnectionEvents() {
+        NotificationCenter.default.publisher(for: .cbfClientConnected)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let walletIdString = notification.userInfo?["walletId"] as? String,
+                      let walletId = UUID(uuidString: walletIdString) else { return }
+                self?.uiState.kyotoConnectionStatuses[walletId] = true
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .cbfClientDisconnected)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                if let walletIdString = notification.userInfo?["walletId"] as? String,
+                   let walletId = UUID(uuidString: walletIdString) {
+                    self?.uiState.kyotoConnectionStatuses[walletId] = false
+                } else {
+                    // Cleanup calls (stopBackgroundMonitoring / cancelAllMonitoring)
+                    // post without walletId — reset all statuses.
+                    self?.uiState.kyotoConnectionStatuses.keys.forEach { key in
+                        self?.uiState.kyotoConnectionStatuses[key] = false
+                    }
                 }
             }
             .store(in: &cancellables)
