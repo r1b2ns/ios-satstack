@@ -46,7 +46,7 @@ struct BDKWalletService: WalletServiceProtocol {
     /// The blockchain backend used for wallet synchronisation.
     let backend: BlockchainBackend
 
-    init(backend: BlockchainBackend = .esplora) {
+    init(backend: BlockchainBackend = .electrum) {
         self.backend = backend
     }
 
@@ -258,9 +258,9 @@ struct BDKWalletService: WalletServiceProtocol {
     }
 }
 
-// MARK: - Private sync logic
+// MARK: - Sync Logic
 
-private extension BDKWalletService {
+extension BDKWalletService {
 
     /// Decides whether to run a full scan or an incremental sync, executes it,
     /// and marks the full scan as completed in `UserDefaults` on success.
@@ -610,13 +610,17 @@ private extension BDKWalletService {
 
     /// Persists the fact that the given wallet has completed its initial full scan.
     static func markFullScanCompleted(for walletId: UUID) {
-        UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        Task { @MainActor in
+            UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        }
         Log.print.info("[BDK] Full scan state saved for wallet \(walletId.uuidString)")
     }
 
     /// Resets the full-scan flag so the next sync performs a full scan.
     static func resetFullScanFlag(for walletId: UUID) {
-        UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        Task { @MainActor in
+            UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        }
         Log.print.info("[BDK] Full scan flag reset for wallet \(walletId.uuidString)")
     }
 

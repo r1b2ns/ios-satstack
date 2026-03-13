@@ -313,14 +313,15 @@ private struct SyncLockScreenView: View {
     // MARK: - Footer Helpers
 
     private var footerText: String {
+        let prefix = ""
         switch context.state.status {
         case .syncing:
             if let progress = context.state.progress {
-                return "Syncing — \(Int(progress * 100))%"
+                return "\(prefix)Syncing — \(Int(progress * 100))%"
             }
-            return "Syncing wallets…"
+            return "\(prefix)Syncing wallets…"
         case .fullScanning:
-            return "Full scan in progress…"
+            return "\(prefix)Full scan in progress…"
         case .completed:
             return "Sync complete"
         case .failed:

@@ -176,6 +176,9 @@ targets:
         # ── Bitcoin donation address ──────────────────────────────────────────
         BitcoinAddress: "$(BITCOIN_ADDRESS)"
 
+        # ── App Groups identifier (shared with widget extension) ─────────
+        APP_GROUP_IDENTIFIER: "$(APP_GROUP_IDENTIFIER)"
+
     # ─── xcconfig local (não versionado) ────────────────────────────────────
     # Contém PRODUCT_BUNDLE_IDENTIFIER e outras chaves privadas.
     # Crie o arquivo a partir do template: cp Configs/Local.xcconfig.template Configs/Local.xcconfig
@@ -248,6 +251,9 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
+        # ── App Groups identifier (shared with main app) ──────────────────
+        APP_GROUP_IDENTIFIER: "$(APP_GROUP_IDENTIFIER)"
+
     # Same xcconfig chain as the app — Debug/Release include Local.xcconfig
     configFiles:
       Debug: Configs/Debug.xcconfig
@@ -274,6 +280,9 @@ targets:
       configs:
         Debug:
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+          CODE_SIGN_ENTITLEMENTS: SatStackWidget/SatStackWidget.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: SatStackWidget/SatStackWidget.entitlements
 
 # ─────────────────────────────────────────────────────────────────────────────
   SatStackTests:

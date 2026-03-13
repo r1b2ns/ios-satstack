@@ -140,7 +140,7 @@ final class SendBitcoinViewModel: SendBitcoinViewModelProtocol {
 
     init(
         wallet: Wallet,
-        walletService: WalletServiceProtocol = BDKWalletService(),
+        walletService: WalletServiceProtocol = WalletSyncManager.makeWalletService(),
         api: MempoolSpaceAPIProtocol = MempoolSpaceAPI.shared,
         monitorAPI: MempoolMonitorAPIProtocol = MempoolMonitorAPI.shared,
         liveActivityManager: LiveActivityManager = LiveActivityManager()

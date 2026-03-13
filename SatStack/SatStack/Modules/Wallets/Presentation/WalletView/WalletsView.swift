@@ -306,7 +306,6 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
 
     /// Sync state of the currently selected wallet.
     private var selectedWalletSyncState: WalletSyncState {
-        print(#function)
         guard let id = viewModel.uiState.selectedWalletId else { return .idle }
         return viewModel.uiState.walletSyncStates[id] ?? .idle
     }

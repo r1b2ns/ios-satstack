@@ -125,7 +125,7 @@ final class BackgroundSyncManager {
             currentWalletName: nil,
             completedWallets: 0,
             totalWallets: totalWallets,
-            errorMessage: nil
+            errorMessage: nil,
         )
 
         do {
@@ -158,7 +158,7 @@ final class BackgroundSyncManager {
             currentWalletName: nil,
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
-            errorMessage: errorMessage
+            errorMessage: errorMessage,
         )
 
         let finalContent = ActivityContent(state: finalState, staleDate: nil)
@@ -213,7 +213,7 @@ final class BackgroundSyncManager {
             currentWalletName: walletNames[walletId],
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
-            errorMessage: nil
+            errorMessage: nil,
         )
 
         switch state {
@@ -300,7 +300,7 @@ final class BackgroundSyncManager {
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
             errorMessage: nil,
-            isWaitingBackground: true
+            isWaitingBackground: true,
         )
         updateLiveActivity(with: state)
     }

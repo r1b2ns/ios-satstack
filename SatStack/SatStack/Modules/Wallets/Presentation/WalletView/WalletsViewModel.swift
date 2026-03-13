@@ -183,7 +183,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
     @MainActor
     init(
         syncManager: any WalletSyncManagerProtocol = WalletSyncManager(),
-        walletLifecycleService: any WalletServiceProtocol = BDKWalletService(),
+        walletLifecycleService: any WalletServiceProtocol = WalletSyncManager.makeWalletService(),
         swiftDataStorage: (any PersistentStorable)? = nil,
         keychainStorage: KeyStorable = KeychainStorable.shared
     ) {
@@ -194,6 +194,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         self.swiftDataStorage = swiftDataStorage ?? SwiftDataStorable.shared
         self.keychainStorage = keychainStorage
         subscribeSyncEvents()
+        observeSyncModeChange()
         Task { @MainActor in await self.loadWallets() }
         Task { @MainActor in await self.fetchWalletBalance() }
     }
@@ -206,6 +207,23 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             .sink { [weak self] event in
                 Task { @MainActor in
                     self?.handleSyncEvent(event)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Sync mode change observation
+
+    private func observeSyncModeChange() {
+        NotificationCenter.default.publisher(for: .syncModeDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.syncManager.reloadServices()
+
+                // Trigger a full scan/recovery on all wallets after the mode change.
+                Task { @MainActor in
+                    await self.fullScanAllWallets()
                 }
             }
             .store(in: &cancellables)
@@ -245,7 +263,7 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             BackgroundSyncManager.shared.beginSync(
                 totalWallets: 1,
                 walletNames: [wallet.id: wallet.name],
-                syncEvents: self.syncManager.syncEvents
+                syncEvents: self.syncManager.syncEvents,
             )
 
             // Delegate the actual sync to the manager.
@@ -354,7 +372,7 @@ extension WalletsViewModel {
         BackgroundSyncManager.shared.beginSync(
             totalWallets: walletsToSync.count,
             walletNames: walletNames,
-            syncEvents: syncManager.syncEvents
+            syncEvents: syncManager.syncEvents,
         )
 
         let manager = syncManager
@@ -401,7 +419,7 @@ extension WalletsViewModel {
         BackgroundSyncManager.shared.beginSync(
             totalWallets: 1,
             walletNames: [wallet.id: wallet.name],
-            syncEvents: syncManager.syncEvents
+            syncEvents: syncManager.syncEvents,
         )
 
         Task { @MainActor in
