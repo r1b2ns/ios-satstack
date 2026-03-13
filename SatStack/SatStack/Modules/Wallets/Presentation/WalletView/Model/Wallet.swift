@@ -28,18 +28,13 @@ struct Wallet: Identifiable, Codable {
     /// deserialization — never written to SwiftData storage.
     var descriptor: String? = nil
 
-    /// Whether the wallet needs a full scan on the next sync.
-    /// Set to `true` when the sync mode changes; cleared after a successful sync.
-    var needsFullScan: Bool = true
-
-    init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil, descriptor: String? = nil, needsFullScan: Bool = true) {
+    init(id: UUID, name: String, theme: WalletTheme, balanceBTC: Double, mnemonicPhrase: String? = nil, descriptor: String? = nil) {
         self.id = id
         self.name = name
         self.theme = theme
         self.balanceBTC = balanceBTC
         self.mnemonicPhrase = mnemonicPhrase
         self.descriptor = descriptor
-        self.needsFullScan = needsFullScan
     }
 
     /// Whether this wallet is a single-address watch-only import (bc1/tb1/1/3).
@@ -56,6 +51,6 @@ struct Wallet: Identifiable, Codable {
     /// `mnemonicPhrase` and `descriptor` are intentionally omitted — they live
     /// exclusively in the iOS Keychain, keyed by the wallet's UUID.
     private enum CodingKeys: String, CodingKey {
-        case id, name, theme, balanceBTC, needsFullScan
+        case id, name, theme, balanceBTC
     }
 }

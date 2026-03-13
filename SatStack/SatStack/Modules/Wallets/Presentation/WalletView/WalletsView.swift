@@ -150,7 +150,6 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         return ScrollView {
             VStack(spacing: 0) {
                 buildTotalBalanceHeader()
-                buildKyotoStatusIndicator()
 
                 ZStack(alignment: .top) {
                     ForEach(Array(wallets.enumerated()), id: \.element.id) { index, wallet in
@@ -199,50 +198,6 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
-    }
-
-    // MARK: - Kyoto status indicator
-
-    @ViewBuilder
-    private func buildKyotoStatusIndicator() -> some View {
-        if viewModel.uiState.isKyotoMode {
-            let status = viewModel.uiState.kyotoConnectionStatus
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(kyotoStatusColor(status))
-                    .frame(width: 8, height: 8)
-                Image(systemName: "network")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text("Kyoto")
-                    .font(.system(.caption, design: .monospaced).bold())
-                    .foregroundStyle(.primary)
-                Text("·")
-                    .foregroundStyle(.secondary)
-                Text(kyotoStatusText(status))
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-        }
-    }
-
-    private func kyotoStatusColor(_ status: KyotoNodeConnectionStatus) -> Color {
-        switch status {
-        case .connected:    return .green
-        case .connecting:   return .orange
-        case .disconnected: return .red
-        }
-    }
-
-    private func kyotoStatusText(_ status: KyotoNodeConnectionStatus) -> String {
-        switch status {
-        case .connected:    return String(localized: "Connected")
-        case .connecting:   return String(localized: "Connecting")
-        case .disconnected: return String(localized: "Disconnected")
-        }
     }
 
     // MARK: - Detail view (selected card + transactions)

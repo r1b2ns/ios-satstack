@@ -135,12 +135,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
     /// Returns the appropriate `WalletServiceProtocol` based on the user's
     /// preferred sync mode stored in `UserDefaults`.
     static func makeWalletService() -> any WalletServiceProtocol {
-        switch UserDefaults.standard.preferredSyncMode {
-        case .electrumEsplora:
-            return BDKWalletService()
-        case .kyoto:
-            return KyotoWalletService()
-        }
+        return BDKWalletService()
     }
 
     // MARK: - Helpers

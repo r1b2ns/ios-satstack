@@ -152,29 +152,23 @@ enum SyncMode: String, CaseIterable, Identifiable {
     /// Traditional server-based sync using Electrum (TCP) and Esplora (HTTP) backends.
     case electrumEsplora = "electrumEsplora"
 
-    /// Compact Block Filter (BIP 157/158) light client — connects directly to the Bitcoin P2P network.
-    case kyoto = "kyoto"
-
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         case .electrumEsplora: return "Electrum"
-        case .kyoto:           return "Kyoto"
         }
     }
 
     var description: String {
         switch self {
         case .electrumEsplora: return String(localized: "Sync via Electrum and Esplora servers")
-        case .kyoto:           return String(localized: "Compact Block Filters — peer-to-peer light client")
         }
     }
 
     var icon: String {
         switch self {
         case .electrumEsplora: return "server.rack"
-        case .kyoto:           return "network"
         }
     }
 }

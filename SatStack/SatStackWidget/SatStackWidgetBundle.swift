@@ -6,6 +6,5 @@ struct SatStackWidgetBundle: WidgetBundle {
     var body: some Widget {
         SatStackLiveActivity()
         WalletSyncLiveActivity()
-        KyotoStatusWidget()
     }
 }

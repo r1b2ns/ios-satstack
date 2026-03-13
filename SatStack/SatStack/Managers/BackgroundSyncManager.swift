@@ -32,7 +32,6 @@ final class BackgroundSyncManager {
     private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
     private var lastProgressUpdate = Date.distantPast
     private var isSyncing = false
-    private var isKyotoMode = false
 
     // MARK: - Init
 
@@ -65,8 +64,7 @@ final class BackgroundSyncManager {
     func beginSync(
         totalWallets: Int,
         walletNames: [UUID: String],
-        syncEvents: AnyPublisher<WalletSyncEvent, Never>,
-        isKyotoMode: Bool = false
+        syncEvents: AnyPublisher<WalletSyncEvent, Never>
     ) {
         // If a Live Activity is already running, just re-subscribe to the new
         // event stream without creating a duplicate activity.
@@ -80,7 +78,6 @@ final class BackgroundSyncManager {
         self.completedWalletCount = 0
         self.walletNames = walletNames
         self.lastProgressUpdate = .distantPast
-        self.isKyotoMode = isKyotoMode
 
         isSyncing = true
         startLiveActivity(totalWallets: totalWallets)
@@ -129,7 +126,6 @@ final class BackgroundSyncManager {
             completedWallets: 0,
             totalWallets: totalWallets,
             errorMessage: nil,
-            isKyotoMode: isKyotoMode
         )
 
         do {
@@ -163,7 +159,6 @@ final class BackgroundSyncManager {
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
             errorMessage: errorMessage,
-            isKyotoMode: isKyotoMode
         )
 
         let finalContent = ActivityContent(state: finalState, staleDate: nil)
@@ -219,7 +214,6 @@ final class BackgroundSyncManager {
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
             errorMessage: nil,
-            isKyotoMode: isKyotoMode
         )
 
         switch state {
@@ -307,7 +301,6 @@ final class BackgroundSyncManager {
             totalWallets: totalWalletCount,
             errorMessage: nil,
             isWaitingBackground: true,
-            isKyotoMode: isKyotoMode
         )
         updateLiveActivity(with: state)
     }
