@@ -12,6 +12,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         NFX.sharedInstance().start()
 //        #endif
 
+        // Log the current sync mode for debugging.
+        let syncMode = UserDefaults.standard.preferredSyncMode
+        Log.print.info("[App] SyncMode: \(syncMode.displayName) (\(syncMode.rawValue))")
+
         // Register the background processing task for wallet synchronisation.
         BackgroundSyncManager.shared.registerBackgroundTask()
 

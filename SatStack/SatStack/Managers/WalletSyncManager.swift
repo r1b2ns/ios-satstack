@@ -69,6 +69,10 @@ protocol WalletSyncManagerProtocol: AnyObject {
     /// Cancels any running sync task for the given wallet and clears its
     /// cooldown tracking. Called when a wallet is deleted.
     func cancelSync(for walletId: UUID)
+
+    /// Recreates the internal wallet service instances to match the current
+    /// `UserDefaults.preferredSyncMode`. Called when the sync mode changes.
+    func reloadServices()
 }
 
 // MARK: - WalletSyncManager
@@ -103,7 +107,7 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
 
     /// Shared service instance used for detail-view syncs (balance + txs
     /// in a single pass via `syncWallet`).
-    private let detailSyncService: any WalletServiceProtocol
+    private var detailSyncService: any WalletServiceProtocol
 
     // MARK: - Internal state
 
@@ -344,5 +348,12 @@ final class WalletSyncManager: WalletSyncManagerProtocol {
         syncTasks[walletId]?.cancel()
         syncTasks.removeValue(forKey: walletId)
         lastSyncDates.removeValue(forKey: walletId)
+    }
+
+    // MARK: - reloadServices
+
+    func reloadServices() {
+        detailSyncService = WalletSyncManager.makeWalletService()
+        Log.print.info("[Sync] Wallet services reloaded for mode: \(UserDefaults.standard.preferredSyncMode.displayName)")
     }
 }

@@ -19,8 +19,12 @@ struct SyncModeView: View {
 
     private func buildModeRow(_ mode: SyncMode) -> some View {
         Button {
+            guard selectedMode != mode else { return }
             selectedMode = mode
             UserDefaults.standard.preferredSyncMode = mode
+
+            Log.print.info("[Settings] SyncMode changed to: \(mode.displayName)")
+            NotificationCenter.default.post(name: .syncModeDidChange, object: nil)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: mode.icon)

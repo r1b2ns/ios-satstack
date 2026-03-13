@@ -37,6 +37,9 @@ struct WalletSyncActivityAttributes: ActivityAttributes {
         /// True when the app was suspended and is waiting for the system
         /// to resume execution via a background task.
         var isWaitingBackground: Bool = false
+
+        /// True when the sync is running in Kyoto (CBF) mode.
+        var isKyotoMode: Bool = false
     }
 
     // MARK: - Static Data

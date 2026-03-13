@@ -32,6 +32,7 @@ final class BackgroundSyncManager {
     private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
     private var lastProgressUpdate = Date.distantPast
     private var isSyncing = false
+    private var isKyotoMode = false
 
     // MARK: - Init
 
@@ -64,7 +65,8 @@ final class BackgroundSyncManager {
     func beginSync(
         totalWallets: Int,
         walletNames: [UUID: String],
-        syncEvents: AnyPublisher<WalletSyncEvent, Never>
+        syncEvents: AnyPublisher<WalletSyncEvent, Never>,
+        isKyotoMode: Bool = false
     ) {
         // If a Live Activity is already running, just re-subscribe to the new
         // event stream without creating a duplicate activity.
@@ -78,6 +80,7 @@ final class BackgroundSyncManager {
         self.completedWalletCount = 0
         self.walletNames = walletNames
         self.lastProgressUpdate = .distantPast
+        self.isKyotoMode = isKyotoMode
 
         isSyncing = true
         startLiveActivity(totalWallets: totalWallets)
@@ -125,7 +128,8 @@ final class BackgroundSyncManager {
             currentWalletName: nil,
             completedWallets: 0,
             totalWallets: totalWallets,
-            errorMessage: nil
+            errorMessage: nil,
+            isKyotoMode: isKyotoMode
         )
 
         do {
@@ -158,7 +162,8 @@ final class BackgroundSyncManager {
             currentWalletName: nil,
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
-            errorMessage: errorMessage
+            errorMessage: errorMessage,
+            isKyotoMode: isKyotoMode
         )
 
         let finalContent = ActivityContent(state: finalState, staleDate: nil)
@@ -213,7 +218,8 @@ final class BackgroundSyncManager {
             currentWalletName: walletNames[walletId],
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
-            errorMessage: nil
+            errorMessage: nil,
+            isKyotoMode: isKyotoMode
         )
 
         switch state {
@@ -300,7 +306,8 @@ final class BackgroundSyncManager {
             completedWallets: completedWalletCount,
             totalWallets: totalWalletCount,
             errorMessage: nil,
-            isWaitingBackground: true
+            isWaitingBackground: true,
+            isKyotoMode: isKyotoMode
         )
         updateLiveActivity(with: state)
     }

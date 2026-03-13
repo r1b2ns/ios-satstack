@@ -195,6 +195,13 @@ extension UserDefaults {
     }
 }
 
+// MARK: - Notification.Name + SyncMode
+
+extension Notification.Name {
+    /// Posted when the user changes the wallet sync mode in Settings.
+    static let syncModeDidChange = Notification.Name("syncModeDidChange")
+}
+
 // MARK: - Protocol
 
 protocol SettingsViewModelProtocol: ObservableObject {

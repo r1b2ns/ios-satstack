@@ -57,10 +57,10 @@ struct WalletSyncLiveActivity: Widget {
         context: ActivityViewContext<WalletSyncActivityAttributes>
     ) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "arrow.triangle.2.circlepath")
+            Image(systemName: context.state.isKyotoMode ? "network" : "arrow.triangle.2.circlepath")
                 .foregroundStyle(.orange)
                 .font(.title3)
-            Text("Wallet Sync")
+            Text(context.state.isKyotoMode ? "Kyoto Sync" : "Wallet Sync")
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)
         }
@@ -140,12 +140,21 @@ private struct SyncLockScreenView: View {
     func buildHeader() -> some View {
         HStack(alignment: .bottom) {
             HStack(spacing: 6) {
-                Image(systemName: "arrow.triangle.2.circlepath")
+                Image(systemName: context.state.isKyotoMode ? "network" : "arrow.triangle.2.circlepath")
                     .foregroundStyle(.orange)
                     .font(.subheadline)
                 Text("Wallet Sync")
                     .font(.system(.subheadline, design: .monospaced).bold())
                     .foregroundStyle(.white)
+
+                if context.state.isKyotoMode {
+                    Text("P2P")
+                        .font(.system(.caption2, design: .monospaced).bold())
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.orange.opacity(0.15), in: Capsule())
+                }
             }
 
             Spacer()
@@ -313,14 +322,15 @@ private struct SyncLockScreenView: View {
     // MARK: - Footer Helpers
 
     private var footerText: String {
+        let prefix = context.state.isKyotoMode ? "Kyoto — " : ""
         switch context.state.status {
         case .syncing:
             if let progress = context.state.progress {
-                return "Syncing — \(Int(progress * 100))%"
+                return "\(prefix)Syncing — \(Int(progress * 100))%"
             }
-            return "Syncing wallets…"
+            return "\(prefix)Syncing wallets…"
         case .fullScanning:
-            return "Full scan in progress…"
+            return "\(prefix)Full scan in progress…"
         case .completed:
             return "Sync complete"
         case .failed:

@@ -147,6 +147,12 @@ struct WalletsUiState {
     /// `nil` until the first successful fetch from SwiftData.
     var totalWalletBalanceSats: UInt64? = nil
 
+    /// Kyoto node connection status — only relevant when `isKyotoMode` is true.
+    var kyotoConnectionStatus: KyotoNodeConnectionStatus = .disconnected
+
+    /// True when the user has selected Kyoto (CBF) as the sync mode.
+    var isKyotoMode: Bool = UserDefaults.standard.preferredSyncMode == .kyoto
+
     /// Non-nil when a sync error should be shown to the user.
     var syncErrorMessage: String? = nil
 
@@ -194,6 +200,8 @@ final class WalletsViewModel: WalletsViewModelProtocol {
         self.swiftDataStorage = swiftDataStorage ?? SwiftDataStorable.shared
         self.keychainStorage = keychainStorage
         subscribeSyncEvents()
+        observeKyotoStatus()
+        observeSyncModeChange()
         Task { @MainActor in await self.loadWallets() }
         Task { @MainActor in await self.fetchWalletBalance() }
     }
@@ -206,6 +214,45 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             .sink { [weak self] event in
                 Task { @MainActor in
                     self?.handleSyncEvent(event)
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Kyoto status observation
+
+    private func observeKyotoStatus() {
+        KyotoNodeManager.shared.$connectionStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                self?.uiState.kyotoConnectionStatus = status
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Sync mode change observation
+
+    private func observeSyncModeChange() {
+        NotificationCenter.default.publisher(for: .syncModeDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.uiState.isKyotoMode = UserDefaults.standard.preferredSyncMode == .kyoto
+                self.syncManager.reloadServices()
+
+                // Mark all wallets as needing a full scan after mode change.
+                for index in self.uiState.wallets.indices {
+                    self.uiState.wallets[index].needsFullScan = true
+                }
+                Task { @MainActor in
+                    for wallet in self.uiState.wallets {
+                        await self.persistWallet(wallet)
+                    }
+                }
+
+                // Trigger a full scan/recovery on all wallets after the mode change.
+                Task { @MainActor in
+                    await self.fullScanAllWallets()
                 }
             }
             .store(in: &cancellables)
@@ -245,7 +292,8 @@ final class WalletsViewModel: WalletsViewModelProtocol {
             BackgroundSyncManager.shared.beginSync(
                 totalWallets: 1,
                 walletNames: [wallet.id: wallet.name],
-                syncEvents: self.syncManager.syncEvents
+                syncEvents: self.syncManager.syncEvents,
+                isKyotoMode: self.uiState.isKyotoMode
             )
 
             // Delegate the actual sync to the manager.
@@ -350,11 +398,19 @@ extension WalletsViewModel {
         }
         guard !walletsToSync.isEmpty else { return }
 
+        // In Kyoto mode, wait until the P2P node is connected before syncing.
+        if uiState.isKyotoMode {
+            Log.print.info("[Wallets] Waiting for Kyoto connection before sync…")
+            await KyotoNodeManager.shared.waitForConnection()
+            Log.print.info("[Wallets] Kyoto connected — starting sync")
+        }
+
         let walletNames = Dictionary(uniqueKeysWithValues: walletsToSync.map { ($0.id, $0.name) })
         BackgroundSyncManager.shared.beginSync(
             totalWallets: walletsToSync.count,
             walletNames: walletNames,
-            syncEvents: syncManager.syncEvents
+            syncEvents: syncManager.syncEvents,
+            isKyotoMode: uiState.isKyotoMode
         )
 
         let manager = syncManager
@@ -375,11 +431,19 @@ extension WalletsViewModel {
         }
         guard !walletsToSync.isEmpty else { return }
 
+        // In Kyoto mode, wait until the P2P node is connected before scanning.
+        if uiState.isKyotoMode {
+            Log.print.info("[Wallets] Waiting for Kyoto connection before full scan…")
+            await KyotoNodeManager.shared.waitForConnection()
+            Log.print.info("[Wallets] Kyoto connected — starting full scan")
+        }
+
         let walletNames = Dictionary(uniqueKeysWithValues: walletsToSync.map { ($0.id, $0.name) })
         BackgroundSyncManager.shared.beginSync(
             totalWallets: walletsToSync.count,
             walletNames: walletNames,
-            syncEvents: syncManager.syncEvents
+            syncEvents: syncManager.syncEvents,
+            isKyotoMode: uiState.isKyotoMode
         )
 
         let manager = syncManager
@@ -401,7 +465,8 @@ extension WalletsViewModel {
         BackgroundSyncManager.shared.beginSync(
             totalWallets: 1,
             walletNames: [wallet.id: wallet.name],
-            syncEvents: syncManager.syncEvents
+            syncEvents: syncManager.syncEvents,
+            isKyotoMode: uiState.isKyotoMode
         )
 
         Task { @MainActor in
@@ -453,6 +518,14 @@ private extension WalletsViewModel {
             // Ignore events for wallets that were deleted while syncing.
             guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
             uiState.walletSyncStates[walletId] = state
+
+            // Clear the full-scan flag once the wallet finishes syncing.
+            if state == .synced,
+               let index = uiState.wallets.firstIndex(where: { $0.id == walletId }),
+               uiState.wallets[index].needsFullScan {
+                uiState.wallets[index].needsFullScan = false
+                Task { await self.persistWallet(self.uiState.wallets[index]) }
+            }
 
         case .balanceUpdated(let walletId, let balanceSats):
             guard uiState.wallets.contains(where: { $0.id == walletId }) else { return }
@@ -565,6 +638,13 @@ private extension WalletsViewModel {
             uiState.wallets = []
         }
         uiState.isLoadingWallets = false
+
+        // Start the Kyoto P2P node regardless of the current sync mode so it
+        // is ready when the user switches to Kyoto. Uses the first seed-based
+        // wallet to build the CBF components.
+        if let firstWallet = uiState.wallets.first(where: { !$0.isAddressWallet }) {
+            KyotoNodeManager.shared.startConnection(with: firstWallet)
+        }
 
         // Kick off background sync for every loaded wallet.
         await syncAllWallets()
