@@ -87,11 +87,13 @@ final class BDKWalletService: WalletServiceProtocol {
     }
 
     private func createCbfClient(
+        walletId: String,
         for wallet: BitcoinDevKit.Wallet,
         scanType: ScanType = .sync,
         handleEvent: @escaping @Sendable (CbfClientEvents?) -> Void
     ) async throws  -> BitcoinDevKit.Update {
         cbfClient = CbfClient.createComponents(
+            walletId: walletId,
             wallet: wallet,
             scanType: scanType,
             peers: [],
@@ -346,6 +348,7 @@ private extension BDKWalletService {
             Log.print.warning("[FullScan] Kyoto backend should not use BDKWalletService for full scans")
             Task {
                 let update = try await createCbfClient(
+                    walletId: walletId.uuidString,
                     for: bdkWallet,
                     scanType: .recovery(
                         usedScriptIndex: 200000,
@@ -408,6 +411,7 @@ private extension BDKWalletService {
             Log.print.warning("[Sync] Kyoto backend should not use BDKWalletService for syncs")
             Task {
                 let update = try await createCbfClient(
+                    walletId: walletId.uuidString,
                     for: bdkWallet,
                     handleEvent: { event in
                         switch event {

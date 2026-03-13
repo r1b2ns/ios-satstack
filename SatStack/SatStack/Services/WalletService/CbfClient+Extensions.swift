@@ -29,6 +29,7 @@ extension CbfClient {
     private static let monitoringTasksQueue = DispatchQueue(label: "space.cbf.monitoring.tasks")
 
     static func createComponents(
+        walletId: String,
         wallet: BitcoinDevKit.Wallet,
         scanType: ScanType,
         peers: [Peer],
@@ -49,12 +50,16 @@ extension CbfClient {
 
         components.node.run()
 
-        components.client.startBackgroundMonitoring(handleEvent: handleEvent)
+        components.client.startBackgroundMonitoring(
+            walletId: walletId,
+            handleEvent: handleEvent
+        )
 
         return (client: components.client, node: components.node)
     }
 
     func startBackgroundMonitoring(
+        walletId: String,
         handleEvent: @escaping @Sendable (CbfClientEvents?) -> Void
     ) {
         let id = ObjectIdentifier(self)
@@ -70,7 +75,13 @@ extension CbfClient {
                         Log.print.info("[Kyoto] Progress — height: \(chainHeight), filters: \(filtersDownloadedPercent)%")
                         handleEvent(.progress(chainHeight, Double(filtersDownloadedPercent)))
                         
-                        NotificationCenter.default.post(name: .cbfClientConnected, object: nil)
+                        NotificationCenter.default.post(
+                            name: .cbfClientConnected,
+                            object: nil,
+                            userInfo: [
+                                "walletId": walletId,
+                            ]
+                        )
 
                     case .blockReceived(let blockHash):
                         Log.print.info("[Kyoto] Block received — hash: \(blockHash)")
@@ -79,12 +90,24 @@ extension CbfClient {
                     case .connectionsMet:
                         Log.print.info("[Kyoto] Connections met — peer threshold reached")
                         handleEvent(.connectionsMet)
-                        NotificationCenter.default.post(name: .cbfClientConnected, object: nil)
+                        NotificationCenter.default.post(
+                            name: .cbfClientConnected,
+                            object: nil,
+                            userInfo: [
+                                "walletId": walletId,
+                            ]
+                        )
 
                     case .successfulHandshake:
                         Log.print.info("[Kyoto] Successful handshake with peer")
                         handleEvent(.successfulHandshake)
-                        NotificationCenter.default.post(name: .cbfClientConnected, object: nil)
+                        NotificationCenter.default.post(
+                            name: .cbfClientConnected,
+                            object: nil,
+                            userInfo: [
+                                "walletId": walletId,
+                            ]
+                        )
                         
                     }
                 } catch is CancellationError {
@@ -126,7 +149,13 @@ extension CbfClient {
                     switch warning {
                     case .needConnections:
                         Log.print.info("[Kyoto] Need more connections")
-                        NotificationCenter.default.post(name: .cbfClientDisconnected, object: nil)
+                        NotificationCenter.default.post(
+                            name: .cbfClientDisconnected,
+                            object: nil,
+                            userInfo: [
+                                "walletId": walletId,
+                            ]
+                        )
                         
                     case let .transactionRejected(wtxid, reason):
                         if let reason {
