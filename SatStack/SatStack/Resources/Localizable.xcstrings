@@ -816,6 +816,9 @@
         }
       }
     },
+    "INITIALIZING" : {
+
+    },
     "Insufficient funds to cover amount + fee" : {
       "comment" : "SendBitcoinView — validation error when balance is too low for amount + fee",
       "localizations" : {
