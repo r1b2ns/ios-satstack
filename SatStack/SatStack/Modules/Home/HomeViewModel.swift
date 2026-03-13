@@ -209,6 +209,7 @@ final class HomeViewModel: HomeViewModelProtocol {
             let response = try await api.fetchFearAndGreedIndex()
             if let entry = response.data.first {
                 uiState.fearAndGreedEntry = entry
+                AppGroupStore.saveFearAndGreed(entry)
             }
         } catch {
             Log.print.error("Fear and Greed Index fetch failed: \(error.localizedDescription)")
