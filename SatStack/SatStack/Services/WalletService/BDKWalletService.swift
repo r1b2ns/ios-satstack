@@ -610,13 +610,17 @@ extension BDKWalletService {
 
     /// Persists the fact that the given wallet has completed its initial full scan.
     static func markFullScanCompleted(for walletId: UUID) {
-        UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        Task { @MainActor in
+            UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        }
         Log.print.info("[BDK] Full scan state saved for wallet \(walletId.uuidString)")
     }
 
     /// Resets the full-scan flag so the next sync performs a full scan.
     static func resetFullScanFlag(for walletId: UUID) {
-        UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        Task { @MainActor in
+            UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        }
         Log.print.info("[BDK] Full scan flag reset for wallet \(walletId.uuidString)")
     }
 
