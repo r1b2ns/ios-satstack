@@ -7,5 +7,9 @@ struct SatStackWidgetBundle: WidgetBundle {
         SatStackLiveActivity()
         WalletSyncLiveActivity()
         SatStackWidgetGreedAndFear()
+        SatStackWidgetTransactionFee()
+        SatStackWidgetBlockHeight()
+        SatStackWidgetNextHalving()
+        SatStackWidgetFiatPrice()
     }
 }
