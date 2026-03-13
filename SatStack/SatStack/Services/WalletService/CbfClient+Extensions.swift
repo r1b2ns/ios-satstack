@@ -8,6 +8,18 @@
 import BitcoinDevKit
 import Foundation
 
+enum CbfClientEvents {
+    case progress(UInt32, Double?)
+    case blockReceived(String)
+    case connectionsMet
+    case successfulHandshake
+}
+
+extension NSNotification.Name {
+    static let cbfClientConnected = NSNotification.Name("cbfClientConnected")
+    static let cbfClientDisconnected = NSNotification.Name("cbfClientDisconnected")
+}
+
 extension CbfClient {
     // Track monitoring tasks per client for clean cancellation
     private static var monitoringTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
@@ -19,33 +31,32 @@ extension CbfClient {
     static func createComponents(
         wallet: BitcoinDevKit.Wallet,
         scanType: ScanType,
-        peers: [Peer]
+        peers: [Peer],
+        handleEvent: @escaping @Sendable (CbfClientEvents?) -> Void
     ) -> (client: CbfClient, node: CbfNode) {
-        do {
-            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let path = documentsDir.appendingPathComponent("kyoto").path
-            
-            let network = wallet.network()
-            let dataDir = path
-            Log.print.info("[Kyoto] Preparing CBF components – network: \(String(describing: network)), dataDir: \(dataDir), peers: \(peers.count), scanType: \(String(describing: scanType))")
+        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let path = documentsDir.appendingPathComponent("kyoto").path
+        
+        let network = wallet.network()
+        let dataDir = path
+        Log.print.info("[Kyoto] Preparing CBF components – network: \(String(describing: network)), dataDir: \(dataDir), peers: \(peers.count), scanType: \(String(describing: scanType))")
 
-            let components = try CbfBuilder()
-                .scanType(scanType: scanType)
-                .dataDir(dataDir: dataDir)
-                .peers(peers: peers)
-                .build(wallet: wallet)
+        let components = CbfBuilder()
+            .scanType(scanType: scanType)
+            .dataDir(dataDir: dataDir)
+            .peers(peers: peers)
+            .build(wallet: wallet)
 
-            components.node.run()
+        components.node.run()
 
-            components.client.startBackgroundMonitoring()
+        components.client.startBackgroundMonitoring(handleEvent: handleEvent)
 
-            return (client: components.client, node: components.node)
-        } catch {
-            fatalError("Failed to create CBF components: \(error)")
-        }
+        return (client: components.client, node: components.node)
     }
 
-    func startBackgroundMonitoring() {
+    func startBackgroundMonitoring(
+        handleEvent: @escaping @Sendable (CbfClientEvents?) -> Void
+    ) {
         let id = ObjectIdentifier(self)
 
         let task = Task { [self] in
@@ -57,53 +68,24 @@ extension CbfClient {
                     switch info {
                     case .progress(let chainHeight, let filtersDownloadedPercent):
                         Log.print.info("[Kyoto] Progress — height: \(chainHeight), filters: \(filtersDownloadedPercent)%")
-//                        await MainActor.run {
-//                            NotificationCenter.default.post(
-//                                name: NSNotification.Name("KyotoProgressUpdate"),
-//                                object: nil,
-//                                userInfo: [
-//                                    "progress": filtersDownloadedPercent,
-//                                    "height": Int(chainHeight),
-//                                ]
-//                            )
-//                            NotificationCenter.default.post(
-//                                name: NSNotification.Name("KyotoChainHeightUpdate"),
-//                                object: nil,
-//                                userInfo: ["height": Int(chainHeight)]
-//                            )
-//                            NotificationCenter.default.post(
-//                                name: NSNotification.Name("KyotoConnectionUpdate"),
-//                                object: nil,
-//                                userInfo: ["connected": true]
-//                            )
-//                        }
+                        handleEvent(.progress(chainHeight, Double(filtersDownloadedPercent)))
+                        
+                        NotificationCenter.default.post(name: .cbfClientConnected, object: nil)
+
                     case .blockReceived(let blockHash):
                         Log.print.info("[Kyoto] Block received — hash: \(blockHash)")
-//                        await MainActor.run {
-//                            NotificationCenter.default.post(
-//                                name: NSNotification.Name("KyotoConnectionUpdate"),
-//                                object: nil,
-//                                userInfo: ["connected": true]
-//                            )
-//                        }
+                        handleEvent(.blockReceived(blockHash))
+
                     case .connectionsMet:
                         Log.print.info("[Kyoto] Connections met — peer threshold reached")
-//                        await MainActor.run {
-//                            NotificationCenter.default.post(
-//                                name: NSNotification.Name("KyotoConnectionUpdate"),
-//                                object: nil,
-//                                userInfo: ["connected": true]
-//                            )
-//                        }
+                        handleEvent(.connectionsMet)
+                        NotificationCenter.default.post(name: .cbfClientConnected, object: nil)
+
                     case .successfulHandshake:
                         Log.print.info("[Kyoto] Successful handshake with peer")
-//                        await MainActor.run {
-//                            NotificationCenter.default.post(
-//                                name: NSNotification.Name("KyotoConnectionUpdate"),
-//                                object: nil,
-//                                userInfo: ["connected": true]
-//                            )
-//                        }
+                        handleEvent(.successfulHandshake)
+                        NotificationCenter.default.post(name: .cbfClientConnected, object: nil)
+                        
                     }
                 } catch is CancellationError {
                     break
@@ -143,13 +125,9 @@ extension CbfClient {
                     let warning = try await self.nextWarning()
                     switch warning {
                     case .needConnections:
-                        await MainActor.run {
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name("KyotoConnectionUpdate"),
-                                object: nil,
-                                userInfo: ["connected": false]
-                            )
-                        }
+                        Log.print.info("[Kyoto] Need more connections")
+                        NotificationCenter.default.post(name: .cbfClientDisconnected, object: nil)
+                        
                     case let .transactionRejected(wtxid, reason):
                         if let reason {
                             Log.print.warning("[Kyoto] Rejected tx \(wtxid): \(reason)")
@@ -170,11 +148,11 @@ extension CbfClient {
         Self.monitoringTasksQueue.sync {
             Self.warningTasks[id] = warnings
         }
-
     }
 
     func stopBackgroundMonitoring() {
         let id = ObjectIdentifier(self)
+        NotificationCenter.default.post(name: .cbfClientDisconnected, object: nil)
         Self.monitoringTasksQueue.sync {
             guard let task = Self.monitoringTasks.removeValue(forKey: id) else { return }
             task.cancel()
@@ -185,6 +163,7 @@ extension CbfClient {
     }
 
     static func cancelAllMonitoring() {
+        NotificationCenter.default.post(name: .cbfClientDisconnected, object: nil)
         Self.monitoringTasksQueue.sync {
             for (_, task) in Self.monitoringTasks { task.cancel() }
             for (_, wt) in Self.warningTasks { wt.cancel() }

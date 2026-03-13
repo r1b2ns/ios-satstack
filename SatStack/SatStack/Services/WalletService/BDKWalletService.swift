@@ -12,11 +12,15 @@ enum BlockchainBackend {
 
     /// TCP-based Electrum protocol server.
     case electrum
-    
+
+    /// Compact Block Filters (CBF) via the Kyoto P2P light client.
+    case kyoto
+
     var url: String {
         switch self {
         case .esplora:  return BDKNetworkConfig.esploraURL
         case .electrum: return BDKNetworkConfig.electrumURL
+        case .kyoto:    return ""
         }
     }
 }
@@ -41,12 +45,14 @@ enum BlockchainBackend {
 /// Both paths attach a script inspector that logs progress to the console via
 /// `Log.print` — `WalletFullScanScriptInspector` for full scans and
 /// `WalletSyncScriptInspector` for incremental syncs.
-struct BDKWalletService: WalletServiceProtocol {
+final class BDKWalletService: WalletServiceProtocol {
 
     /// The blockchain backend used for wallet synchronisation.
     let backend: BlockchainBackend
+    
+    private var cbfClient: (client: CbfClient, node: CbfNode)?
 
-    init(backend: BlockchainBackend = .esplora) {
+    init(backend: BlockchainBackend = .kyoto) {
         self.backend = backend
     }
 
@@ -69,15 +75,40 @@ struct BDKWalletService: WalletServiceProtocol {
             network: BDKNetworkConfig.network,
             persister: persister
         )
+        
         // Persist the initial wallet state so Wallet.load succeeds on next open.
         _ = try bdkWallet.persist(persister: persister)
         Log.print.info("[BDK] New wallet created and persisted: \(walletId.uuidString)")
 
         let wallet = Wallet(id: walletId, name: "My Wallet", theme: .bitcoin, balanceBTC: 0.0, mnemonicPhrase: phrase)
         let backup = WalletBackup(walletId: walletId, kind: .seedPhrase(words))
+        
         return WalletCreationResult(wallet: wallet, backup: backup)
     }
 
+    private func createCbfClient(
+        for wallet: BitcoinDevKit.Wallet,
+        scanType: ScanType = .sync,
+        handleEvent: @escaping @Sendable (CbfClientEvents?) -> Void
+    ) async throws  -> BitcoinDevKit.Update {
+        cbfClient = CbfClient.createComponents(
+            wallet: wallet,
+            scanType: scanType,
+            peers: [],
+            handleEvent: handleEvent
+        )
+        
+        do {
+            guard let update = try await cbfClient?.client.update() else {
+                throw WalletServiceError.unknown("Kyoto update failed")
+            }
+            return update
+        } catch {
+            Log.print.error("[Kyoto] \(error.localizedDescription)")
+            throw WalletServiceError.unknown("Kyoto update failed")
+        }
+    }
+    
     // MARK: - importWallet
 
     func importWallet(from source: WalletImportSource) async throws -> Wallet {
@@ -310,6 +341,33 @@ private extension BDKWalletService {
         case .electrum:
             let client = try ElectrumClient(url: backend.url)
             update = try client.fullScan(request: request, stopGap: 20, batchSize: 5, fetchPrevTxouts: true)
+        case .kyoto:
+            // Kyoto full scans are handled by CbfClient directly — not through BDKWalletService.
+            Log.print.warning("[FullScan] Kyoto backend should not use BDKWalletService for full scans")
+            Task {
+                let update = try await createCbfClient(
+                    for: bdkWallet,
+                    scanType: .recovery(
+                        usedScriptIndex: 200000,
+                        checkpoint: .segwitActivation
+                    ),
+                    handleEvent: { event in
+                        switch event {
+                        case let .progress(_, percentual):
+                            onProgress(percentual)
+                            
+                        default:
+                            break
+                        }
+                        
+                    }
+                )
+                
+                try bdkWallet.applyUpdate(update: update)
+                let persisted = try bdkWallet.persist(persister: persister)
+                Log.print.info("[FullScan] Wallet \(walletId.uuidString): full scan completed. Persisted: \(persisted)")
+            }
+            return
         }
 
         try bdkWallet.applyUpdate(update: update)
@@ -345,6 +403,29 @@ private extension BDKWalletService {
         case .electrum:
             let client = try ElectrumClient(url: backend.url)
             update = try client.sync(request: request, batchSize: 5, fetchPrevTxouts: true)
+        case .kyoto:
+            // Kyoto syncs are handled by CbfClient directly — not through BDKWalletService.
+            Log.print.warning("[Sync] Kyoto backend should not use BDKWalletService for syncs")
+            Task {
+                let update = try await createCbfClient(
+                    for: bdkWallet,
+                    handleEvent: { event in
+                        switch event {
+                        case let .progress(_, percentual):
+                            onProgress(percentual)
+                            
+                        default:
+                            break
+                        }
+                    }
+                )
+                
+                try bdkWallet.applyUpdate(update: update)
+                let persisted = try bdkWallet.persist(persister: persister)
+                Log.print.info("[Sync] Wallet \(walletId.uuidString): full scan completed. Persisted: \(persisted)")
+            }
+            
+            return
         }
 
         try bdkWallet.applyUpdate(update: update)
@@ -610,13 +691,17 @@ private extension BDKWalletService {
 
     /// Persists the fact that the given wallet has completed its initial full scan.
     static func markFullScanCompleted(for walletId: UUID) {
-        UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        Task { @MainActor in
+            UserDefaults.standard.set(true, forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        }
         Log.print.info("[BDK] Full scan state saved for wallet \(walletId.uuidString)")
     }
 
     /// Resets the full-scan flag so the next sync performs a full scan.
     static func resetFullScanFlag(for walletId: UUID) {
-        UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        Task { @MainActor in
+            UserDefaults.standard.removeObject(forKey: "\(fullScanKeyPrefix)\(walletId.uuidString)")
+        }
         Log.print.info("[BDK] Full scan flag reset for wallet \(walletId.uuidString)")
     }
 
