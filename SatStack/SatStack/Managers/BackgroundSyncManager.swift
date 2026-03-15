@@ -163,10 +163,14 @@ final class BackgroundSyncManager {
 
         let finalContent = ActivityContent(state: finalState, staleDate: nil)
 
+        // Completed syncs stay visible for 10 seconds so the user sees the result,
+        // then iOS automatically dismisses the Live Activity.
+        let dismissalPolicy: ActivityUIDismissalPolicy = status == .completed
+            ? .after(Date().addingTimeInterval(10))
+            : .default
+
         Task {
-            // Use .default so iOS keeps the activity visible on the Lock Screen
-            // after it ends, giving the user time to see the final result.
-            await activity.end(finalContent, dismissalPolicy: .default)
+            await activity.end(finalContent, dismissalPolicy: dismissalPolicy)
         }
 
         currentActivity = nil
