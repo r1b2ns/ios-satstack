@@ -151,7 +151,7 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
         let totalHeight = CGFloat(wallets.count - 1) * headerHeight + cardHeight
 
         return ScrollView {
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 buildTotalBalanceHeader()
 
                 ZStack(alignment: .top) {
@@ -170,7 +170,7 @@ struct WalletsView<ViewModel: WalletsViewModelProtocol>: View {
                             }
                     }
                 }
-                .frame(height: totalHeight)
+                .frame(height: totalHeight, alignment: .top)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
             }
