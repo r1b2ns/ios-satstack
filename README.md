@@ -40,7 +40,7 @@ Updates are delivered via **APNs (Apple Push Notification service)**, with no ne
 - **Apple Developer account** with push notifications capability
 - **APNs Key** (`.p8`) generated in the Apple Developer Portal — required by the server to send pushes
 
-> Actual monitoring depends on the **[api-mempool-monitor](https://github.com/rubensmachion/api-mempool-monitor)** server, which watches the blockchain and dispatches notifications via APNs.
+> Actual monitoring depends on the **[api-mempool-monitor](https://github.com/r1b2ns/api-mempool-monitor)** server, which watches the blockchain and dispatches notifications via APNs.
 
 ---
 
