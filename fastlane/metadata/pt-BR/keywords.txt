@@ -1,1 +1,0 @@
-bitcoin,carteira,mempool,btc,taxas,satoshi,autocustódia,transações,bloco,cripto

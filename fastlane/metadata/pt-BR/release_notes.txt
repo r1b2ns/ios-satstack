@@ -1,8 +1,0 @@
-Lançamento inicial do SatStack.
-
-- Painel Bitcoin em tempo real com preço, taxas e altura de bloco
-- Carteira self-custody: crie ou importe via seed phrase
-- Monitoramento de transações com Live Activities na Tela de Bloqueio e Dynamic Island
-- Envio de Bitcoin com leitura de QR code e controle de taxa
-- Saldo exibido em BTC, sats ou formato BIP-177
-- Código aberto — audite o código no GitHub
