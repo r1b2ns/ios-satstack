@@ -63,7 +63,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                     buildOpenSourceRow()
                 }
                 Section {
-                    buildBuyMeACoffeeRow()
+//                    buildBuyMeACoffeeRow()
                     buildRateAppRow()
                 } header: {
                     Text("Support")

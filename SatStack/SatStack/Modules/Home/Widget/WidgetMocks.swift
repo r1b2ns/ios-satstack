@@ -69,7 +69,7 @@ extension WidgetConfiguration {
         WidgetConfiguration(item: .greedAndFearsIndex),   // .expanded (default)
         WidgetConfiguration(item: .currentBlockHeight),   // .compact  (default)
         WidgetConfiguration(item: .transactionFeeValue),  // .compact  (default)
-        WidgetConfiguration(item: .walletBalance),        // .compact  (default)
+//        WidgetConfiguration(item: .walletBalance),        // .compact  (default)
         WidgetConfiguration(item: .nextHalving),          // .compact  (default)
         WidgetConfiguration(item: .fiatPrice),          // .compact  (default)
     ]

@@ -43,15 +43,15 @@ struct SatStackApp: App {
                     }
                     .tag(AppTabSelection.home)
 
-                WalletsViewFactory.build()
-                    .tabItem {
-                        Label {
-                            Text("Wallets")
-                        } icon: {
-                            Image(systemName: "creditcard")
-                        }
-                    }
-                    .tag(AppTabSelection.wallets)
+//                WalletsViewFactory.build()
+//                    .tabItem {
+//                        Label {
+//                            Text("Wallets")
+//                        } icon: {
+//                            Image(systemName: "creditcard")
+//                        }
+//                    }
+//                    .tag(AppTabSelection.wallets)
 
                 TransactionListViewFactory.build()
                     .tabItem {

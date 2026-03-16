@@ -1,1 +1,1 @@
-bitcoin,wallet,mempool,btc,fees,satoshi,self-custody,transactions,block,crypto
+bitcoin,mempool,btc,fees,satoshi,transactions,block,crypto,monitor,network

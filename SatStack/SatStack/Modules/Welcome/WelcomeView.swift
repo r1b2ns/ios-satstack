@@ -62,12 +62,12 @@ struct WelcomeView: View {
                 description: "Live Bitcoin price, network fees, block height and market sentiment at a glance."
             )
 
-            buildFeatureRow(
-                icon: "key.fill",
-                iconColor: .accentColor,
-                title: "Self-Custody Wallets",
-                description: "Create or import wallets. Your keys, your coins — always under your control."
-            )
+//            buildFeatureRow(
+//                icon: "key.fill",
+//                iconColor: .accentColor,
+//                title: "Self-Custody Wallets",
+//                description: "Create or import wallets. Your keys, your coins — always under your control."
+//            )
 
             buildFeatureRow(
                 icon: "bell.badge.fill",

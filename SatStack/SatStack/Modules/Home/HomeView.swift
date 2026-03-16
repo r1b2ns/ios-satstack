@@ -99,7 +99,7 @@ struct HomeView<ViewModel: HomeViewModelProtocol>: View {
     private func buildGrid() -> some View {
         ScrollView {
             VStack(spacing: 12) {
-                buildBetaTip()
+//                buildBetaTip()
                 ForEach(groupedRows, id: \.first?.id) { row in
                     buildWidgetRow(row)
                 }

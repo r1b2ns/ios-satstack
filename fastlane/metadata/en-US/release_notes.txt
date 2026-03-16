@@ -1,8 +1,6 @@
 Initial release of SatStack.
 
 - Real-time Bitcoin dashboard with price, fees, and block height
-- Self-custody wallet: create or import via seed phrase
 - Transaction monitoring with Live Activities on Lock Screen and Dynamic Island
-- Send Bitcoin with QR code scanning and fee control
 - Balance display in BTC, sats, or BIP-177 format
 - Open source — audit the code on GitHub
