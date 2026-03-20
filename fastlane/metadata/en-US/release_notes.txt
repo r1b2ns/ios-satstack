@@ -2,5 +2,4 @@ Initial release of SatStack.
 
 - Real-time Bitcoin dashboard with price, fees, and block height
 - Transaction monitoring with Live Activities on Lock Screen and Dynamic Island
-- Balance display in BTC, sats, or BIP-177 format
 - Open source — audit the code on GitHub

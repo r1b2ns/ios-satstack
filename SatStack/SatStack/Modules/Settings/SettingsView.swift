@@ -54,7 +54,7 @@ struct SettingsView<ViewModel: SettingsViewModelProtocol>: View {
                     buildSyncModeRow()
                 }
                 Section("Preferences") {
-                    buildBalanceFormatRow()
+//                    buildBalanceFormatRow()
                     buildFiatCurrencyRow()
                 }
                 Section("About") {

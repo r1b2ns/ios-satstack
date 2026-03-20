@@ -44,7 +44,7 @@ struct HomeUiState {
     /// Widgets not yet present in the active list, derived automatically.
     var availableWidgets: [WidgetItem] {
         let activeItems = Set(activeWidgets.map(\.item))
-        return WidgetItem.allCases.filter { !activeItems.contains($0) }
+        return WidgetItem.allCases.filter { !activeItems.contains($0) && $0 != .walletBalance }
     }
 }
 
